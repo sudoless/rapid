@@ -27,7 +27,7 @@ go test -args -h                    # lists the -rapid.* flags
   ```
 - Generation is deterministic per seed. The `Example*` outputs pin the exact values drawn, so a change to the bitstream, a generator, or the shrinker shows up there as a behaviour change, to be explained before the expected output is updated.
 - A fail file (`testdata/rapid/<test>/*.fail`) replays a failure from its recorded bitstream and is ignored when its version differs from `rapidVersion` (`persist.go`).
-- The `go` line in `go.mod` is the floor. Features from newer Go sit behind a `//go:build go1.N` / `!go1.N` file pair, as `synctest_enabled.go` and `synctest_disabled.go` do.
+- Only the latest Go release is supported, and `go.mod` names it.
 
 ## Conventions
 

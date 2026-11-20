@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//go:build go1.25
-
 package rapid
 
 import (
@@ -29,7 +27,7 @@ func TestSyncTest_FailureIsCapturedForShrinking(t *testing.T) {
 	if !strings.Contains(errorString(err), "boom") {
 		t.Fatalf("missing failure message: %q", errorString(err))
 	}
-	if !strings.Contains(traceback(err), "synctest_enabled_internal_test.go") {
+	if !strings.Contains(traceback(err), "synctest_internal_test.go") {
 		t.Fatalf("traceback does not include property call site:\n%v", traceback(err))
 	}
 }

@@ -786,7 +786,7 @@ func (t *T) Log(args ...any) {
 // flush the buffer, followed by a newline. After a test function and all its
 // parents return, neither Output nor the Write method may be called.
 //
-// Only available on Go >= 1.25
+// Output fails the test when the underlying [TB] has no Output method.
 func (t *T) Output() io.Writer {
 	t.Helper()
 
@@ -796,7 +796,7 @@ func (t *T) Output() io.Writer {
 		if tout, ok := t.tb.(interface{ Output() io.Writer }); ok {
 			return tout.Output()
 		} else {
-			t.Fatal("[rapid] Output requires Go 1.25 or newer")
+			t.Fatal("[rapid] Output requires a TB with an Output method")
 			return nil
 		}
 	} else {
