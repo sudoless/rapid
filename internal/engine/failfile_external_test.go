@@ -30,6 +30,48 @@ func TestFailFilePattern(t *testing.T) {
 	})
 }
 
+// Go keeps these subtest names distinct, so each test replays only its own fail files.
+func TestFailFilePatternSeparatesDistinctTestNames(t *testing.T) {
+	t.Parallel()
+
+	names := []string{"TestCalc/1+2", "TestCalc/1*2", "TestCalc/1.2", "TestCalc/1_2", "TestCalc_1/2"}
+	for _, name := range names {
+		for _, other := range names {
+			if name == other {
+				continue
+			}
+			pattern := engine.FailFilePattern(name)
+			fileName := engine.FailFileName(other)
+			if match, err := filepath.Match(pattern, fileName); match || err != nil {
+				t.Errorf("fail file pattern of %q matches fail file %q of %q; err %v", name, fileName, other, err)
+			}
+		}
+	}
+}
+
+// Two failures of one test saved in quick succession, as with -count, keep a fail file each.
+func TestFailFileNameUnique(t *testing.T) {
+	t.Parallel()
+
+	if a, b := engine.FailFileName("TestUnique"), engine.FailFileName("TestUnique"); a == b {
+		t.Fatalf("two fail files of one test share the name %q", a)
+	}
+}
+
+// A test name far longer than a file name may be still names a fail file that can be saved.
+func TestFailFileNameLongTestName(t *testing.T) {
+	t.Parallel()
+
+	testName := "TestLong/" + strings.Repeat("ä", 300)
+	fileName := filepath.Join(t.TempDir(), engine.FailFileName(testName))
+	if err := engine.SaveFailFile(fileName, "v1", nil, 1, []uint64{1}); err != nil {
+		t.Fatalf("saving the fail file of a long test name: %v", err)
+	}
+	if match, err := filepath.Match(filepath.Join(filepath.Dir(fileName), filepath.Base(engine.FailFilePattern(testName))), fileName); !match || err != nil {
+		t.Fatalf("pattern does not match %q; err %v", fileName, err)
+	}
+}
+
 func TestFailFileRoundtrip(t *testing.T) {
 	t.Parallel()
 

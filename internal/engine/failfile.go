@@ -8,13 +8,15 @@ package engine
 
 import (
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -22,42 +24,44 @@ const (
 	failfileTmpPattern = ".rapid-failfile-tmp-*"
 )
 
-// https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
-var windowsReservedNames = []string{
-	"CON", "PRN", "AUX", "NUL",
-	"COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM¹", "COM²", "COM³",
-	"LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³",
-}
+// testFileName returns the name the files of the test testName go by. Runes other than letters, digits,
+// '-' and '_' become '_', and the result is cut to a length every file system takes. A hash of the full name
+// follows, so names that sanitise alike, such as TestCalc/1+2 and TestCalc/1*2, stay apart.
+func testFileName(testName string) string {
+	const maxSafeBytes = 100
 
-func kindaSafeFilename(f string) string {
-	var s strings.Builder
-	for _, char := range f {
-		if unicode.IsLetter(char) || unicode.IsDigit(char) || char == '-' || char == '_' {
-			s.WriteRune(char)
-		} else {
-			s.WriteRune('_')
+	var safe strings.Builder
+	for _, char := range testName {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '-' {
+			char = '_'
 		}
+		if safe.Len()+utf8.RuneLen(char) > maxSafeBytes {
+			break
+		}
+		safe.WriteRune(char)
 	}
-	name := s.String()
-	nameUpper := strings.ToUpper(name)
-	if slices.Contains(windowsReservedNames, nameUpper) {
-		return name + "_"
-	}
-	return name
+
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(testName)) // a hash.Hash never returns an error
+	return fmt.Sprintf("%s-%08x", safe.String(), h.Sum32())
 }
 
-// FailFileName returns a new fail file path for the test, unique to this second and process.
+// failFileSeq numbers the fail file names this process hands out.
+var failFileSeq atomic.Uint64
+
+// FailFileName returns a new fail file path for the test: the time, process ID and a number this process
+// never hands out twice make it unique.
 func FailFileName(testName string) string {
+	name := testFileName(testName)
 	ts := time.Now().Format("20060102150405")
-	fileName := fmt.Sprintf("%s-%s-%d.fail", kindaSafeFilename(testName), ts, os.Getpid())
-	return filepath.Join("testdata", "rapid", kindaSafeFilename(testName), fileName)
+	fileName := fmt.Sprintf("%s-%s-%d-%d.fail", name, ts, os.Getpid(), failFileSeq.Add(1))
+	return filepath.Join("testdata", "rapid", name, fileName)
 }
 
 // FailFilePattern returns the glob that matches every fail file FailFileName returns for the test.
 func FailFilePattern(testName string) string {
-	fileName := kindaSafeFilename(testName) + "-*.fail"
-	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
-	return filepath.Join(dirName, fileName)
+	name := testFileName(testName)
+	return filepath.Join("testdata", "rapid", name, name+"-*.fail")
 }
 
 // SaveFailFile writes the failing test case buf, drawn from seed, to filename, with output as comments.
