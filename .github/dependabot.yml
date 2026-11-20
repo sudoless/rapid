@@ -1,0 +1,8 @@
+# The actions are pinned by commit; Dependabot proposes the commit of each new release.
+# The module has no dependency to update.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

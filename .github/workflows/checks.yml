@@ -1,0 +1,84 @@
+# The checks a pull request must pass, the jobs of make check run side by side: formatting,
+# lint, the repo's invariants (no dependency beyond the standard library, a licence header on
+# every Go file), vet, and the tests under the race detector on amd64 and arm64. They run on
+# each pull request and each push to master.
+#
+# The jobs run on GitHub-hosted runners: the repo is public, and a self-hosted runner would
+# run the code of any fork's pull request. They need no secret, and the token reads only.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The version make lint and make fmt are run with, built from source rather than through a third-party action.
+  GOLANGCI_LINT: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+
+jobs:
+  lint:
+    name: lint and format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: make fmt-check
+        run: make fmt-check
+      - name: make lint
+        run: make lint
+
+  invariants:
+    name: vet and invariants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      # The stress tag reaches stress_test.go, which the default build never compiles.
+      - name: go vet
+        run: go vet ./... && go vet -tags stress ./...
+      - name: make deps
+        run: make deps
+      - name: go mod verify
+        run: go mod verify
+      - name: make headers
+        run: make headers
+
+  test:
+    name: tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: make test-race
+        run: make test-race
+      # Each benchmark once, so one that no longer runs fails here rather than in a timing run.
+      - name: benchmarks run
+        run: go test -run '^$' -bench . -benchtime 1x ./...
