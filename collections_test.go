@@ -6,7 +6,12 @@
 
 package rapid
 
-import "testing"
+import (
+	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/stattest"
+)
 
 func TestCollectionsWithImpossibleMinSize(t *testing.T) {
 	t.Parallel()
@@ -20,7 +25,7 @@ func TestCollectionsWithImpossibleMinSize(t *testing.T) {
 		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
-			s := createRandomBitStream(t)
+			s := bitstream.NewRandom(stattest.Seed(t), false)
 			_, err := recoverValue(gen, newT(nil, s, false, nil))
 			if err == nil || !err.isInvalidData() {
 				t.Fatalf("got error %v instead of invalid data", err)

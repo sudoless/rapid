@@ -9,6 +9,8 @@ package rapid
 import (
 	"fmt"
 	"reflect"
+
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 // MakeConfig customizes reflection-based generators produced by MakeCustom.
@@ -146,7 +148,7 @@ func (c *MakeConfig) genAnyPointer(typ reflect.Type) *Generator[any] {
 	const pNonNil = 0.5
 
 	return Custom(func(t *T) any {
-		if flipBiasedCoin(t.s, pNonNil) {
+		if bitstream.FlipBiasedCoin(t.s, pNonNil) {
 			val := elemGen.value(t)
 			ptr := reflect.New(elem)
 			ptr.Elem().Set(reflect.ValueOf(val))
@@ -164,7 +166,7 @@ func (c *MakeConfig) genAnyArray(typ reflect.Type) *Generator[any] {
 	return Custom(func(t *T) any {
 		a := reflect.Indirect(reflect.New(typ))
 		if count == 0 {
-			t.s.drawBits(0)
+			t.s.DrawBits(0)
 		} else {
 			for idx := range count {
 				e := reflect.ValueOf(elemGen.value(t))
@@ -179,9 +181,9 @@ func (c *MakeConfig) genAnySlice(typ reflect.Type) *Generator[any] {
 	elemGen := c.newMakeGen(typ.Elem())
 
 	return Custom(func(t *T) any {
-		repeat := newRepeat(-1, -1, -1, elemGen.String())
-		sl := reflect.MakeSlice(typ, 0, repeat.avg())
-		for repeat.more(t.s) {
+		repeat := bitstream.NewRepeat(-1, -1, -1, elemGen.String())
+		sl := reflect.MakeSlice(typ, 0, repeat.Avg())
+		for repeat.More(t.s) {
 			e := reflect.ValueOf(elemGen.value(t))
 			sl = reflect.Append(sl, e)
 		}
@@ -195,13 +197,13 @@ func (c *MakeConfig) genAnyMap(typ reflect.Type) *Generator[any] {
 
 	return Custom(func(t *T) any {
 		label := keyGen.String() + "," + valGen.String()
-		repeat := newRepeat(-1, -1, -1, label)
-		m := reflect.MakeMapWithSize(typ, repeat.avg())
-		for repeat.more(t.s) {
+		repeat := bitstream.NewRepeat(-1, -1, -1, label)
+		m := reflect.MakeMapWithSize(typ, repeat.Avg())
+		for repeat.More(t.s) {
 			k := reflect.ValueOf(keyGen.value(t))
 			v := reflect.ValueOf(valGen.value(t))
 			if m.MapIndex(k).IsValid() {
-				repeat.reject()
+				repeat.Reject()
 			} else {
 				m.SetMapIndex(k, v)
 			}
@@ -233,7 +235,7 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 		}
 
 		if fieldsSet == 0 {
-			t.s.drawBits(0)
+			t.s.DrawBits(0)
 		}
 
 		return s.Interface()

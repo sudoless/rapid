@@ -10,15 +10,17 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 type trivialGenImpl struct{}
 
 func (trivialGenImpl) String() string    { return "" }
-func (trivialGenImpl) value(t *T) uint64 { return t.s.drawBits(64) }
+func (trivialGenImpl) value(t *T) uint64 { return t.s.DrawBits(64) }
 
 func BenchmarkTrivialGenImplValue(b *testing.B) {
-	t := newT(nil, newRandomBitStream(baseSeed(), false), false, nil)
+	t := newT(nil, bitstream.NewRandom(baseSeed(), false), false, nil)
 	g := trivialGenImpl{}
 	b.ResetTimer()
 
@@ -28,7 +30,7 @@ func BenchmarkTrivialGenImplValue(b *testing.B) {
 }
 
 func BenchmarkGenerator_Value(b *testing.B) {
-	t := newT(nil, newRandomBitStream(baseSeed(), false), false, nil)
+	t := newT(nil, bitstream.NewRandom(baseSeed(), false), false, nil)
 	g := newGenerator[uint64](trivialGenImpl{})
 	b.ResetTimer()
 

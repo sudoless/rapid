@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 type generatorImpl[V any] interface {
@@ -70,9 +73,9 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 }
 
 func (g *Generator[V]) value(t *T) V {
-	i := t.s.beginGroup(g.str, true)
+	i := t.s.BeginGroup(g.str, true)
 	v := g.impl.value(t)
-	t.s.endGroup(i, false)
+	t.s.EndGroup(i, false)
 	return v
 }
 
@@ -84,8 +87,8 @@ func (g *Generator[V]) Example(seed ...int) V {
 		s = uint64(seed[0])
 	}
 
-	v, n, err := example(g, newT(nil, newRandomBitStream(s, false), false, nil))
-	assertf(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
+	v, n, err := example(g, newT(nil, bitstream.NewRandom(s, false), false, nil))
+	assert.Truef(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
 
 	return v
 }

@@ -8,7 +8,10 @@
 package stattest
 
 import (
+	"hash/maphash"
 	"math"
+	"os"
+	"strconv"
 	"testing"
 )
 
@@ -42,4 +45,25 @@ func WithinSigmas(t *testing.T, ctx any, y int, p float64) {
 			t.Errorf("got %v out of %v (p %v, mu %v, stddev %v)", y, n, p, mu, s)
 		}
 	}
+}
+
+// Seed returns RAPID_SEED when it is set and not 0, and a random seed otherwise.
+// It logs the seed, so a failing run replays with RAPID_SEED set to it.
+func Seed(t *testing.T) uint64 {
+	t.Helper()
+
+	seed := new(maphash.Hash).Sum64()
+	if env := os.Getenv("RAPID_SEED"); env != "" {
+		parsed, err := strconv.ParseUint(env, 0, 64)
+		if err != nil {
+			t.Fatalf("parsing RAPID_SEED %q: %v", env, err)
+		}
+		if parsed != 0 {
+			seed = parsed
+		}
+	}
+
+	t.Logf("seed %v, replay with RAPID_SEED=%v", seed, seed)
+
+	return seed
 }

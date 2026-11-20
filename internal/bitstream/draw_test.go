@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package bitstream
 
 import (
 	"fmt"
@@ -15,26 +15,17 @@ import (
 	"go.sdls.io/rapid/internal/stattest"
 )
 
-func createRandomBitStream(t *testing.T) bitStream {
-	t.Helper()
-
-	seed := baseSeed()
-	t.Logf("random seed %v", seed)
-
-	return newRandomBitStream(seed, false)
-}
-
 func TestGenFloat01(t *testing.T) {
 	t.Parallel()
 
-	s1 := &bufBitStream{buf: []uint64{0}}
-	f1 := genFloat01(s1)
+	s1 := &Buffer{buf: []uint64{0}}
+	f1 := Float01(s1)
 	if f1 != 0 {
 		t.Errorf("got %v instead of 0", f1)
 	}
 
-	s2 := &bufBitStream{buf: []uint64{math.MaxUint64}}
-	f2 := genFloat01(s2)
+	s2 := &Buffer{buf: []uint64{math.MaxUint64}}
+	f2 := Float01(s2)
 	if f2 == 1 {
 		t.Errorf("got impossible 1")
 	}
@@ -43,14 +34,14 @@ func TestGenFloat01(t *testing.T) {
 func TestGenGeom(t *testing.T) {
 	t.Parallel()
 
-	s1 := &bufBitStream{buf: []uint64{0}}
-	i1 := genGeom(s1, 0.1)
+	s1 := &Buffer{buf: []uint64{0}}
+	i1 := geom(s1, 0.1)
 	if i1 != 0 {
 		t.Errorf("got %v instead of 0 for 0.1", i1)
 	}
 
-	s2 := &bufBitStream{buf: []uint64{0}}
-	i2 := genGeom(s2, 1)
+	s2 := &Buffer{buf: []uint64{0}}
+	i2 := geom(s2, 1)
 	if i2 != 0 {
 		t.Errorf("got %v instead of 0 for 1", i2)
 	}
@@ -65,16 +56,16 @@ func TestGenGeomMean(t *testing.T) {
 func checkGenGeomMean(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 
 	// Subtests run in order: they draw from one shared bitstream.
 	for idx := range 100 {
 		t.Run(strconv.Itoa(idx), func(t *testing.T) {
-			p := genFloat01(s)
+			p := Float01(s)
 
 			var geoms []uint64
 			for range stattest.Draws {
-				geoms = append(geoms, genGeom(s, p))
+				geoms = append(geoms, geom(s, p))
 			}
 
 			avg := 0.0
@@ -101,14 +92,14 @@ func TestGenUintN(t *testing.T) {
 func checkGenUintN(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 	hi := []uint64{0, 1, 2, 5, 13}
 
 	for _, bound := range hi {
 		r := make([]int, bound+1)
 		n := stattest.Draws
 		for range n {
-			u, _, _ := genUintN(s, bound, false)
+			u, _, _ := UintN(s, bound, false)
 			r[u]++
 		}
 
@@ -127,7 +118,7 @@ func TestGenUintRange(t *testing.T) {
 func checkGenUintRange(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 	ranges := [][]uint64{
 		{0, 0},
 		{0, 1},
@@ -144,7 +135,7 @@ func checkGenUintRange(t *testing.T, seed uint64) {
 		m := map[uint64]int{}
 		n := stattest.Draws
 		for range n {
-			u, _, _ := genUintRange(s, bounds[0], bounds[1], false)
+			u, _, _ := UintRange(s, bounds[0], bounds[1], false)
 			m[u]++
 		}
 
@@ -166,7 +157,7 @@ func TestGenIntRange(t *testing.T) {
 func checkGenIntRange(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 	ranges := [][]int64{
 		{0, 0},
 		{0, 1},
@@ -193,7 +184,7 @@ func checkGenIntRange(t *testing.T, seed uint64) {
 		m := map[int64]int{}
 		n := stattest.Draws
 		for range n {
-			u, _, _ := genIntRange(s, bounds[0], bounds[1], false)
+			u, _, _ := IntRange(s, bounds[0], bounds[1], false)
 			m[u]++
 		}
 
@@ -215,14 +206,14 @@ func TestFlipBiasedCoin(t *testing.T) {
 func checkFlipBiasedCoin(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 	ps := []float64{0, 0.3, 0.5, 0.7, 1}
 
 	for _, prob := range ps {
 		n := stattest.Draws
 		y := 0
 		for range n {
-			if flipBiasedCoin(s, prob) {
+			if FlipBiasedCoin(s, prob) {
 				y++
 			}
 		}
@@ -240,7 +231,7 @@ func TestLoadedDie(t *testing.T) {
 func checkLoadedDie(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := NewRandom(seed, false)
 	weights := [][]int{
 		{1},
 		{1, 2},
@@ -249,12 +240,12 @@ func checkLoadedDie(t *testing.T, seed uint64) {
 	}
 
 	for _, ws := range weights {
-		d := newLoadedDie(ws)
+		d := NewLoadedDie(ws)
 		n := stattest.Draws
 		r := make([]int, len(ws))
 
 		for range n {
-			r[d.roll(s)]++
+			r[d.Roll(s)]++
 		}
 
 		total := 0
@@ -303,13 +294,13 @@ func checkRepeat(t *testing.T, seed uint64) {
 			t.Parallel()
 
 			lo, hi, avg := mma[0], mma[1], mma[2]
-			s := newRandomBitStream(seed+uint64(idx), false)
+			s := NewRandom(seed+uint64(idx), false)
 
 			n := 5000
 			c := make([]int, n)
 			for idx := range n {
-				r := newRepeat(lo, hi, float64(avg), "")
-				for r.more(s) {
+				r := NewRepeat(lo, hi, float64(avg), "")
+				for r.More(s) {
 					c[idx]++
 				}
 

@@ -16,6 +16,9 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 var (
@@ -83,10 +86,10 @@ func RuneFrom(runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 
 func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 	if len(tables) == 0 {
-		assertf(len(runes) > 0, "at least one rune should be specified")
+		assert.Truef(len(runes) > 0, "at least one rune should be specified")
 	}
 	if len(runes) == 0 {
-		assertf(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
+		assert.Truef(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
 	}
 
 	var weights []int
@@ -100,11 +103,11 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 	tables_ := make([][]rune, len(tables))
 	for idx := range tables {
 		tables_[idx] = expandRangeTable(tables[idx], tables[idx])
-		assertf(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
+		assert.Truef(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
 	}
 
 	return newGenerator[rune](&runeGen{
-		die:      newLoadedDie(weights),
+		die:      bitstream.NewLoadedDie(weights),
 		runes:    runes,
 		tables:   tables_,
 		default_: default_,
@@ -112,7 +115,7 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 }
 
 type runeGen struct {
-	die      *loadedDie
+	die      *bitstream.LoadedDie
 	runes    []rune
 	tables   [][]rune
 	default_ bool
@@ -127,7 +130,7 @@ func (g *runeGen) String() string {
 }
 
 func (g *runeGen) value(t *T) rune {
-	n := g.die.roll(t.s)
+	n := g.die.Roll(t.s)
 
 	runes := g.runes
 	if len(g.runes) == 0 {
@@ -136,7 +139,7 @@ func (g *runeGen) value(t *T) rune {
 		runes = g.tables[n-1]
 	}
 
-	return runes[genIndex(t.s, len(runes), true)]
+	return runes[bitstream.Index(t.s, len(runes), true)]
 }
 
 // String is a shorthand for [StringOf]([Rune]()).
@@ -162,7 +165,8 @@ func StringOf(elem *Generator[rune]) *Generator[string] {
 // StringOfN panics if maxLen >= 0 and maxLen < maxRunes.
 func StringOfN(elem *Generator[rune], minRunes, maxRunes, maxLen int) *Generator[string] {
 	assertValidRange(minRunes, maxRunes)
-	assertf(maxLen < 0 || maxLen >= maxRunes, "maximum length (%v) should not be less than maximum number of runes (%v)", maxLen, maxRunes)
+	assert.Truef(maxLen < 0 || maxLen >= maxRunes,
+		"maximum length (%v) should not be less than maximum number of runes (%v)", maxLen, maxRunes)
 
 	return newGenerator[string](&stringGen{
 		elem:     elem,
@@ -194,22 +198,22 @@ func (g *stringGen) String() string {
 }
 
 func (g *stringGen) value(t *T) string {
-	repeat := newRepeat(g.minRunes, g.maxRunes, -1, g.elem.String())
+	repeat := bitstream.NewRepeat(g.minRunes, g.maxRunes, -1, g.elem.String())
 
 	var b strings.Builder
-	b.Grow(repeat.avg())
+	b.Grow(repeat.Avg())
 
 	maxLen := g.maxLen
 	if maxLen < 0 {
 		maxLen = math.MaxInt
 	}
 
-	for repeat.more(t.s) {
+	for repeat.More(t.s) {
 		r := g.elem.value(t)
 		n := utf8.RuneLen(r)
 
 		if n < 0 || b.Len()+n > maxLen {
-			repeat.reject()
+			repeat.Reject()
 		} else {
 			b.WriteRune(r)
 		}
@@ -221,7 +225,7 @@ func (g *stringGen) value(t *T) string {
 // StringMatching creates a UTF-8 string generator matching the provided [syntax.Perl] regular expression.
 func StringMatching(expr string) *Generator[string] {
 	compiled, err := compileRegexp(expr)
-	assertf(err == nil, "%v", err)
+	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[string](&regexpStringGen{
 		regexpGen{
@@ -235,7 +239,7 @@ func StringMatching(expr string) *Generator[string] {
 // SliceOfBytesMatching creates a UTF-8 byte slice generator matching the provided [syntax.Perl] regular expression.
 func SliceOfBytesMatching(expr string) *Generator[[]byte] {
 	compiled, err := compileRegexp(expr)
-	assertf(err == nil, "%v", err)
+	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[[]byte](&regexpSliceGen{
 		regexpGen{
@@ -301,15 +305,15 @@ func (g *regexpSliceGen) value(t *T) []byte {
 }
 
 func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
-	i := t.s.beginGroup(re.Op.String(), false)
+	i := t.s.BeginGroup(re.Op.String(), false)
 
 	switch re.Op {
 	case syntax.OpNoMatch:
-		panic(invalidData("no possible regexp match"))
+		panic(bitstream.InvalidData("no possible regexp match"))
 	case syntax.OpEmptyMatch:
-		t.s.drawBits(0)
+		t.s.DrawBits(0)
 	case syntax.OpLiteral:
-		t.s.drawBits(0)
+		t.s.DrawBits(0)
 		for _, char := range re.Rune {
 			_, _ = w.WriteRune(maybeFoldCase(t.s, char, re.Flags))
 		}
@@ -326,7 +330,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	case syntax.OpBeginLine, syntax.OpEndLine,
 		syntax.OpBeginText, syntax.OpEndText,
 		syntax.OpWordBoundary, syntax.OpNoWordBoundary:
-		t.s.drawBits(0) // do nothing and hope that find() is enough
+		t.s.DrawBits(0) // do nothing and hope that find() is enough
 	case syntax.OpCapture:
 		g.build(w, re.Sub[0], t)
 	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat:
@@ -339,8 +343,8 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		case syntax.OpQuest:
 			lo, hi = 0, 1
 		}
-		repeat := newRepeat(lo, hi, -1, regexpName(re.Sub[0]))
-		for repeat.more(t.s) {
+		repeat := bitstream.NewRepeat(lo, hi, -1, regexpName(re.Sub[0]))
+		for repeat.More(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
 	case syntax.OpConcat:
@@ -348,19 +352,19 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 			g.build(w, sub, t)
 		}
 	case syntax.OpAlternate:
-		ix := genIndex(t.s, len(re.Sub), true)
+		ix := bitstream.Index(t.s, len(re.Sub), true)
 		g.build(w, re.Sub[ix], t)
 	default:
-		assertf(false, "invalid regexp op %v", re.Op)
+		assert.Truef(false, "invalid regexp op %v", re.Op)
 	}
 
-	t.s.endGroup(i, false)
+	t.s.EndGroup(i, false)
 }
 
-func maybeFoldCase(s bitStream, r rune, flags syntax.Flags) rune {
+func maybeFoldCase(s bitstream.Stream, r rune, flags syntax.Flags) rune {
 	n := uint64(0)
 	if flags&syntax.FoldCase != 0 {
-		n, _, _ = genUintN(s, 4, false)
+		n, _, _ = bitstream.UintN(s, 4, false)
 	}
 
 	for range n {
@@ -452,7 +456,7 @@ func charClassGen(re *syntax.Regexp) *Generator[rune] {
 	}
 
 	g := newGenerator[rune](&runeGen{
-		die:    newLoadedDie([]int{1}),
+		die:    bitstream.NewLoadedDie([]int{1}),
 		tables: [][]rune{expandRangeTable(t, regexpName(re))},
 	})
 	charClassGens.Store(regexpName(re), g)

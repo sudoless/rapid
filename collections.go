@@ -6,7 +6,11 @@
 
 package rapid
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.sdls.io/rapid/internal/bitstream"
+)
 
 // ID returns its argument as is. ID is a helper for use with [SliceOfDistinct] and similar functions.
 func ID[V any](v V) V {
@@ -73,22 +77,22 @@ func (g *sliceGen[E, K]) String() string {
 }
 
 func (g *sliceGen[E, K]) value(t *T) []E {
-	repeat := newRepeat(g.minLen, g.maxLen, -1, g.elem.String())
+	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, g.elem.String())
 
 	var seen map[K]struct{}
 	if g.keyFn != nil {
-		seen = make(map[K]struct{}, repeat.avg())
+		seen = make(map[K]struct{}, repeat.Avg())
 	}
 
-	sl := make([]E, 0, repeat.avg())
-	for repeat.more(t.s) {
+	sl := make([]E, 0, repeat.Avg())
+	for repeat.More(t.s) {
 		e := g.elem.value(t)
 		if g.keyFn == nil {
 			sl = append(sl, e)
 		} else {
 			k := g.keyFn(e)
 			if _, ok := seen[k]; ok {
-				repeat.reject()
+				repeat.Reject()
 			} else {
 				seen[k] = struct{}{}
 				sl = append(sl, e)
@@ -165,10 +169,10 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 		label = g.key.String() + "," + label
 	}
 
-	repeat := newRepeat(g.minLen, g.maxLen, -1, label)
+	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, label)
 
-	m := make(map[K]V, repeat.avg())
-	for repeat.more(t.s) {
+	m := make(map[K]V, repeat.Avg())
+	for repeat.More(t.s) {
 		var k K
 		var v V
 		if g.key != nil {
@@ -180,7 +184,7 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 		}
 
 		if _, ok := m[k]; ok {
-			repeat.reject()
+			repeat.Reject()
 		} else {
 			m[k] = v
 		}

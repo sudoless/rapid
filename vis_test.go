@@ -11,6 +11,8 @@ import (
 	"math"
 	"strings"
 	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 func TestDataVis(t *testing.T) {
@@ -32,29 +34,30 @@ func TestDataVis(t *testing.T) {
 		math.MaxUint64,
 	}
 
-	groups := []groupInfo{
-		{begin: 0, end: 13, label: ""},
-		{begin: 1, end: 1 + 3, label: "8-bit"},
-		{begin: 3, end: 4, label: "0xff", discard: true},
-		{begin: 4, end: 4 + 3, label: "16-bit"},
-		{begin: 7, end: 13, label: "big integers"},
-		{begin: 7, end: 7 + 3, label: "32-bit"},
-		{begin: 10, end: 10 + 3, label: "64-bit"},
+	groups := []bitstream.Group{
+		{Begin: 0, End: 13, Label: ""},
+		{Begin: 1, End: 1 + 3, Label: "8-bit"},
+		{Begin: 3, End: 4, Label: "0xff", Discard: true},
+		{Begin: 4, End: 4 + 3, Label: "16-bit"},
+		{Begin: 7, End: 13, Label: "big integers"},
+		{Begin: 7, End: 7 + 3, Label: "32-bit"},
+		{Begin: 10, End: 10 + 3, Label: "64-bit"},
 	}
 
-	rd := []recordedBits{
-		{data: data, groups: groups},
+	rd := []bitstream.Recorded{
+		{Data: data, Groups: groups},
 	}
 
 	g := SliceOf(SliceOf(Uint().Filter(func(i uint) bool { return i%2 == 1 }))).Filter(func(s [][]uint) bool { return len(s) > 0 })
-	for {
-		s := newRandomBitStream(baseSeed(), true)
+	// Advance the seed, so a fixed -rapid.seed cannot redraw the same invalid value forever.
+	for seed := baseSeed(); ; seed++ {
+		s := bitstream.NewRandom(seed, true)
 		_, err := recoverValue(g, newT(nil, s, false, nil))
 		if err != nil && !err.isInvalidData() {
 			t.Errorf("unexpected error %v", err)
 		}
 
-		rd = append(rd, recordedBits{data: s.data, groups: s.groups})
+		rd = append(rd, bitstream.Recorded{Data: s.Data, Groups: s.Groups})
 
 		if err == nil {
 			break

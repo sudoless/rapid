@@ -13,6 +13,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 func brokenGen(*T) int { panic("this generator is not working") }
@@ -68,7 +71,7 @@ func TestPanicTraceback(t *testing.T) {
 		t.Run(td.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := createRandomBitStream(t)
+			s := bitstream.NewRandom(stattest.Seed(t), false)
 			nt := newT(t, s, false, nil)
 
 			err := td.fail(nt)
@@ -201,7 +204,7 @@ func TestCheckCleanupPanic(t *testing.T) {
 	if res.err1 == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
-	_ = checkOnce(newT(t, newBufBitStream(res.buf, false), false, nil), prop)
+	_ = checkOnce(newT(t, bitstream.NewBuffer(res.buf, false), false, nil), prop)
 }
 
 func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
@@ -273,5 +276,11 @@ func TestOutputRawLog(t *testing.T) {
 
 	if !bytes.Contains(out, msg) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out)
+	}
+}
+
+func BenchmarkBaseSeed(b *testing.B) {
+	for range b.N {
+		baseSeed()
 	}
 }

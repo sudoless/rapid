@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"hash/maphash"
 	"io"
 	"log"
 	"os"
@@ -25,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/failfile"
 )
 
@@ -163,22 +166,19 @@ func panicInvalidEnv(key, value string, err error) {
 	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
 }
 
-func assert(ok bool) {
-	if !ok {
-		panic("assertion failed")
-	}
-}
-
-func assertf(ok bool, format string, args ...any) {
-	if !ok {
-		panic(fmt.Sprintf(format, args...))
-	}
-}
-
 func assertValidRange(lo, hi int) {
 	if hi >= 0 && lo > hi {
 		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
 	}
+}
+
+// baseSeed returns -rapid.seed when set, and a random seed otherwise.
+func baseSeed() uint64 {
+	if flags.seed != 0 {
+		return flags.seed
+	}
+
+	return new(maphash.Hash).Sum64()
 }
 
 func checkDeadline(tb tb) time.Time {
@@ -257,7 +257,7 @@ func checkFuzz(tb tb, prop func(*T), input []byte) {
 		input = input[n:]
 	}
 
-	t := newT(tb, newBufBitStream(buf, false), true, nil)
+	t := newT(tb, bitstream.NewBuffer(buf, false), true, nil)
 	err := checkOnce(t, prop)
 
 	switch {
@@ -329,7 +329,7 @@ func reportFailure(tb tb, prop func(*T), res *checkResult) {
 			res.valid, err2, name, repr, traceback(err2))
 	}
 
-	_ = checkOnce(newT(tb, newBufBitStream(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
+	_ = checkOnce(newT(tb, bitstream.NewBuffer(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
 }
 
 // reproFlags returns the flags that replay a failure from failPath or seed; either may be unset.
@@ -361,7 +361,7 @@ type checkResult struct {
 func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, prop func(*T)) checkResult {
 	tb.Helper()
 
-	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
+	assert.Truef(!tb.Failed(), "check function called with *testing.T which has already failed")
 
 	var failfiles []string
 	if failPath != "" {
@@ -383,16 +383,16 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 		return checkResult{valid: valid, invalid: invalid, earlyExit: earlyExit}
 	}
 
-	s := newRandomBitStream(seed, true)
+	s := bitstream.NewRandom(seed, true)
 	t := newT(tb, s, flags.verbose, nil)
 	t.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t, prop)
 	if !sameError(err1, err2) {
-		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.data, err1: err1, err2: err2}
+		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.Data, err1: err1, err2: err2}
 	}
 
 	t.Logf("[rapid] trying to minimize the failing test case")
-	buf, err3 := shrink(tb, shrinkDeadline(deadline), s.recordedBits, err2, prop)
+	buf, err3 := shrink(tb, shrinkDeadline(deadline), s.Recorded, err2, prop)
 
 	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
@@ -410,7 +410,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 		return nil, nil, nil
 	}
 
-	s1 := newBufBitStream(buf, false)
+	s1 := bitstream.NewBuffer(buf, false)
 	t1 := newT(tb, s1, flags.verbose, nil)
 	err1 := checkOnce(t1, prop)
 	if err1 == nil {
@@ -421,7 +421,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 		return nil, nil, nil
 	}
 
-	s2 := newBufBitStream(buf, false)
+	s2 := bitstream.NewBuffer(buf, false)
 	t2 := newT(tb, s2, flags.verbose, nil)
 	t2.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t2, prop)
@@ -433,7 +433,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 	tb.Helper()
 
 	var (
-		r       = newRandomBitStream(0, false)
+		r       = bitstream.NewRandom(0, false)
 		t       = newT(tb, r, flags.verbose, nil)
 		valid   = 0
 		invalid = 0
@@ -450,7 +450,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 		}
 
 		seed += uint64(iter)
-		r.init(seed)
+		r.Init(seed)
 		dt, err := checkLogged(t, prop, iter+1, seed)
 		total += dt
 		switch {
@@ -512,14 +512,11 @@ func checkOnce(t *T, prop func(*T)) (err *testError) {
 func captureTestOutput(tb tb, prop func(*T), buf []uint64) []byte {
 	var b bytes.Buffer
 	l := log.New(&b, fmt.Sprintf("[%v] ", tb.Name()), log.Lmsgprefix|log.Ldate|log.Ltime|log.Lmicroseconds)
-	_ = checkOnce(newT(tb, newBufBitStream(buf, false), false, l), prop)
+	_ = checkOnce(newT(tb, bitstream.NewBuffer(buf, false), false, l), prop)
 	return b.Bytes()
 }
 
-type (
-	invalidData string
-	stopTest    string
-)
+type stopTest string
 
 type testError struct {
 	data      any
@@ -550,7 +547,7 @@ func panicToError(p any) *testError {
 		skipSpecial = false
 
 		_, err := fmt.Fprintf(b, "    %s:%d in %s\n", f.File, f.Line, f.Function)
-		assert(err == nil)
+		assert.True(err == nil)
 	}
 
 	return &testError{
@@ -564,7 +561,7 @@ func (err *testError) Error() string {
 		return string(msg)
 	}
 
-	if msg, ok := err.data.(invalidData); ok {
+	if msg, ok := err.data.(bitstream.InvalidData); ok {
 		return "invalid data: " + string(msg)
 	}
 
@@ -572,7 +569,7 @@ func (err *testError) Error() string {
 }
 
 func (err *testError) isInvalidData() bool {
-	_, ok := err.data.(invalidData)
+	_, ok := err.data.(bitstream.InvalidData)
 	return ok
 }
 
@@ -653,14 +650,14 @@ type T struct {
 
 	tbLog    bool
 	rawLog   *log.Logger
-	s        bitStream
+	s        bitstream.Stream
 	draws    int
 	refDraws []any
 	mu       sync.RWMutex
 	failed   stopTest
 }
 
-func newT(tb tb, s bitStream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
+func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
 	if tb == nil {
 		tb = nilTB{}
 	}
@@ -941,7 +938,7 @@ func (t *T) Failed() bool {
 }
 
 func (t *T) skip(msg string) {
-	panic(invalidData(msg))
+	panic(bitstream.InvalidData(msg))
 }
 
 func (t *T) fail(now bool, msg string) {

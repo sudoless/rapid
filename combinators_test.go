@@ -6,7 +6,11 @@
 
 package rapid
 
-import "testing"
+import (
+	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
+)
 
 type intPair struct {
 	x int
@@ -14,7 +18,7 @@ type intPair struct {
 }
 
 func BenchmarkHeavyChain3(b *testing.B) {
-	t := newT(nil, newRandomBitStream(baseSeed(), false), false, nil)
+	t := newT(nil, bitstream.NewRandom(baseSeed(), false), false, nil)
 	g1 := Custom(func(t *T) int { return Int().Draw(t, "") })
 	g2 := Map(g1, func(i int) intPair { return intPair{i, i << 13} })
 	g3 := Map(g2, func(p intPair) int { return p.x + p.y })
