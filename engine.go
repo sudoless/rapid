@@ -464,12 +464,17 @@ func (nilTB) Context() context.Context { return context.Background() }
 func (nilTB) Output() io.Writer        { return io.Discard }
 
 // T is similar to [testing.T], but with extra bookkeeping for property-based tests.
+// A property receives a new T for every test case it runs.
 //
 // For tests to be reproducible, they should generally run in a single goroutine.
-// If concurrency is unavoidable, methods on *T, such as [*testing.T.Helper] and [*T.Errorf],
-// are safe for concurrent calls, but *Generator.Draw from a given *T is not.
+// As with testing.T, a test case ends when the property returns or calls FailNow, Fatal, Fatalf,
+// SkipNow, Skip or Skipf, and those methods must be called only from the goroutine running the property
+// (or the Custom function or SyncTest bubble the T was given to). The other methods, such as the
+// variations of Log and Error, may be called from several goroutines at once.
+// *Generator.Draw from a given T may not.
 type T struct {
-	tb // unnamed to force re-export of (*T).Helper()
+	helperTB // embedded so t.Helper marks its caller; a method that called tb.Helper would mark itself
+	tb       tb
 
 	ctx       context.Context //nolint:containedctx // backs T.Context, like testing.T
 	cancelCtx context.CancelFunc
@@ -485,6 +490,14 @@ type T struct {
 
 	tc  *testCase // the test case this T belongs to: own, or its parent's for a Custom value or SyncTest bubble
 	own testCase
+}
+
+var _ TB = (*T)(nil)
+
+// helperTB is the part of the test's TB that T exposes as is.
+type helperTB interface {
+	Helper()
+	Name() string
 }
 
 // testCase is the outcome of one test case, shared by the Ts its property and generators receive.
@@ -513,10 +526,11 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 	}
 
 	t := &T{
-		tb:     tb,
-		tbLog:  tbLog,
-		rawLog: rawLog,
-		s:      s,
+		helperTB: tb,
+		tb:       tb,
+		tbLog:    tbLog,
+		rawLog:   rawLog,
+		s:        s,
 	}
 	t.tc = &t.own
 
@@ -536,11 +550,12 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 // and records failures to t's test case, with its own Context, Cleanups and draw count.
 func (t *T) child(tb tb, tbLog bool, rawLog *log.Logger) *T {
 	return &T{
-		tb:     tb,
-		tbLog:  tbLog,
-		rawLog: rawLog,
-		s:      t.s,
-		tc:     t.tc,
+		helperTB: tb,
+		tb:       tb,
+		tbLog:    tbLog,
+		rawLog:   rawLog,
+		s:        t.s,
+		tc:       t.tc,
 	}
 }
 
@@ -733,7 +748,8 @@ func (t *T) Skip(args ...any) {
 // due to inability to generate enough valid test cases.
 //
 // The test case or action will be treated like it had never been drawn
-// and will not be shown in test logs.
+// and will not be shown in test logs. A test case that has already recorded a failure
+// with Error, Errorf or Fail stays failed, as a testing.T does.
 // Therefore, to avoid confusing test failures later on,
 // [SkipNow] must not be called after the action has already mutated shared state.
 //
