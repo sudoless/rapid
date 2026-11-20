@@ -36,16 +36,6 @@ func TestPanicTraceback(t *testing.T) {
 		fail       func(*T) *engine.TestError
 	}{
 		{
-			"impossible filter",
-			"go.sdls.io/rapid.find[...]",
-			false,
-			func(t *T) *engine.TestError {
-				g := Bool().Filter(func(bool) bool { return false })
-				_, err := recoverValue(g, t)
-				return err
-			},
-		},
-		{
 			"broken custom generator",
 			"go.sdls.io/rapid.brokenGen",
 			false,

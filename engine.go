@@ -392,6 +392,9 @@ func panicToError(p any) *engine.TestError {
 	if err, ok := p.(*engine.TestError); ok {
 		return err
 	}
+	if invalid, ok := p.(bitstream.InvalidData); ok {
+		return &engine.TestError{Data: invalid} // an invalid test case is discarded, so its traceback would go unread
+	}
 
 	return newTestError(p, 4) // skip runtime.Callers, newTestError, panicToError and the deferred recover
 }
