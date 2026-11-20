@@ -36,13 +36,13 @@ func TestWriteVisHTML(t *testing.T) {
 	}
 
 	groups := []bitstream.Group{
-		{Begin: 0, End: 13, Label: ""},
-		{Begin: 1, End: 1 + 3, Label: "8-bit"},
-		{Begin: 3, End: 4, Label: "0xff", Discard: true},
-		{Begin: 4, End: 4 + 3, Label: "16-bit"},
-		{Begin: 7, End: 13, Label: "big integers"},
-		{Begin: 7, End: 7 + 3, Label: "32-bit"},
-		{Begin: 10, End: 10 + 3, Label: "64-bit"},
+		{Begin: 0, End: 13, Label: bitstream.Label("")},
+		{Begin: 1, End: 1 + 3, Label: bitstream.Label("8-bit")},
+		{Begin: 3, End: 4, Label: bitstream.Label("0xff"), Discard: true},
+		{Begin: 4, End: 4 + 3, Label: bitstream.Label("16-bit")},
+		{Begin: 7, End: 13, Label: bitstream.Label("big integers")},
+		{Begin: 7, End: 7 + 3, Label: bitstream.Label("32-bit")},
+		{Begin: 10, End: 10 + 3, Label: bitstream.Label("64-bit")},
 	}
 
 	// A drawn recording: a repetition whose odd elements are rejected, and a group left open.
@@ -53,7 +53,7 @@ func TestWriteVisHTML(t *testing.T) {
 			elems.Reject()
 		}
 	}
-	s.BeginGroup("unfinished", false)
+	s.BeginGroup(bitstream.Label("unfinished"), false)
 	s.DrawBits(8)
 
 	rd := []bitstream.Recorded{

@@ -72,8 +72,8 @@ func WriteVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error
 
 		for jdx := range rd.Groups {
 			group := &rd.Groups[jdx]
-			if _, ok := labelClasses[group.Label]; !ok {
-				labelClasses[group.Label] = fmt.Sprintf("label-%v", lastLabelClass)
+			if _, ok := labelClasses[group.Label.String()]; !ok {
+				labelClasses[group.Label.String()] = fmt.Sprintf("label-%v", lastLabelClass)
 				lastLabelClass++
 			}
 		}
@@ -119,8 +119,8 @@ func visGroupToInfo(labelClasses map[string]string, group bitstream.Group) visGr
 	}
 
 	return visGroupInfo{
-		Classes: discardClass + endlessClass + labelClasses[group.Label],
-		Label:   group.Label,
+		Classes: discardClass + endlessClass + labelClasses[group.Label.String()],
+		Label:   group.Label.String(),
 	}
 }
 

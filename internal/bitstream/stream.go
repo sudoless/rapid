@@ -10,6 +10,7 @@
 package bitstream
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 
@@ -24,7 +25,7 @@ type InvalidData string
 // Stream is where generators draw their bits from.
 type Stream interface {
 	DrawBits(n int) uint64
-	BeginGroup(label string, standalone bool) int
+	BeginGroup(label fmt.Stringer, standalone bool) int
 	EndGroup(i int, discard bool)
 }
 
@@ -85,10 +86,18 @@ func (s *Buffer) DrawBits(n int) uint64 {
 	return u
 }
 
+// Label is a fixed group label.
+type Label string
+
+func (l Label) String() string { return string(l) }
+
+// Group is a span of recorded words that one draw produced. Label names what drew it; the shrinker
+// swaps only groups whose labels read the same. Label is resolved when read, so recording a group
+// costs no formatting.
 type Group struct {
 	Begin      int
 	End        int
-	Label      string
+	Label      fmt.Stringer
 	Standalone bool
 	Discard    bool
 }
@@ -108,7 +117,7 @@ func (rec *Recorded) record(u uint64) {
 	}
 }
 
-func (rec *Recorded) BeginGroup(label string, standalone bool) int {
+func (rec *Recorded) BeginGroup(label fmt.Stringer, standalone bool) int {
 	if !rec.persist {
 		return rec.dataLen
 	}

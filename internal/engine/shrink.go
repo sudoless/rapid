@@ -90,6 +90,7 @@ func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestErro
 type shrinker struct {
 	tb        Logger
 	rec       bitstream.Recorded
+	labels    []string // rec's group labels, resolved on first use
 	err       *TestError
 	run       Run
 	visBits   []bitstream.Recorded
@@ -217,6 +218,19 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 	}
 }
 
+// label returns the label of rec's group i. Labels are resolved together, the first time one is asked for,
+// so a recording that the sort pass never reaches formats none.
+func (s *shrinker) label(i int) string {
+	if s.labels == nil {
+		s.labels = make([]string, len(s.rec.Groups))
+		for idx := range s.rec.Groups {
+			s.labels[idx] = s.rec.Groups[idx].Label.String()
+		}
+	}
+
+	return s.labels[i]
+}
+
 func (s *shrinker) sortGroups(deadline time.Time) {
 	for idx := 1; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
 		for jdx := idx; jdx > 0; {
@@ -235,7 +249,7 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 func (s *shrinker) swapWithEarlier(jdx int, g bitstream.Group) int {
 	for kdx := jdx - 1; kdx >= 0; kdx-- {
 		h := s.rec.Groups[kdx]
-		if !h.Standalone || h.End < 0 || h.End > g.Begin || h.Label != g.Label {
+		if !h.Standalone || h.End < 0 || h.End > g.Begin || s.label(kdx) != s.label(jdx) {
 			continue
 		}
 
@@ -310,6 +324,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	err2 := s.run(s2, Flags.Debug && Flags.Verbose)
 	s.rec = s2.Recorded
 	s.rec.Prune()
+	s.labels = nil
 	assert.True(compareData(s.rec.Data, buf) <= 0)
 	if Flags.DebugVis {
 		s.visBits = append(s.visBits, s.rec)

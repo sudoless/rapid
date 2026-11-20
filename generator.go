@@ -74,7 +74,7 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 }
 
 func (g *Generator[V]) value(t *T) V {
-	i := t.s.BeginGroup(g.str, true)
+	i := t.s.BeginGroup(g.impl, true)
 	v := g.impl.value(t)
 	t.s.EndGroup(i, false)
 	return v

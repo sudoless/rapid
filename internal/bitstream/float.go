@@ -20,8 +20,8 @@ const (
 	float64ExpBits    = 11
 	float64SignifBits = 52
 
-	floatExpLabel    = "floatexp"
-	floatSignifLabel = "floatsignif"
+	floatExpLabel    Label = "floatexp"
+	floatSignifLabel Label = "floatsignif"
 )
 
 // Float32Range draws a float32 in [lo, hi]; both bounds may be infinite.

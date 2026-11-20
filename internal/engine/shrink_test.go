@@ -7,6 +7,7 @@
 package engine
 
 import (
+	"hash/maphash"
 	"math"
 	"math/bits"
 	"strconv"
@@ -71,4 +72,40 @@ func TestMinimize_LowerBound(t *testing.T) {
 
 func bin(u uint64) string {
 	return "0b" + strconv.FormatUint(u, 2)
+}
+
+// After the shrinker accepts a smaller test case, the sort pass compares that test case's labels.
+func TestShrinkerLabelsFollowAcceptedTestCase(t *testing.T) {
+	t.Parallel()
+
+	failure := &TestError{Data: "fail", Trace: "trace"}
+	s := &shrinker{
+		rec: bitstream.Recorded{
+			Data: []uint64{1, 1},
+			Groups: []bitstream.Group{
+				{Begin: 0, End: 1, Label: bitstream.Label("before"), Standalone: true},
+				{Begin: 1, End: 2, Label: bitstream.Label("before"), Standalone: true},
+			},
+		},
+		err: failure,
+		run: func(st bitstream.Stream, _ bool) *TestError {
+			i := st.BeginGroup(bitstream.Label("after"), true)
+			st.DrawBits(1)
+			st.EndGroup(i, false)
+			return failure
+		},
+		tries:     map[string]int{},
+		cacheSeed: maphash.MakeSeed(),
+		cache:     map[uint64]struct{}{},
+	}
+
+	if got := s.label(0); got != "before" {
+		t.Fatalf("label before accepting = %q, want %q", got, "before")
+	}
+	if !s.accept([]uint64{0}, labelRemoveGroup, "remove a group") {
+		t.Fatal("a smaller test case that fails the same way was not accepted")
+	}
+	if got := s.label(0); got != "after" {
+		t.Fatalf("label after accepting = %q, want %q", got, "after")
+	}
 }

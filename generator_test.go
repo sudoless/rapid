@@ -9,6 +9,7 @@ package rapid
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"go.sdls.io/rapid/internal/bitstream"
@@ -86,5 +87,29 @@ func TestCustomExampleCleanup(t *testing.T) {
 	_ = g.Example(0)
 	if state {
 		t.Fatalf("cleanup must be called")
+	}
+}
+
+// The shrinker swaps only groups whose labels match, so a generator's group carries its label
+// whether or not anything has asked for the generator's String yet.
+func TestDrawLabelsGroupWithGenerator(t *testing.T) {
+	t.Parallel()
+
+	s := bitstream.NewRandom(1, true)
+	nt := newT(nil, s, false, nil)
+	IntRange(0, 9).Draw(nt, "a")
+	Bool().Draw(nt, "b")
+	IntRange(0, 9).Draw(nt, "c")
+
+	var got []string
+	for _, g := range s.Groups {
+		if g.Standalone {
+			got = append(got, g.Label.String())
+		}
+	}
+
+	want := []string{"IntRange[int](0, 9)", "Bool()", "IntRange[int](0, 9)"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("standalone group labels %q, want %q", got, want)
 	}
 }

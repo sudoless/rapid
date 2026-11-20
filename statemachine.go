@@ -16,8 +16,9 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
+const actionLabel bitstream.Label = "action"
+
 const (
-	actionLabel       = "action"
 	validActionTries  = 100 // hack, but probably good enough for now
 	checkMethodName   = "Check"
 	noValidActionsMsg = "can't find a valid (non-skipped) action"
