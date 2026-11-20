@@ -71,3 +71,17 @@ func TestWriteVisHTML(t *testing.T) {
 		}
 	}
 }
+
+// A generator that fails before its first draw leaves its group open past the last word.
+func TestWriteVisHTMLGroupOpenedAfterLastDraw(t *testing.T) {
+	t.Parallel()
+
+	s := bitstream.NewRandom(stattest.FixedSeed, true)
+	_ = s.DrawBits(8)
+	s.BeginGroup(bitstream.Label("Custom(int)"), false)
+
+	var html bytes.Buffer
+	if err := writeVisHTML(&html, "vis title", []bitstream.Recorded{s.Recorded}); err != nil {
+		t.Fatalf("writeVisHTML error: %v", err)
+	}
+}
