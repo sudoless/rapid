@@ -4,11 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package failfile_test
 
 import (
 	"path/filepath"
 	"testing"
+
+	. "go.sdls.io/rapid"
+	"go.sdls.io/rapid/internal/failfile"
 )
 
 func TestFailFilePattern(t *testing.T) {
@@ -16,8 +19,8 @@ func TestFailFilePattern(t *testing.T) {
 
 	Check(t, func(t *T) {
 		testName := String().Draw(t, "testName")
-		fileName := failFileName(testName)
-		pattern := failFilePattern(testName)
+		fileName := failfile.Name(testName)
+		pattern := failfile.Pattern(testName)
 		match, err := filepath.Match(pattern, fileName)
 		if !match || err != nil {
 			t.Fatalf("pattern %q does not match %q; err %v", pattern, fileName, err)
@@ -40,14 +43,14 @@ func TestFailFileRoundtrip(t *testing.T) {
 			buf      = SliceOf(Uint64()).Draw(t, "buf")
 		)
 
-		fileName := failFileName(testName)
+		fileName := failfile.Name(testName)
 		fileName = filepath.Join(root, fileName)
-		err := saveFailFile(fileName, version, output, seed, buf)
+		err := failfile.Save(fileName, version, output, seed, buf)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		version2, seed2, buf2, err := loadFailFile(fileName)
+		version2, seed2, buf2, err := failfile.Load(fileName)
 		if err != nil {
 			t.Fatal(err)
 		}

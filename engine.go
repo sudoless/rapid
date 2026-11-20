@@ -24,9 +24,13 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.sdls.io/rapid/internal/failfile"
 )
 
 const (
+	rapidVersion = "v0.4.8"
+
 	small             = 5
 	invalidChecksMult = 10
 	exampleMaxTries   = 1000
@@ -299,18 +303,18 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 func reportFailure(tb tb, prop func(*T), res *checkResult) {
 	tb.Helper()
 
-	failfile := res.failfile
-	if failfile == "" && !flags.nofailfile {
-		failfile = failFileName(tb.Name())
+	failPath := res.failfile
+	if failPath == "" && !flags.nofailfile {
+		failPath = failfile.Name(tb.Name())
 		out := captureTestOutput(tb, prop, res.buf)
-		err := saveFailFile(failfile, rapidVersion, out, res.seed, res.buf)
+		err := failfile.Save(failPath, rapidVersion, out, res.seed, res.buf)
 		if err != nil {
 			tb.Logf("[rapid] %v", err)
-			failfile = ""
+			failPath = ""
 		}
 	}
 
-	repr := reproFlags(failfile, res.seed)
+	repr := reproFlags(failPath, res.seed)
 	name := regexp.QuoteMeta(tb.Name())
 	err1, err2 := res.err1, res.err2
 	switch {
@@ -328,13 +332,13 @@ func reportFailure(tb tb, prop func(*T), res *checkResult) {
 	_ = checkOnce(newT(tb, newBufBitStream(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
 }
 
-// reproFlags returns the flags that replay a failure from failfile or seed; either may be unset.
-func reproFlags(failfile string, seed uint64) string {
+// reproFlags returns the flags that replay a failure from failPath or seed; either may be unset.
+func reproFlags(failPath string, seed uint64) string {
 	switch {
-	case failfile != "" && seed != 0:
-		return fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failfile, seed)
-	case failfile != "":
-		return fmt.Sprintf("-rapid.failfile=%q", failfile)
+	case failPath != "" && seed != 0:
+		return fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failPath, seed)
+	case failPath != "":
+		return fmt.Sprintf("-rapid.failfile=%q", failPath)
 	case seed != 0:
 		return fmt.Sprintf("-rapid.seed=%d", seed)
 	default:
@@ -354,23 +358,23 @@ type checkResult struct {
 	err2      *testError // the failure on replay; differs from err1 when the test is flaky
 }
 
-func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T)) checkResult {
+func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, prop func(*T)) checkResult {
 	tb.Helper()
 
 	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
 
 	var failfiles []string
-	if failfile != "" {
-		failfiles = []string{failfile}
+	if failPath != "" {
+		failfiles = []string{failPath}
 	}
 	if globFailFiles {
-		matches, _ := filepath.Glob(failFilePattern(tb.Name()))
+		matches, _ := filepath.Glob(failfile.Pattern(tb.Name()))
 		failfiles = append(failfiles, matches...)
 	}
-	for _, failfile := range failfiles {
-		buf, err1, err2 := checkFailFile(tb, failfile, prop)
+	for _, failPath := range failfiles {
+		buf, err1, err2 := checkFailFile(tb, failPath, prop)
 		if err1 != nil || err2 != nil {
-			return checkResult{failfile: failfile, buf: buf, err1: err1, err2: err2}
+			return checkResult{failfile: failPath, buf: buf, err1: err1, err2: err2}
 		}
 	}
 
@@ -393,10 +397,10 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string
 	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
 
-func checkFailFile(tb tb, failfile string, prop func(*T)) ([]uint64, *testError, *testError) {
+func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError, *testError) {
 	tb.Helper()
 
-	version, _, buf, err := loadFailFile(failfile)
+	version, _, buf, err := failfile.Load(failPath)
 	if err != nil {
 		tb.Logf("[rapid] ignoring fail file: %v", err)
 		return nil, nil, nil
@@ -413,7 +417,7 @@ func checkFailFile(tb tb, failfile string, prop func(*T)) ([]uint64, *testError,
 		return nil, nil, nil
 	}
 	if err1.isInvalidData() {
-		tb.Logf("[rapid] fail file %q is no longer valid", failfile)
+		tb.Logf("[rapid] fail file %q is no longer valid", failPath)
 		return nil, nil, nil
 	}
 
