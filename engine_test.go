@@ -267,7 +267,9 @@ func TestOutputRawLog(t *testing.T) {
 	msg := []byte("Hello World")
 
 	out := captureTestOutput(t, func(t *T) {
-		t.Output().Write(msg)
+		if _, err := t.Output().Write(msg); err != nil {
+			t.Fatal(err)
+		}
 	}, nil)
 
 	if !bytes.Contains(out, msg) {
