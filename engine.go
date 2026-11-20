@@ -171,9 +171,9 @@ func assertf(ok bool, format string, args ...any) {
 	}
 }
 
-func assertValidRange(min int, max int) {
-	if max >= 0 && min > max {
-		panic(fmt.Sprintf("invalid range [%d, %d]", min, max))
+func assertValidRange(lo int, hi int) {
+	if hi >= 0 && lo > hi {
+		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
 	}
 }
 
@@ -191,9 +191,9 @@ func checkDeadline(tb tb) time.Time {
 
 func shrinkDeadline(deadline time.Time) time.Time {
 	d := time.Now().Add(flags.shrinkTime)
-	max := deadline.Add(-shrinkStepBound) // account for the fact that shrink deadline is checked before the step
-	if d.After(max) {
-		d = max
+	latest := deadline.Add(-shrinkStepBound) // account for the fact that shrink deadline is checked before the step
+	if d.After(latest) {
+		d = latest
 	}
 	return d
 }

@@ -132,9 +132,9 @@ func TestGenUintN(t *testing.T) {
 	}
 
 	s := createRandomBitStream(t)
-	max := []uint64{0, 1, 2, 5, 13}
+	hi := []uint64{0, 1, 2, 5, 13}
 
-	for _, m := range max {
+	for _, m := range hi {
 		r := make([]int, m+1)
 		n := 1000
 		for i := 0; i < n; i++ {
@@ -315,22 +315,22 @@ func TestRepeat(t *testing.T) {
 	}
 
 	for _, mma := range mmas {
-		min, max, avg := mma[0], mma[1], mma[2]
+		lo, hi, avg := mma[0], mma[1], mma[2]
 
 		n := 5000
 		c := make([]int, n)
 		for i := 0; i < n; i++ {
-			r := newRepeat(min, max, float64(avg), "")
+			r := newRepeat(lo, hi, float64(avg), "")
 			for r.more(s) {
 				c[i]++
 			}
 
-			if c[i] < min || c[i] > max {
-				t.Errorf("got %v tries with bounds [%v, %v]", c[i], min, max)
+			if c[i] < lo || c[i] > hi {
+				t.Errorf("got %v tries with bounds [%v, %v]", c[i], lo, hi)
 			}
 		}
 
-		if min == 1000 && max == math.MaxInt32 {
+		if lo == 1000 && hi == math.MaxInt32 {
 			mu := float64(0)
 			for _, e := range c {
 				mu += float64(e)

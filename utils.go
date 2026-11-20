@@ -36,24 +36,24 @@ func genGeom(s bitStream, p float64) uint64 {
 	return uint64(n)
 }
 
-func genUintNNoReject(s bitStream, max uint64) uint64 {
-	bitlen := bits.Len64(max)
+func genUintNNoReject(s bitStream, hi uint64) uint64 {
+	bitlen := bits.Len64(hi)
 	i := s.beginGroup(intBitsLabel, false)
 	u := s.drawBits(bitlen)
 	s.endGroup(i, false)
-	if u > max {
-		u = max
+	if u > hi {
+		u = hi
 	}
 	return u
 }
 
-func genUintNUnbiased(s bitStream, max uint64) uint64 {
-	bitlen := bits.Len64(max)
+func genUintNUnbiased(s bitStream, hi uint64) uint64 {
+	bitlen := bits.Len64(hi)
 
 	for {
 		i := s.beginGroup(intBitsLabel, false)
 		u := s.drawBits(bitlen)
-		ok := u <= max
+		ok := u <= hi
 		s.endGroup(i, !ok)
 		if ok {
 			return u
@@ -61,8 +61,8 @@ func genUintNUnbiased(s bitStream, max uint64) uint64 {
 	}
 }
 
-func genUintNBiased(s bitStream, max uint64) (uint64, bool, bool) {
-	bitlen := bits.Len64(max)
+func genUintNBiased(s bitStream, hi uint64) (uint64, bool, bool) {
+	bitlen := bits.Len64(hi)
 	i := s.beginGroup(biasLabel, false)
 	m := math.Max(8, (float64(bitlen)+48)/7)
 	n := genGeom(s, 1/(m+1)) + 1
@@ -77,53 +77,53 @@ func genUintNBiased(s bitStream, max uint64) (uint64, bool, bool) {
 	for {
 		i := s.beginGroup(intBitsLabel, false)
 		u := s.drawBits(bitlen)
-		ok := bitlen > 64 || u <= max
+		ok := bitlen > 64 || u <= hi
 		s.endGroup(i, !ok)
 		if bitlen > 64 {
-			u = max
+			u = hi
 		}
-		if u <= max {
-			return u, u == 0 && n == 1, u == max && bitlen >= int(n)
+		if u <= hi {
+			return u, u == 0 && n == 1, u == hi && bitlen >= int(n)
 		}
 	}
 }
 
-func genUintN(s bitStream, max uint64, bias bool) (uint64, bool, bool) {
+func genUintN(s bitStream, hi uint64, bias bool) (uint64, bool, bool) {
 	if bias {
-		return genUintNBiased(s, max)
+		return genUintNBiased(s, hi)
 	} else {
-		return genUintNUnbiased(s, max), false, false
+		return genUintNUnbiased(s, hi), false, false
 	}
 }
 
-func genUintRange(s bitStream, min uint64, max uint64, bias bool) (uint64, bool, bool) {
-	if min > max {
-		assertf(false, "invalid range [%v,  %v]", min, max) // avoid allocations in the fast path
+func genUintRange(s bitStream, lo uint64, hi uint64, bias bool) (uint64, bool, bool) {
+	if lo > hi {
+		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
 
-	u, lOverflow, rOverflow := genUintN(s, max-min, bias)
+	u, lOverflow, rOverflow := genUintN(s, hi-lo, bias)
 
-	return min + u, lOverflow, rOverflow
+	return lo + u, lOverflow, rOverflow
 }
 
-func genIntRange(s bitStream, min int64, max int64, bias bool) (int64, bool, bool) {
-	if min > max {
-		assertf(false, "invalid range [%v,  %v]", min, max) // avoid allocations in the fast path
+func genIntRange(s bitStream, lo int64, hi int64, bias bool) (int64, bool, bool) {
+	if lo > hi {
+		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
 
 	var posMin, negMin uint64
 	var pNeg float64
-	if min >= 0 {
-		posMin = uint64(min)
+	if lo >= 0 {
+		posMin = uint64(lo)
 		pNeg = 0
-	} else if max <= 0 {
-		negMin = uint64(-max)
+	} else if hi <= 0 {
+		negMin = uint64(-hi)
 		pNeg = 1
 	} else {
 		posMin = 0
 		negMin = 1
-		pos := uint64(max) + 1
-		neg := uint64(-min)
+		pos := uint64(hi) + 1
+		neg := uint64(-lo)
 		pNeg = float64(neg) / (float64(neg) + float64(pos))
 		if bias {
 			pNeg = 0.5
@@ -131,11 +131,11 @@ func genIntRange(s bitStream, min int64, max int64, bias bool) (int64, bool, boo
 	}
 
 	if flipBiasedCoin(s, pNeg) {
-		u, lOverflow, rOverflow := genUintRange(s, negMin, uint64(-min), bias)
-		return -int64(u), rOverflow, lOverflow && max <= 0
+		u, lOverflow, rOverflow := genUintRange(s, negMin, uint64(-lo), bias)
+		return -int64(u), rOverflow, lOverflow && hi <= 0
 	} else {
-		u, lOverflow, rOverflow := genUintRange(s, posMin, uint64(max), bias)
-		return int64(u), lOverflow && min >= 0, rOverflow
+		u, lOverflow, rOverflow := genUintRange(s, posMin, uint64(hi), bias)
+		return int64(u), lOverflow && lo >= 0, rOverflow
 	}
 }
 

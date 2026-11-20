@@ -100,18 +100,18 @@ func TestFailure_Mean(t *testing.T) {
 		}
 		mean /= float64(len(s))
 
-		min, max := math.Inf(0), math.Inf(-1)
+		lo, hi := math.Inf(0), math.Inf(-1)
 		for _, f := range s {
-			if f < min {
-				min = f
+			if f < lo {
+				lo = f
 			}
-			if f > max {
-				max = f
+			if f > hi {
+				hi = f
 			}
 		}
 
-		if mean < min || mean > max {
-			t.Fatalf("got mean %v for range [%v, %v]", mean, min, max)
+		if mean < lo || mean > hi {
+			t.Fatalf("got mean %v for range [%v, %v]", mean, lo, hi)
 		}
 	})
 }

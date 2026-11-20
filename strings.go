@@ -332,16 +332,16 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	case syntax.OpCapture:
 		g.build(w, re.Sub[0], t)
 	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat:
-		min, max := re.Min, re.Max
+		lo, hi := re.Min, re.Max
 		switch re.Op {
 		case syntax.OpStar:
-			min, max = 0, -1
+			lo, hi = 0, -1
 		case syntax.OpPlus:
-			min, max = 1, -1
+			lo, hi = 1, -1
 		case syntax.OpQuest:
-			min, max = 0, 1
+			lo, hi = 0, 1
 		}
-		repeat := newRepeat(min, max, -1, regexpName(re.Sub[0]))
+		repeat := newRepeat(lo, hi, -1, regexpName(re.Sub[0]))
 		for repeat.more(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
