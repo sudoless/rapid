@@ -74,7 +74,7 @@ func TestShrink_FloatCmp(t *testing.T) {
 			t.Parallel()
 
 			checkShrink(t, func(t *T) {
-				f := Float64().Draw(t, "f")
+				f := Float[float64]().Draw(t, "f")
 				if ((testCase.gt && f > testCase.a) || (!testCase.gt && f < testCase.a)) || (testCase.eq && f == testCase.a) {
 					t.Fail()
 				}

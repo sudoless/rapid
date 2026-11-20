@@ -122,9 +122,9 @@ func (c *MakeConfig) newMakeKindGen(typ reflect.Type) (gen *Generator[any], mayN
 	case reflect.Uintptr:
 		return Int[uintptr]().AsAny(), true
 	case reflect.Float32:
-		return Float32().AsAny(), true
+		return Float[float32]().AsAny(), true
 	case reflect.Float64:
-		return Float64().AsAny(), true
+		return Float[float64]().AsAny(), true
 	case reflect.Array:
 		return c.genAnyArray(typ), false
 	case reflect.Map:

@@ -113,7 +113,7 @@ func ExamplePermutation() {
 }
 
 func ExampleOneOf() {
-	gen := rapid.OneOf(rapid.IntRange[int32](1, 10).AsAny(), rapid.Float32Range(100, 1000).AsAny())
+	gen := rapid.OneOf(rapid.IntRange[int32](1, 10).AsAny(), rapid.FloatRange[float32](100, 1000).AsAny())
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))

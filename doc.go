@@ -21,8 +21,7 @@ Primitives:
   - [Bool]
   - [Rune], [RuneFrom]
   - [Int], [IntMin], [IntMax], [IntRange] for every [Integer] type
-  - [Float32], [Float32Min], [Float32Max], [Float32Range]
-  - [Float64], [Float64Min], [Float64Max], [Float64Range]
+  - [Float], [FloatMin], [FloatMax], [FloatRange] for every [Floating] type
 
 Collections:
   - [String], [StringMatching], [StringOf], [StringOfN], [StringN]

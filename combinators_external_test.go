@@ -29,7 +29,7 @@ func genInterface(t *T) any {
 	if Bool().Draw(t, "coinflip") {
 		return Int[int8]().Draw(t, "")
 	} else {
-		return Float64().Draw(t, "")
+		return Float[float64]().Draw(t, "")
 	}
 }
 

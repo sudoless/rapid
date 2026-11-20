@@ -202,7 +202,7 @@ func TestStateMachine_DiscardGarbage(t *testing.T) {
 				if b {
 					t.Skip("arbitrary decision")
 				}
-				Float64().Draw(t, "whatever 1/2")
+				Float[float64]().Draw(t, "whatever 1/2")
 			},
 			"Whatever2": func(t *T) {
 				SliceOfDistinct(Int[int](), ID[int]).Draw(t, "whatever 2")

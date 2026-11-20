@@ -18,8 +18,8 @@ func TestFloat32Range(t *testing.T) {
 	t.Parallel()
 
 	bounds := map[string]*rapid.Generator[float32]{
-		"non-negative": rapid.Float32Min(0),
-		"any":          rapid.Float32(),
+		"non-negative": rapid.FloatMin[float32](0),
+		"any":          rapid.Float[float32](),
 	}
 	for name, bound := range bounds {
 		t.Run(name, func(t *testing.T) {
@@ -46,8 +46,8 @@ func TestFloat64Range(t *testing.T) {
 	t.Parallel()
 
 	bounds := map[string]*rapid.Generator[float64]{
-		"non-negative": rapid.Float64Min(0),
-		"any":          rapid.Float64(),
+		"non-negative": rapid.FloatMin[float64](0),
+		"any":          rapid.Float[float64](),
 	}
 	for name, bound := range bounds {
 		t.Run(name, func(t *testing.T) {
