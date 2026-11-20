@@ -10,10 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"math/bits"
-	"sort"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -87,27 +84,6 @@ func TestGenGeomMean(t *testing.T) {
 			if math.Abs(avg-mean) > 0.5 { // true science
 				t.Fatalf("for p=%v geom avg=%v vs expected mean=%v", p, avg, mean)
 			}
-		})
-	}
-}
-
-func TestUintsExamplesHist(t *testing.T) {
-	t.Parallel()
-
-	s := newRandomBitStream(baseSeed(), false)
-
-	for _, n := range []int{2, 3, 4, 5, 6, 8, 16, 32, 64} { //nolint:paralleltest // subtests draw from one shared bitstream, in order
-		t.Run(strconv.Itoa(n), func(t *testing.T) {
-			var lines []string
-			for range 50 {
-				n, _, _ := genUintN(s, bitmask64(uint(n)), true)
-				b := bits.Len64(n)
-				l := fmt.Sprintf("% 24d %s % 3d", n, strings.Repeat("*", b)+strings.Repeat(" ", 64-b), b)
-				lines = append(lines, l)
-			}
-
-			sort.Strings(lines)
-			t.Log("\n" + strings.Join(lines, "\n"))
 		})
 	}
 }

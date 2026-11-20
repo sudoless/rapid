@@ -15,28 +15,6 @@ import (
 	. "go.sdls.io/rapid"
 )
 
-func TestStringExamples(t *testing.T) {
-	t.Parallel()
-
-	g := StringN(10, -1, -1)
-
-	for range 100 {
-		s := g.Example()
-		t.Log(len(s), s)
-	}
-}
-
-func TestRegexpExamples(t *testing.T) {
-	t.Parallel()
-
-	g := StringMatching("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
-	for range 100 {
-		s := g.Example()
-		t.Log(len(s), s)
-	}
-}
-
 func TestStringOfRunesIsUTF8(t *testing.T) {
 	t.Parallel()
 

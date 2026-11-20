@@ -8,7 +8,6 @@ package rapid_test
 
 import (
 	"math"
-	"sort"
 	"testing"
 
 	. "go.sdls.io/rapid"
@@ -36,62 +35,6 @@ func TestFloatNoInf(t *testing.T) {
 					t.Fatalf("got infinity: %v", f)
 				}
 			})
-		})
-	}
-}
-
-func TestFloatExamples(t *testing.T) {
-	t.Parallel()
-
-	gens := []*Generator[any]{
-		Float32().AsAny(),
-		Float32Min(-0.1).AsAny(),
-		Float32Min(1).AsAny(),
-		Float32Max(0.1).AsAny(),
-		Float32Max(2.5).AsAny(),
-		Float32Range(0.3, 0.30001).AsAny(),
-		Float32Range(0.3, 0.301).AsAny(),
-		Float32Range(0.3, 0.7).AsAny(),
-		Float32Range(math.E, math.Pi).AsAny(),
-		Float32Range(0, 1).AsAny(),
-		Float32Range(1, 2.5).AsAny(),
-		Float32Range(0, 100).AsAny(),
-		Float32Range(0, 10000).AsAny(),
-		Float64().AsAny(),
-		Float64Min(-0.1).AsAny(),
-		Float64Min(1).AsAny(),
-		Float64Max(0.1).AsAny(),
-		Float64Max(2.5).AsAny(),
-		Float64Range(0.3, 0.30000001).AsAny(),
-		Float64Range(0.3, 0.301).AsAny(),
-		Float64Range(0.3, 0.7).AsAny(),
-		Float64Range(math.E, math.Pi).AsAny(),
-		Float64Range(0, 1).AsAny(),
-		Float64Range(1, 2.5).AsAny(),
-		Float64Range(0, 100).AsAny(),
-		Float64Range(0, 10000).AsAny(),
-	}
-
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
-			t.Parallel()
-
-			var vals []float64
-			var vals32 bool
-			for range 100 {
-				f := g.Example()
-				_, vals32 = f.(float32)
-				vals = append(vals, rv(f).Float())
-			}
-			sort.Float64s(vals)
-
-			for _, f := range vals {
-				if vals32 {
-					t.Logf("%30g %10.3g % 5d % 20d % 16x", f, f, int(math.Log10(math.Abs(f))), int64(f), math.Float32bits(float32(f)))
-				} else {
-					t.Logf("%30g %10.3g % 5d % 20d % 16x", f, f, int(math.Log10(math.Abs(f))), int64(f), math.Float64bits(f))
-				}
-			}
 		})
 	}
 }

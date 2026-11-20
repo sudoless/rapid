@@ -10,7 +10,6 @@ import (
 	"flag"
 	"math/bits"
 	"reflect"
-	"sort"
 	"strconv"
 	"testing"
 
@@ -21,40 +20,6 @@ var (
 	flaky = flag.Bool("flaky.ext", false, "run flaky external tests")
 	rv    = reflect.ValueOf
 )
-
-func TestIntExamples(t *testing.T) {
-	t.Parallel()
-
-	gens := []*Generator[any]{
-		Int().AsAny(),
-		IntMin(-3).AsAny(),
-		IntMax(3).AsAny(),
-		IntRange(-3, 7).AsAny(),
-		IntRange(-1000, 1000000).AsAny(),
-		IntRange(0, 9).AsAny(),
-		IntRange(0, 15).AsAny(),
-		IntRange(10, 100).AsAny(),
-		IntRange(100, 10000).AsAny(),
-		IntRange(100, 1000000).AsAny(),
-		IntRange(100, 1<<60-1).AsAny(),
-	}
-
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
-			t.Parallel()
-
-			var vals []int
-			for range 100 {
-				vals = append(vals, g.Example().(int))
-			}
-			sort.Ints(vals)
-
-			for _, i := range vals {
-				t.Log(i)
-			}
-		})
-	}
-}
 
 func TestIntMinMaxRange(t *testing.T) {
 	t.Parallel()
