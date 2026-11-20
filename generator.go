@@ -85,7 +85,7 @@ func (g *Generator[V]) Example(seed ...int) V {
 	}
 
 	v, n, err := example(g, bitstream.NewRandom(s, false))
-	assert.Truef(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
+	assert.Truef(err == nil, "%v generated no example in %v tries: %v", g, n, err)
 
 	return v
 }

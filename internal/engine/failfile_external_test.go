@@ -7,8 +7,10 @@
 package engine_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -142,11 +144,12 @@ func TestLoadFailFileHeader(t *testing.T) {
 		name    string
 		header  string
 		wantErr bool
+		cause   error // the error a failure wraps, when it has one
 	}{
-		{"version and seed", "v1#42", false},
-		{"no separator", "v1-42", true},
-		{"seed not a number", "v1#x", true},
-		{"two separators", "v1#4#2", true},
+		{"version and seed", "v1#42", false, nil},
+		{"no separator", "v1-42", true, nil},
+		{"seed not a number", "v1#x", true, strconv.ErrSyntax},
+		{"two separators", "v1#4#2", true, strconv.ErrSyntax},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -160,6 +163,9 @@ func TestLoadFailFileHeader(t *testing.T) {
 			version, seed, buf, err := engine.LoadFailFile(fileName)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("err = %v, want error %v", err, tc.wantErr)
+			}
+			if tc.cause != nil && !errors.Is(err, tc.cause) {
+				t.Fatalf("err = %v, want it to wrap %v", err, tc.cause)
 			}
 			if err == nil && (version != "v1" || seed != 42 || len(buf) != 1 || buf[0] != 1) {
 				t.Fatalf("got %q, %v, %v; want \"v1\", 42, [1]", version, seed, buf)

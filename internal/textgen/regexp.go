@@ -34,12 +34,12 @@ func CompileRegexp(expr string) (Regexp, error) {
 
 	syn, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
-		return Regexp{}, fmt.Errorf("failed to parse regexp %q: %w", expr, err)
+		return Regexp{}, fmt.Errorf("parsing regexp %q: %w", expr, err)
 	}
 
 	re, err := regexp.Compile(expr)
 	if err != nil {
-		return Regexp{}, fmt.Errorf("failed to compile regexp %q: %w", expr, err)
+		return Regexp{}, fmt.Errorf("compiling regexp %q: %w", expr, err)
 	}
 
 	ret := Regexp{syn, re}

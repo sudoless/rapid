@@ -140,7 +140,7 @@ func find[V any](gen func(*T) (V, bool), t *T, tries int) V {
 		}
 	}
 
-	panic(bitstream.InvalidData(fmt.Sprintf("failed to find suitable value in %d tries", tries)))
+	panic(bitstream.InvalidData(fmt.Sprintf("no suitable value in %d tries", tries)))
 }
 
 // Map creates a generator producing fn(u) for each u produced by g.

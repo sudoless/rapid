@@ -70,12 +70,12 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {
-		return fmt.Errorf("failed to create directory for fail file %q: %w", filename, err)
+		return fmt.Errorf("creating the directory of fail file %q: %w", filename, err)
 	}
 
 	f, err := os.CreateTemp(dir, failfileTmpPattern)
 	if err != nil {
-		return fmt.Errorf("failed to create temporary file for fail file %q: %w", filename, err)
+		return fmt.Errorf("creating a temporary file for fail file %q: %w", filename, err)
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 	defer func() { _ = f.Close() }()
@@ -83,7 +83,7 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	for line := range strings.SplitSeq(string(output), "\n") {
 		_, err := f.WriteString("# " + line + "\n")
 		if err != nil {
-			return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
+			return fmt.Errorf("writing fail file %q: %w", filename, err)
 		}
 	}
 
@@ -94,7 +94,7 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 
 	_, err = f.WriteString(strings.Join(bs, "\n"))
 	if err != nil {
-		return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
+		return fmt.Errorf("writing fail file %q: %w", filename, err)
 	}
 
 	// Close before the rename, which fails on Windows for an open file; a failed Close may mean a truncated file.
@@ -103,7 +103,7 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	}
 	err = os.Rename(f.Name(), filename)
 	if err != nil {
-		return fmt.Errorf("failed to save fail file %q: %w", filename, err)
+		return fmt.Errorf("moving fail file %q into place: %w", filename, err)
 	}
 
 	return nil
@@ -113,7 +113,7 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 	content, err := os.ReadFile(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
+		return "", 0, nil, fmt.Errorf("reading fail file: %w", err)
 	}
 
 	var data []string
@@ -131,18 +131,18 @@ func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 
 	version, seedField, ok := strings.Cut(data[0], "#")
 	if !ok {
-		return "", 0, nil, fmt.Errorf("invalid version/seed field %q in %q", data[0], filename)
+		return "", 0, nil, fmt.Errorf("fail file %q has no version#seed line, found %q", filename, data[0])
 	}
 	seed, err := strconv.ParseUint(seedField, 10, 64)
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("invalid seed %q in %q", seedField, filename)
+		return "", 0, nil, fmt.Errorf("parsing the seed of fail file %q: %w", filename, err)
 	}
 
 	var buf []uint64
 	for _, field := range data[1:] {
 		u, err := strconv.ParseUint(field, 0, 64)
 		if err != nil {
-			return "", 0, nil, fmt.Errorf("failed to load fail file %q: %w", filename, err)
+			return "", 0, nil, fmt.Errorf("parsing the test case of fail file %q: %w", filename, err)
 		}
 		buf = append(buf, u)
 	}
