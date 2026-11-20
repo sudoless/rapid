@@ -70,7 +70,7 @@ func TestFloatExamples(t *testing.T) {
 		t.Run(g.String(), func(t *testing.T) {
 			var vals []float64
 			var vals32 bool
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				f := g.Example()
 				_, vals32 = f.(float32)
 				vals = append(vals, rv(f).Float())
@@ -92,27 +92,27 @@ func TestFloat32BoundCoverage(t *testing.T) {
 	t.Parallel()
 
 	Check(t, func(t *T) {
-		min := Float32().Draw(t, "min")
-		max := Float32().Draw(t, "max")
-		if min > max {
-			min, max = max, min
+		lo := Float32().Draw(t, "min")
+		hi := Float32().Draw(t, "max")
+		if lo > hi {
+			lo, hi = hi, lo
 		}
 
-		g := Float32Range(min, max)
+		g := Float32Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := 0; i < 400; i++ {
+		for i := range 400 {
 			f := g.Example(i)
 
-			gotMin = gotMin || f == min
-			gotMax = gotMax || f == max
+			gotMin = gotMin || f == lo
+			gotMax = gotMax || f == hi
 			gotZero = gotZero || f == 0
 
-			if gotMin && gotMax && (min > 0 || max < 0 || gotZero) {
+			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
 				return
 			}
 		}
 
-		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", min, max, gotMin, gotMax, gotZero)
+		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
 	})
 }
 
@@ -120,26 +120,26 @@ func TestFloat64BoundCoverage(t *testing.T) {
 	t.Parallel()
 
 	Check(t, func(t *T) {
-		min := Float64().Draw(t, "min")
-		max := Float64().Draw(t, "max")
-		if min > max {
-			min, max = max, min
+		lo := Float64().Draw(t, "min")
+		hi := Float64().Draw(t, "max")
+		if lo > hi {
+			lo, hi = hi, lo
 		}
 
-		g := Float64Range(min, max)
+		g := Float64Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := 0; i < 400; i++ {
+		for i := range 400 {
 			f := g.Example(i)
 
-			gotMin = gotMin || f == min
-			gotMax = gotMax || f == max
+			gotMin = gotMin || f == lo
+			gotMax = gotMax || f == hi
 			gotZero = gotZero || f == 0
 
-			if gotMin && gotMax && (min > 0 || max < 0 || gotZero) {
+			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
 				return
 			}
 		}
 
-		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", min, max, gotMin, gotMax, gotZero)
+		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
 	})
 }

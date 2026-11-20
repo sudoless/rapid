@@ -193,12 +193,12 @@ func TestMinimize_LowerBound(t *testing.T) {
 	t.Parallel()
 
 	Check(t, func(t *T) {
-		min := Uint64().Draw(t, "min")
-		u := Uint64Min(min).Draw(t, "u")
+		lo := Uint64().Draw(t, "min")
+		u := Uint64Min(lo).Draw(t, "u")
 
-		best := minimize(u, func(x uint64, s string) bool { return x >= min })
-		if best != min {
-			t.Fatalf("found %v instead of %v", best, min)
+		best := minimize(u, func(x uint64, s string) bool { return x >= lo })
+		if best != lo {
+			t.Fatalf("found %v instead of %v", best, lo)
 		}
 	})
 }
@@ -206,7 +206,7 @@ func TestMinimize_LowerBound(t *testing.T) {
 func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 	t.Helper()
 
-	for i := 0; i < shrinkTestRuns; i++ {
+	for i := range shrinkTestRuns {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Helper()
 

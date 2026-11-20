@@ -16,7 +16,7 @@ import (
 func ExampleRune() {
 	gen := rapid.Rune()
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		if i%5 == 0 {
 			fmt.Println()
 		} else {
@@ -42,7 +42,7 @@ func ExampleRuneFrom() {
 	}
 
 	for _, gen := range gens {
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			if i > 0 {
 				fmt.Print(" ")
 			}
@@ -59,7 +59,7 @@ func ExampleRuneFrom() {
 func ExampleString() {
 	gen := rapid.String()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:
@@ -73,7 +73,7 @@ func ExampleString() {
 func ExampleStringOf() {
 	gen := rapid.StringOf(rapid.RuneFrom(nil, unicode.Tibetan))
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:
@@ -87,7 +87,7 @@ func ExampleStringOf() {
 func ExampleStringN() {
 	gen := rapid.StringN(5, 5, -1)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:
@@ -101,7 +101,7 @@ func ExampleStringN() {
 func ExampleStringOfN() {
 	gen := rapid.StringOfN(rapid.RuneFrom(nil, unicode.ASCII_Hex_Digit), 6, 6, -1)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:
@@ -115,7 +115,7 @@ func ExampleStringOfN() {
 func ExampleStringMatching() {
 	gen := rapid.StringMatching(`\(?([0-9]{3})\)?([ .-]?)([0-9]{3})([ .-]?)([0-9]{4})`)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:
@@ -129,7 +129,7 @@ func ExampleStringMatching() {
 func ExampleSliceOfBytesMatching() {
 	gen := rapid.SliceOfBytesMatching(`[CAGT]+`)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Printf("%q\n", gen.Example(i))
 	}
 	// Output:

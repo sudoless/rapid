@@ -87,7 +87,7 @@ func StateMachineActions(sm StateMachine) map[string]func(*T) {
 	)
 
 	actions := make(map[string]func(*T), n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := t.Method(i).Name
 
 		if name == checkMethodName {
@@ -122,7 +122,7 @@ type stateMachine struct {
 func (sm *stateMachine) executeAction(t *T) bool {
 	t.Helper()
 
-	for n := 0; n < validActionTries; n++ {
+	for range validActionTries {
 		i := t.s.beginGroup(actionLabel, false)
 		action := sm.actions[sm.actionKeys.Draw(t, "action")]
 		invalid, skipped := runAction(t, action)

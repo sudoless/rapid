@@ -166,7 +166,7 @@ func (c *MakeConfig) genAnyArray(typ reflect.Type) *Generator[any] {
 		if count == 0 {
 			t.s.drawBits(0)
 		} else {
-			for i := 0; i < count; i++ {
+			for i := range count {
 				e := reflect.ValueOf(elemGen.value(t))
 				a.Index(i).Set(e)
 			}
@@ -220,7 +220,7 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 
 	numFields := typ.NumField()
 	fieldGens := make([]*Generator[any], numFields)
-	for i := 0; i < numFields; i++ {
+	for i := range numFields {
 		field := typ.Field(i)
 		if !field.IsExported() {
 			continue
@@ -237,7 +237,7 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 		s := reflect.Indirect(reflect.New(typ))
 
 		fieldsSet := 0
-		for i := 0; i < numFields; i++ {
+		for i := range numFields {
 			if fieldGens[i] == nil {
 				continue
 			}

@@ -180,7 +180,7 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 		buf := append([]uint64(nil), s.rec.data...)
 		buf[i] -= 1
 
-		for j := 0; j < len(s.rec.groups); j++ {
+		for j := range len(s.rec.groups) {
 			g := s.rec.groups[j]
 			if !g.standalone || g.end < 0 || (i >= g.begin && i < g.end) {
 				continue
@@ -343,7 +343,7 @@ func (m *minimizer) sortBits() {
 	for i := size - 1; i >= 0; i-- {
 		h := uint64(1 << uint(i))
 		if m.best&h != 0 {
-			for j := 0; j < i; j++ {
+			for j := range i {
 				l := uint64(1 << uint(j))
 				if m.best&l == 0 {
 					if m.accept(m.best^(l|h), labelMinBlockSort) {

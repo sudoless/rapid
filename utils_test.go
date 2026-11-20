@@ -68,12 +68,12 @@ func TestGenGeomMean(t *testing.T) {
 
 	s := newRandomBitStream(baseSeed(), false)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			p := genFloat01(s)
 
 			var geoms []uint64
-			for i := 0; i < 10000; i++ {
+			for range 10000 {
 				geoms = append(geoms, genGeom(s, p))
 			}
 
@@ -97,7 +97,7 @@ func TestUintsExamplesHist(t *testing.T) {
 	for _, n := range []int{2, 3, 4, 5, 6, 8, 16, 32, 64} {
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			var lines []string
-			for i := 0; i < 50; i++ {
+			for range 50 {
 				n, _, _ := genUintN(s, bitmask64(uint(n)), true)
 				b := bits.Len64(n)
 				l := fmt.Sprintf("% 24d %s % 3d", n, strings.Repeat("*", b)+strings.Repeat(" ", 64-b), b)
@@ -132,12 +132,12 @@ func TestGenUintN(t *testing.T) {
 	}
 
 	s := createRandomBitStream(t)
-	max := []uint64{0, 1, 2, 5, 13}
+	hi := []uint64{0, 1, 2, 5, 13}
 
-	for _, m := range max {
+	for _, m := range hi {
 		r := make([]int, m+1)
 		n := 1000
-		for i := 0; i < n; i++ {
+		for range n {
 			u, _, _ := genUintN(s, m, false)
 			r[u]++
 		}
@@ -170,7 +170,7 @@ func TestGenUintRange(t *testing.T) {
 	for _, r := range ranges {
 		m := map[uint64]int{}
 		n := 1000
-		for i := 0; i < n; i++ {
+		for range n {
 			u, _, _ := genUintRange(s, r[0], r[1], false)
 			m[u]++
 		}
@@ -216,7 +216,7 @@ func TestGenIntRange(t *testing.T) {
 	for _, r := range ranges {
 		m := map[int64]int{}
 		n := 1000
-		for i := 0; i < n; i++ {
+		for range n {
 			u, _, _ := genIntRange(s, r[0], r[1], false)
 			m[u]++
 		}
@@ -242,7 +242,7 @@ func TestFlipBiasedCoin(t *testing.T) {
 	for _, p := range ps {
 		n := 1000
 		y := 0
-		for i := 0; i < n; i++ {
+		for range n {
 			if flipBiasedCoin(s, p) {
 				y++
 			}
@@ -271,7 +271,7 @@ func TestLoadedDie(t *testing.T) {
 		n := 1000
 		r := make([]int, len(ws))
 
-		for i := 0; i < n; i++ {
+		for range n {
 			r[d.roll(s)]++
 		}
 
@@ -315,22 +315,22 @@ func TestRepeat(t *testing.T) {
 	}
 
 	for _, mma := range mmas {
-		min, max, avg := mma[0], mma[1], mma[2]
+		lo, hi, avg := mma[0], mma[1], mma[2]
 
 		n := 5000
 		c := make([]int, n)
-		for i := 0; i < n; i++ {
-			r := newRepeat(min, max, float64(avg), "")
+		for i := range n {
+			r := newRepeat(lo, hi, float64(avg), "")
 			for r.more(s) {
 				c[i]++
 			}
 
-			if c[i] < min || c[i] > max {
-				t.Errorf("got %v tries with bounds [%v, %v]", c[i], min, max)
+			if c[i] < lo || c[i] > hi {
+				t.Errorf("got %v tries with bounds [%v, %v]", c[i], lo, hi)
 			}
 		}
 
-		if min == 1000 && max == math.MaxInt32 {
+		if lo == 1000 && hi == math.MaxInt32 {
 			mu := float64(0)
 			for _, e := range c {
 				mu += float64(e)

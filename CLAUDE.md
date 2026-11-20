@@ -8,13 +8,12 @@ The repo is public. Commit messages, PRs and docs describe API and behaviour, ne
 ## Commands
 
 ```sh
-go test -race ./...                 # full suite
-go test -run='^$' -bench=. ./...    # benchmarks
-gofmt -l .                          # prints nothing when formatted
-go test -args -h                    # lists the -rapid.* flags
+make check     # fmt-check, lint, test-race: what a PR must pass
+make fmt       # gofumpt and goimports, through golangci-lint
+make help      # every target
 ```
 
-Statistical tests are skipped unless `-flaky` (package `rapid`) or `-flaky.ext` (package `rapid_test`) is set.
+Statistical tests are skipped unless `-flaky` (package `rapid`) or `-flaky.ext` (package `rapid_test`) is set; `make test-flaky` sets both.
 
 ## Invariants
 

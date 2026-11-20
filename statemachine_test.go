@@ -75,7 +75,7 @@ func TestStateMachine_Halting(t *testing.T) {
 	t.Parallel()
 
 	a := []any{"A", 0, "A", 0, "A", 0}
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		a = append(a, "A") // TODO proper shrinking of "stuck" state machines
 	}
 

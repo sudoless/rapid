@@ -28,27 +28,27 @@ func Float32() *Generator[float32] {
 	return Float32Range(-math.MaxFloat32, math.MaxFloat32)
 }
 
-// Float32Min is a shorthand for [Float32Range](min, [math.MaxFloat32]).
-func Float32Min(min float32) *Generator[float32] {
-	return Float32Range(min, math.MaxFloat32)
+// Float32Min is a shorthand for [Float32Range](lo, [math.MaxFloat32]).
+func Float32Min(lo float32) *Generator[float32] {
+	return Float32Range(lo, math.MaxFloat32)
 }
 
-// Float32Max is a shorthand for [Float32Range](-[math.MaxFloat32], max).
-func Float32Max(max float32) *Generator[float32] {
-	return Float32Range(-math.MaxFloat32, max)
+// Float32Max is a shorthand for [Float32Range](-[math.MaxFloat32], hi).
+func Float32Max(hi float32) *Generator[float32] {
+	return Float32Range(-math.MaxFloat32, hi)
 }
 
-// Float32Range creates a generator of 32-bit floating-point numbers in range [min, max].
-// Both min and max can be infinite.
-func Float32Range(min float32, max float32) *Generator[float32] {
-	assertf(min == min, "min should not be a NaN")
-	assertf(max == max, "max should not be a NaN")
-	assertf(min <= max, "invalid range [%v, %v]", min, max)
+// Float32Range creates a generator of 32-bit floating-point numbers in range [lo, hi].
+// Both lo and hi can be infinite.
+func Float32Range(lo float32, hi float32) *Generator[float32] {
+	assertf(lo == lo, "lo should not be a NaN")
+	assertf(hi == hi, "hi should not be a NaN")
+	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
 
 	return newGenerator[float32](&float32Gen{
 		floatGen{
-			min:    float64(min),
-			max:    float64(max),
+			min:    float64(lo),
+			max:    float64(hi),
 			minVal: -math.MaxFloat32,
 			maxVal: math.MaxFloat32,
 		},
@@ -60,27 +60,27 @@ func Float64() *Generator[float64] {
 	return Float64Range(-math.MaxFloat64, math.MaxFloat64)
 }
 
-// Float64Min is a shorthand for [Float64Range](min, [math.MaxFloat64]).
-func Float64Min(min float64) *Generator[float64] {
-	return Float64Range(min, math.MaxFloat64)
+// Float64Min is a shorthand for [Float64Range](lo, [math.MaxFloat64]).
+func Float64Min(lo float64) *Generator[float64] {
+	return Float64Range(lo, math.MaxFloat64)
 }
 
-// Float64Max is a shorthand for [Float64Range](-[math.MaxFloat64], max).
-func Float64Max(max float64) *Generator[float64] {
-	return Float64Range(-math.MaxFloat64, max)
+// Float64Max is a shorthand for [Float64Range](-[math.MaxFloat64], hi).
+func Float64Max(hi float64) *Generator[float64] {
+	return Float64Range(-math.MaxFloat64, hi)
 }
 
-// Float64Range creates a generator of 64-bit floating-point numbers in range [min, max].
-// Both min and max can be infinite.
-func Float64Range(min float64, max float64) *Generator[float64] {
-	assertf(min == min, "min should not be a NaN")
-	assertf(max == max, "max should not be a NaN")
-	assertf(min <= max, "invalid range [%v, %v]", min, max)
+// Float64Range creates a generator of 64-bit floating-point numbers in range [lo, hi].
+// Both lo and hi can be infinite.
+func Float64Range(lo float64, hi float64) *Generator[float64] {
+	assertf(lo == lo, "lo should not be a NaN")
+	assertf(hi == hi, "hi should not be a NaN")
+	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
 
 	return newGenerator[float64](&float64Gen{
 		floatGen{
-			min:    min,
-			max:    max,
+			min:    lo,
+			max:    hi,
 			minVal: -math.MaxFloat64,
 			maxVal: math.MaxFloat64,
 		},
@@ -93,8 +93,10 @@ type floatGen struct {
 	minVal float64
 	maxVal float64
 }
-type float32Gen struct{ floatGen }
-type float64Gen struct{ floatGen }
+type (
+	float32Gen struct{ floatGen }
+	float64Gen struct{ floatGen }
+)
 
 func (g *floatGen) stringImpl(kind string) string {
 	if g.min != g.minVal && g.max != g.maxVal {
@@ -107,9 +109,11 @@ func (g *floatGen) stringImpl(kind string) string {
 
 	return fmt.Sprintf("%s()", kind)
 }
+
 func (g *float32Gen) String() string {
 	return g.stringImpl("Float32")
 }
+
 func (g *float64Gen) String() string {
 	return g.stringImpl("Float64")
 }
@@ -117,6 +121,7 @@ func (g *float64Gen) String() string {
 func (g *float32Gen) value(t *T) float32 {
 	return float32FromParts(genFloatRange(t.s, g.min, g.max, float32SignifBits))
 }
+
 func (g *float64Gen) value(t *T) float64 {
 	return float64FromParts(genFloatRange(t.s, g.min, g.max, float64SignifBits))
 }
@@ -183,19 +188,19 @@ func float64FromParts(sign bool, e int32, si uint64, sf uint64) float64 {
 	}
 }
 
-func genUfloatRange(s bitStream, min float64, max float64, signifBits uint) (int32, uint64, uint64) {
-	assert(min >= 0 && min <= max)
+func genUfloatRange(s bitStream, lo float64, hi float64, signifBits uint) (int32, uint64, uint64) {
+	assert(lo >= 0 && lo <= hi)
 
 	var (
 		minExp, maxExp                                 int32
 		minSignifI, maxSignifI, minSignifF, maxSignifF uint64
 	)
 	if signifBits == float32SignifBits {
-		minExp, minSignifI, minSignifF = ufloat32Parts(float32(min))
-		maxExp, maxSignifI, maxSignifF = ufloat32Parts(float32(max))
+		minExp, minSignifI, minSignifF = ufloat32Parts(float32(lo))
+		maxExp, maxSignifI, maxSignifF = ufloat32Parts(float32(hi))
 	} else {
-		minExp, minSignifI, minSignifF = ufloat64Parts(min)
-		maxExp, maxSignifI, maxSignifF = ufloat64Parts(max)
+		minExp, minSignifI, minSignifF = ufloat64Parts(lo)
+		maxExp, maxSignifI, maxSignifF = ufloat64Parts(hi)
 	}
 
 	i := s.beginGroup(floatExpLabel, false)
@@ -241,7 +246,7 @@ func genUfloatRange(s bitStream, min float64, max float64, signifBits uint) (int
 	sf, _, _ := genUintRange(s, sfMin, sfMax, false)
 	s.endGroup(j, false)
 
-	for i := uint(0); i < uint(maxR)-uint(r); i++ {
+	for i := range uint(maxR) - uint(r) {
 		mask := ^(uint64(1) << i)
 		if sf&mask < sfMin {
 			break
@@ -252,23 +257,23 @@ func genUfloatRange(s bitStream, min float64, max float64, signifBits uint) (int
 	return int32(e), si, sf
 }
 
-func genFloatRange(s bitStream, min float64, max float64, signifBits uint) (bool, int32, uint64, uint64) {
+func genFloatRange(s bitStream, lo float64, hi float64, signifBits uint) (bool, int32, uint64, uint64) {
 	var posMin, negMin, pNeg float64
-	if min >= 0 {
-		posMin = min
+	if lo >= 0 {
+		posMin = lo
 		pNeg = 0
-	} else if max <= 0 {
-		negMin = -max
+	} else if hi <= 0 {
+		negMin = -hi
 		pNeg = 1
 	} else {
 		pNeg = 0.5
 	}
 
 	if flipBiasedCoin(s, pNeg) {
-		e, si, sf := genUfloatRange(s, negMin, -min, signifBits)
+		e, si, sf := genUfloatRange(s, negMin, -lo, signifBits)
 		return true, e, si, sf
 	} else {
-		e, si, sf := genUfloatRange(s, posMin, max, signifBits)
+		e, si, sf := genUfloatRange(s, posMin, hi, signifBits)
 		return false, e, si, sf
 	}
 }

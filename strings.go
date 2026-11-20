@@ -257,12 +257,15 @@ type regexpGen struct {
 	syn  *syntax.Regexp
 	re   *regexp.Regexp
 }
-type regexpStringGen struct{ regexpGen }
-type regexpSliceGen struct{ regexpGen }
+type (
+	regexpStringGen struct{ regexpGen }
+	regexpSliceGen  struct{ regexpGen }
+)
 
 func (g *regexpStringGen) String() string {
 	return fmt.Sprintf("StringMatching(%q)", g.expr)
 }
+
 func (g *regexpSliceGen) String() string {
 	return fmt.Sprintf("SliceOfBytesMatching(%q)", g.expr)
 }
@@ -294,6 +297,7 @@ func (g *regexpSliceGen) maybeSlice(t *T) ([]byte, bool) {
 func (g *regexpStringGen) value(t *T) string {
 	return find(g.maybeString, t, small)
 }
+
 func (g *regexpSliceGen) value(t *T) []byte {
 	return find(g.maybeSlice, t, small)
 }
@@ -328,16 +332,16 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	case syntax.OpCapture:
 		g.build(w, re.Sub[0], t)
 	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat:
-		min, max := re.Min, re.Max
+		lo, hi := re.Min, re.Max
 		switch re.Op {
 		case syntax.OpStar:
-			min, max = 0, -1
+			lo, hi = 0, -1
 		case syntax.OpPlus:
-			min, max = 1, -1
+			lo, hi = 1, -1
 		case syntax.OpQuest:
-			min, max = 0, 1
+			lo, hi = 0, 1
 		}
-		repeat := newRepeat(min, max, -1, regexpName(re.Sub[0]))
+		repeat := newRepeat(lo, hi, -1, regexpName(re.Sub[0]))
 		for repeat.more(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
@@ -361,7 +365,7 @@ func maybeFoldCase(s bitStream, r rune, flags syntax.Flags) rune {
 		n, _, _ = genUintN(s, 4, false)
 	}
 
-	for i := 0; i < int(n); i++ {
+	for range n {
 		r = unicode.SimpleFold(r)
 	}
 
