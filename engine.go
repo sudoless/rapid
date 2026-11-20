@@ -166,12 +166,6 @@ func panicInvalidEnv(key, value string, err error) {
 	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
 }
 
-func assertValidRange(lo, hi int) {
-	if hi >= 0 && lo > hi {
-		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
-	}
-}
-
 // baseSeed returns -rapid.seed when set, and a random seed otherwise.
 func baseSeed() uint64 {
 	if flags.seed != 0 {

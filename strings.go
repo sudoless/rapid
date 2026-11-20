@@ -164,7 +164,7 @@ func StringOf(elem *Generator[rune]) *Generator[string] {
 // StringOfN panics if maxRunes >= 0 and minRunes > maxRunes.
 // StringOfN panics if maxLen >= 0 and maxLen < maxRunes.
 func StringOfN(elem *Generator[rune], minRunes, maxRunes, maxLen int) *Generator[string] {
-	assertValidRange(minRunes, maxRunes)
+	assert.ValidRange(minRunes, maxRunes)
 	assert.Truef(maxLen < 0 || maxLen >= maxRunes,
 		"maximum length (%v) should not be less than maximum number of runes (%v)", maxLen, maxRunes)
 
