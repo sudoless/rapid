@@ -94,3 +94,25 @@ func TestSyncTestRecordedFailureFailsTestCase(t *testing.T) {
 		t.Fatal("Errorf inside SyncTest did not fail the test case")
 	}
 }
+
+// Check runs inside a testing/synctest bubble, where time is fake: a property that sleeps an hour per test
+// case finishes at once, and the fake hours do not cut its checks short.
+func TestCheckInsideSynctestBubble(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		runs := 0
+		rapid.Check(t, func(*rapid.T) {
+			runs++
+			time.Sleep(time.Hour)
+		}, rapid.Checks(100))
+
+		want := 100
+		if testing.Short() {
+			want = 20
+		}
+		if runs != want {
+			t.Fatalf("the property ran %v times, want %v", runs, want)
+		}
+	})
+}

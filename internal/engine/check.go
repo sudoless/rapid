@@ -46,18 +46,35 @@ func newLog(w io.Writer, testName string) *log.Logger {
 	return log.New(w, fmt.Sprintf("[%v] ", testName), log.Lmsgprefix|log.Ldate|log.Ltime|log.Lmicroseconds)
 }
 
-// Deadline returns when the test tb has to end: the deadline of a *testing.T that has one,
-// else a day from now.
+// fakeClock is the deadline of a test inside a testing/synctest bubble. Time there is fake: it stands still
+// while the property computes and leaps when it sleeps, so no time bounds the search or the shrinking.
+var fakeClock = time.Date(9999, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+// Deadline returns when the test tb has to end: the deadline of a *testing.T that has one, else a day from
+// now. Inside a testing/synctest bubble, it returns fakeClock.
 func Deadline(tb TB) time.Time {
-	t, ok := tb.(*testing.T)
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
+	if t, ok := tb.(*testing.T); ok {
+		d, ok, bubbled := testDeadline(t)
+		switch {
+		case bubbled:
+			return fakeClock
+		case ok:
+			return d
+		}
 	}
-	d, ok := t.Deadline()
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
-	}
-	return d
+	return time.Now().Add(maxTestTimeout)
+}
+
+// testDeadline returns the deadline of t, if it has one, and whether t is in a testing/synctest bubble,
+// where t.Deadline panics. Go offers no way to ask whether t is in a bubble, so the panic is recovered.
+func testDeadline(t *testing.T) (d time.Time, ok, bubbled bool) {
+	defer func() {
+		if recover() != nil {
+			d, ok, bubbled = time.Time{}, false, true
+		}
+	}()
+	d, ok = t.Deadline()
+	return d, ok, false
 }
 
 // Check fails tb when run fails on a test case: one from a fail file, or one generated within lim, whose

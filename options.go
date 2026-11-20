@@ -31,14 +31,15 @@ func Checks(n int) CheckOption {
 
 // SearchTime stops generating test cases for the property after d, so an expensive property is bounded by
 // time as well as by count. The property passes if at least one valid test case ran. Neither replaying fail
-// files nor shrinking a failure counts towards d. SearchTime panics if d <= 0.
+// files nor shrinking a failure counts towards d. Inside a [testing/synctest] bubble, where time is fake, d
+// does not apply. SearchTime panics if d <= 0.
 func SearchTime(d time.Duration) CheckOption {
 	assert.Truef(d > 0, "SearchTime(%v): want a positive duration", d)
 	return CheckOption{func(lim *engine.Limits) { lim.SearchTime = d }}
 }
 
 // ShrinkTime bounds how long shrinking a failure of the property takes, whatever -rapid.shrinktime says.
-// ShrinkTime panics if d <= 0.
+// Inside a [testing/synctest] bubble, where time is fake, d does not apply. ShrinkTime panics if d <= 0.
 func ShrinkTime(d time.Duration) CheckOption {
 	assert.Truef(d > 0, "ShrinkTime(%v): want a positive duration", d)
 	return CheckOption{func(lim *engine.Limits) { lim.ShrinkTime = d }}

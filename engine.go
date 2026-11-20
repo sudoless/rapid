@@ -41,6 +41,9 @@ var tracebackBlacklist = map[string]bool{
 //
 // Property is falsified in case of a panic or a call to
 // [*T.Fatalf], [*T.Fatal], [*T.Errorf], [*T.Error], [*T.FailNow] or [*T.Fail].
+//
+// Inside a [testing/synctest] bubble, where time is fake, no time bounds Check: it runs all its checks, and
+// shrinks a failure to the end, whatever [SearchTime], [ShrinkTime] or the test's -timeout say.
 func Check(t TB, prop func(*T), opts ...CheckOption) {
 	t.Helper()
 	engine.Check(t, checkLimits(opts), runner(t, prop))
