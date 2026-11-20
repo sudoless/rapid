@@ -294,6 +294,6 @@ func TestStateMachineActions(t *testing.T) {
 
 func BenchmarkCheckQueue(b *testing.B) {
 	for range b.N {
-		_, _, _, _, _, _, _, _ = doCheck(b, checkDeadline(nil), 100, baseSeed(), "", false, queueTest)
+		_ = doCheck(b, checkDeadline(nil), 100, baseSeed(), "", false, queueTest)
 	}
 }

@@ -277,14 +277,15 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 
 	start := time.Now()
-	valid, invalid, earlyExit, seed, failfile, buf, err1, err2 := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
+	res := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
 	dt := time.Since(start)
+	valid, seed, failfile, buf, err1, err2 := res.valid, res.seed, res.failfile, res.buf, res.err1, res.err2
 
 	if err1 == nil && err2 == nil {
-		if valid == checks || (earlyExit && valid > 0) {
+		if valid == checks || (res.earlyExit && valid > 0) {
 			tb.Logf("[rapid] OK, passed %v tests (%v)", valid, dt)
 		} else {
-			tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", valid, valid+invalid, dt)
+			tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", valid, valid+res.invalid, dt)
 		}
 	} else {
 		if failfile == "" && !flags.nofailfile {
@@ -329,9 +330,19 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 }
 
-func doCheck(
-	tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T),
-) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
+// checkResult is what doCheck learned about a property.
+type checkResult struct {
+	valid     int
+	invalid   int
+	earlyExit bool     // the deadline stopped the search before checks valid test cases ran
+	seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
+	failfile  string   // the fail file the failure was replayed from
+	buf       []uint64 // the failing test case, shrunk when the failure reproduced
+	err1      *testError
+	err2      *testError // the failure on replay; differs from err1 when the test is flaky
+}
+
+func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T)) checkResult {
 	tb.Helper()
 
 	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
@@ -347,13 +358,13 @@ func doCheck(
 	for _, failfile := range failfiles {
 		buf, err1, err2 := checkFailFile(tb, failfile, prop)
 		if err1 != nil || err2 != nil {
-			return 0, 0, false, 0, failfile, buf, err1, err2
+			return checkResult{failfile: failfile, buf: buf, err1: err1, err2: err2}
 		}
 	}
 
 	valid, invalid, earlyExit, seed, err1 := findBug(tb, deadline, checks, seed, prop)
 	if err1 == nil {
-		return valid, invalid, earlyExit, 0, "", nil, nil, nil
+		return checkResult{valid: valid, invalid: invalid, earlyExit: earlyExit}
 	}
 
 	s := newRandomBitStream(seed, true)
@@ -361,13 +372,13 @@ func doCheck(
 	t.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t, prop)
 	if !sameError(err1, err2) {
-		return valid, invalid, false, seed, "", s.data, err1, err2
+		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.data, err1: err1, err2: err2}
 	}
 
 	t.Logf("[rapid] trying to minimize the failing test case")
 	buf, err3 := shrink(tb, shrinkDeadline(deadline), s.recordedBits, err2, prop)
 
-	return valid, invalid, false, seed, "", buf, err2, err3
+	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
 
 func checkFailFile(tb tb, failfile string, prop func(*T)) ([]uint64, *testError, *testError) {
