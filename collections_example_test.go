@@ -15,7 +15,7 @@ import (
 func ExampleSliceOf() {
 	gen := rapid.SliceOf(rapid.Int())
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -29,7 +29,7 @@ func ExampleSliceOf() {
 func ExampleSliceOfN() {
 	gen := rapid.SliceOfN(rapid.Int(), 5, 5)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -43,7 +43,7 @@ func ExampleSliceOfN() {
 func ExampleSliceOfDistinct() {
 	gen := rapid.SliceOfDistinct(rapid.IntMin(0), func(i int) int { return i % 2 })
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -57,7 +57,7 @@ func ExampleSliceOfDistinct() {
 func ExampleSliceOfNDistinct() {
 	gen := rapid.SliceOfNDistinct(rapid.IntMin(0), 2, 2, func(i int) int { return i % 2 })
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -71,7 +71,7 @@ func ExampleSliceOfNDistinct() {
 func ExampleMapOf() {
 	gen := rapid.MapOf(rapid.Int(), rapid.StringMatching(`[a-z]+`))
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -85,7 +85,7 @@ func ExampleMapOf() {
 func ExampleMapOfN() {
 	gen := rapid.MapOfN(rapid.Int(), rapid.StringMatching(`[a-z]+`), 5, 5)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -99,7 +99,7 @@ func ExampleMapOfN() {
 func ExampleMapOfValues() {
 	gen := rapid.MapOfValues(rapid.StringMatching(`[a-z]+`), func(s string) int { return len(s) })
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -113,7 +113,7 @@ func ExampleMapOfValues() {
 func ExampleMapOfNValues() {
 	gen := rapid.MapOfNValues(rapid.StringMatching(`[a-z]+`), 5, 5, func(s string) int { return len(s) })
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:

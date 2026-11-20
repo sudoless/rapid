@@ -40,7 +40,7 @@ func TestIntExamples(t *testing.T) {
 	for _, g := range gens {
 		t.Run(g.String(), func(t *testing.T) {
 			var vals []int
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				vals = append(vals, g.Example().(int))
 			}
 			sort.Ints(vals)
@@ -210,7 +210,7 @@ func TestIntBoundCoverage(t *testing.T) {
 
 		g := IntRange(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := 0; i < 250; i++ {
+		for i := range 250 {
 			n := g.Example(i)
 
 			gotMin = gotMin || n == lo
@@ -232,7 +232,7 @@ func TestByteCoverage(t *testing.T) {
 		t.Skip("flaky")
 	}
 
-	for b := 0; b < 256; b++ {
+	for b := range 256 {
 		t.Run(strconv.Itoa(b), func(t *testing.T) {
 			_ = Byte().Filter(func(v byte) bool { return v == byte(b) }).Example()
 		})

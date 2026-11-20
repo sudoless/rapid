@@ -18,7 +18,7 @@ import (
 func TestStringExamples(t *testing.T) {
 	g := StringN(10, -1, -1)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		s := g.Example()
 		t.Log(len(s), s)
 	}
@@ -27,7 +27,7 @@ func TestStringExamples(t *testing.T) {
 func TestRegexpExamples(t *testing.T) {
 	g := StringMatching("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		s := g.Example()
 		t.Log(len(s), s)
 	}

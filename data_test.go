@@ -66,7 +66,7 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 	s := createRandomBitStream(t)
 
 	for n := 1; n <= 64; n++ {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			t.Run(fmt.Sprintf("%v bits #%v", n, i), func(t *testing.T) {
 				b := s.drawBits(n)
 				if bits.Len64(b) > n {

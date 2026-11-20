@@ -15,7 +15,7 @@ import (
 func ExampleMake() {
 	gen := rapid.Make[map[int]bool]()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:
@@ -43,7 +43,7 @@ func (t *tree) String() string {
 func ExampleMake_tree() {
 	gen := rapid.Make[*tree]()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		fmt.Println(gen.Example(i))
 	}
 	// Output:

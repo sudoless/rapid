@@ -365,7 +365,7 @@ func maybeFoldCase(s bitStream, r rune, flags syntax.Flags) rune {
 		n, _, _ = genUintN(s, 4, false)
 	}
 
-	for i := 0; i < int(n); i++ {
+	for range n {
 		r = unicode.SimpleFold(r)
 	}
 

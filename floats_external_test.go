@@ -70,7 +70,7 @@ func TestFloatExamples(t *testing.T) {
 		t.Run(g.String(), func(t *testing.T) {
 			var vals []float64
 			var vals32 bool
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				f := g.Example()
 				_, vals32 = f.(float32)
 				vals = append(vals, rv(f).Float())
@@ -100,7 +100,7 @@ func TestFloat32BoundCoverage(t *testing.T) {
 
 		g := Float32Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := 0; i < 400; i++ {
+		for i := range 400 {
 			f := g.Example(i)
 
 			gotMin = gotMin || f == lo
@@ -128,7 +128,7 @@ func TestFloat64BoundCoverage(t *testing.T) {
 
 		g := Float64Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := 0; i < 400; i++ {
+		for i := range 400 {
 			f := g.Example(i)
 
 			gotMin = gotMin || f == lo

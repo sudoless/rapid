@@ -107,7 +107,7 @@ func (g *filteredGen[V]) maybeValue(t *T) (V, bool) {
 }
 
 func find[V any](gen func(*T) (V, bool), t *T, tries int) V {
-	for n := 0; n < tries; n++ {
+	for range tries {
 		i := t.s.beginGroup(tryLabel, false)
 		v, ok := gen(t)
 		t.s.endGroup(i, !ok)

@@ -187,7 +187,7 @@ func (x *jsf64ctx) init(seed uint64) {
 	x.c = seed
 	x.d = seed
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		x.rand()
 	}
 }
