@@ -211,27 +211,8 @@ func (c *MakeConfig) genAnyMap(typ reflect.Type) *Generator[any] {
 }
 
 func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
-	customFields := map[string]*Generator[any]{}
-	if c.Fields != nil {
-		if custom, ok := c.Fields[typ]; ok {
-			customFields = custom
-		}
-	}
-
 	numFields := typ.NumField()
-	fieldGens := make([]*Generator[any], numFields)
-	for idx := range numFields {
-		field := typ.Field(idx)
-		if !field.IsExported() {
-			continue
-		}
-
-		if gen, ok := customFields[field.Name]; ok {
-			fieldGens[idx] = gen
-		} else {
-			fieldGens[idx] = c.newMakeGen(field.Type)
-		}
-	}
+	fieldGens := c.structFieldGens(typ)
 
 	return Custom(func(t *T) any {
 		s := reflect.Indirect(reflect.New(typ))
@@ -257,4 +238,26 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 
 		return s.Interface()
 	})
+}
+
+// structFieldGens returns a generator for each exported field of typ, indexed like its fields:
+// the one MakeConfig.Fields names for it, or else one made for the field's type.
+// Unexported fields get nil.
+func (c *MakeConfig) structFieldGens(typ reflect.Type) []*Generator[any] {
+	customFields := c.Fields[typ]
+	fieldGens := make([]*Generator[any], typ.NumField())
+	for idx := range fieldGens {
+		field := typ.Field(idx)
+		if !field.IsExported() {
+			continue
+		}
+
+		if gen, ok := customFields[field.Name]; ok {
+			fieldGens[idx] = gen
+		} else {
+			fieldGens[idx] = c.newMakeGen(field.Type)
+		}
+	}
+
+	return fieldGens
 }
