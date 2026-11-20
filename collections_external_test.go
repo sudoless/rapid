@@ -7,6 +7,7 @@
 package rapid_test
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -44,7 +45,7 @@ func TestSliceOf(t *testing.T) {
 func TestSliceOfDistinct(t *testing.T) {
 	t.Parallel()
 
-	g := SliceOfDistinct(Int[int](), ID[int])
+	g := SliceOfDistinct(Int[int]())
 
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
@@ -58,10 +59,10 @@ func TestSliceOfDistinct(t *testing.T) {
 	})
 }
 
-func TestSliceOfDistinctBy(t *testing.T) {
+func TestSliceOfDistinctFunc(t *testing.T) {
 	t.Parallel()
 
-	g := SliceOfDistinct(Int[int](), func(i int) string { return strconv.Itoa(i % 5) })
+	g := SliceOfDistinctFunc(Int[int](), func(i int) string { return strconv.Itoa(i % 5) })
 
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
@@ -122,12 +123,14 @@ func TestCollectionLenLimits(t *testing.T) {
 	genFuncs := []func(i, j int) *Generator[any]{
 		func(i, j int) *Generator[any] { return StringOfN(IntRange[int32]('A', 'Z'), i, j, -1).AsAny() },
 		func(i, j int) *Generator[any] { return SliceOfN(Int[byte](), i, j).AsAny() },
-		func(i, j int) *Generator[any] { return SliceOfNDistinct(Int[byte](), i, j, ID[byte]).AsAny() },
+		func(i, j int) *Generator[any] { return SliceOfNDistinct(Int[byte](), i, j).AsAny() },
 		func(i, j int) *Generator[any] {
-			return SliceOfNDistinct(Int[int](), i, j, func(n int) int { return n % j }).AsAny()
+			return SliceOfNDistinctFunc(Int[int](), i, j, func(n int) int { return n % j }).AsAny()
 		},
 		func(i, j int) *Generator[any] { return MapOfN(Int[int](), Int[int](), i, j).AsAny() },
-		func(i, j int) *Generator[any] { return MapOfNValues(Int[int](), i, j, ID[int]).AsAny() },
+		func(i, j int) *Generator[any] {
+			return MapOfNValues(Int[int](), i, j, func(n int) int { return n }).AsAny()
+		},
 		func(i, j int) *Generator[any] {
 			return MapOfNValues(Int[int](), i, j, func(n int) int { return n % j }).AsAny()
 		},
@@ -149,6 +152,30 @@ func TestCollectionLenLimits(t *testing.T) {
 					t.Fatalf("got collection of length %v with maxLen %v", s.Len(), maxLen)
 				}
 			})
+		})
+	}
+}
+
+func TestSliceOfDistinctString(t *testing.T) {
+	t.Parallel()
+
+	mod5 := func(i int) int { return i % 5 }
+	tests := []struct {
+		gen  fmt.Stringer
+		want string
+	}{
+		{SliceOfDistinct(IntRange(0, 9)), "SliceOfDistinct(IntRange[int](0, 9))"},
+		{SliceOfNDistinct(IntRange(0, 9), 1, 3), "SliceOfNDistinct(IntRange[int](0, 9), minLen=1, maxLen=3)"},
+		{SliceOfDistinctFunc(IntRange(0, 9), mod5), "SliceOfDistinctFunc(IntRange[int](0, 9), key=func(int) int)"},
+		{SliceOfNDistinctFunc(IntRange(0, 9), 1, 3, mod5), "SliceOfNDistinctFunc(IntRange[int](0, 9), minLen=1, maxLen=3, key=func(int) int)"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
+
+			if got := tc.gen.String(); got != tc.want {
+				t.Errorf("String() = %q, want %q", got, tc.want)
+			}
 		})
 	}
 }

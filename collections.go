@@ -13,11 +13,6 @@ import (
 	"go.sdls.io/rapid/internal/bitstream"
 )
 
-// ID returns its argument as is. ID is a helper for use with [SliceOfDistinct] and similar functions.
-func ID[V any](v V) V {
-	return v
-}
-
 // SliceOf is a shorthand for [SliceOfN](elem, -1, -1).
 func SliceOf[E any](elem *Generator[E]) *Generator[[]E] {
 	return SliceOfN(elem, -1, -1)
@@ -36,16 +31,34 @@ func SliceOfN[E any](elem *Generator[E], minLen, maxLen int) *Generator[[]E] {
 	})
 }
 
-// SliceOfDistinct is a shorthand for [SliceOfNDistinct](elem, -1, -1, keyFn).
-func SliceOfDistinct[E any, K comparable](elem *Generator[E], keyFn func(E) K) *Generator[[]E] {
-	return SliceOfNDistinct(elem, -1, -1, keyFn)
+// SliceOfDistinct is a shorthand for [SliceOfNDistinct](elem, -1, -1).
+func SliceOfDistinct[E comparable](elem *Generator[E]) *Generator[[]E] {
+	return SliceOfNDistinct(elem, -1, -1)
 }
 
-// SliceOfNDistinct creates a []E generator. Elements of each generated slice are distinct according to keyFn.
+// SliceOfNDistinct creates a []E generator whose slices hold no element twice.
 // If minLen >= 0, generated slices have minimum length of minLen. If maxLen >= 0, generated slices
 // have maximum length of maxLen. SliceOfNDistinct panics if maxLen >= 0 and minLen > maxLen.
-// [ID] helper can be used as keyFn to generate slices of distinct comparable elements.
-func SliceOfNDistinct[E any, K comparable](elem *Generator[E], minLen, maxLen int, keyFn func(E) K) *Generator[[]E] {
+func SliceOfNDistinct[E comparable](elem *Generator[E], minLen, maxLen int) *Generator[[]E] {
+	assert.ValidRange(minLen, maxLen)
+
+	return newGenerator[[]E](&sliceGen[E, E]{
+		minLen: minLen,
+		maxLen: maxLen,
+		elem:   elem,
+		keyFn:  func(e E) E { return e },
+	})
+}
+
+// SliceOfDistinctFunc is a shorthand for [SliceOfNDistinctFunc](elem, -1, -1, keyFn).
+func SliceOfDistinctFunc[E any, K comparable](elem *Generator[E], keyFn func(E) K) *Generator[[]E] {
+	return SliceOfNDistinctFunc(elem, -1, -1, keyFn)
+}
+
+// SliceOfNDistinctFunc creates a []E generator whose slices hold no two elements with the same keyFn key.
+// If minLen >= 0, generated slices have minimum length of minLen. If maxLen >= 0, generated slices
+// have maximum length of maxLen. SliceOfNDistinctFunc panics if maxLen >= 0 and minLen > maxLen.
+func SliceOfNDistinctFunc[E any, K comparable](elem *Generator[E], minLen, maxLen int, keyFn func(E) K) *Generator[[]E] {
 	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[[]E](&sliceGen[E, K]{
@@ -53,6 +66,7 @@ func SliceOfNDistinct[E any, K comparable](elem *Generator[E], minLen, maxLen in
 		maxLen: maxLen,
 		elem:   elem,
 		keyFn:  keyFn,
+		byFunc: true,
 	})
 }
 
@@ -61,6 +75,7 @@ type sliceGen[E any, K comparable] struct {
 	maxLen int
 	elem   *Generator[E]
 	keyFn  func(E) K
+	byFunc bool // keyFn came from the caller, rather than being the identity
 }
 
 func (g *sliceGen[E, K]) String() string {
@@ -70,10 +85,14 @@ func (g *sliceGen[E, K]) String() string {
 		return fmt.Sprintf("SliceOf(%v)", g.elem)
 	case g.keyFn == nil:
 		return fmt.Sprintf("SliceOfN(%v, minLen=%v, maxLen=%v)", g.elem, g.minLen, g.maxLen)
+	case !g.byFunc && unbounded:
+		return fmt.Sprintf("SliceOfDistinct(%v)", g.elem)
+	case !g.byFunc:
+		return fmt.Sprintf("SliceOfNDistinct(%v, minLen=%v, maxLen=%v)", g.elem, g.minLen, g.maxLen)
 	case unbounded:
-		return fmt.Sprintf("SliceOfDistinct(%v, key=%T)", g.elem, g.keyFn)
+		return fmt.Sprintf("SliceOfDistinctFunc(%v, key=%T)", g.elem, g.keyFn)
 	default:
-		return fmt.Sprintf("SliceOfNDistinct(%v, minLen=%v, maxLen=%v, key=%T)", g.elem, g.minLen, g.maxLen, g.keyFn)
+		return fmt.Sprintf("SliceOfNDistinctFunc(%v, minLen=%v, maxLen=%v, key=%T)", g.elem, g.minLen, g.maxLen, g.keyFn)
 	}
 }
 

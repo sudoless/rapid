@@ -205,7 +205,7 @@ func TestStateMachine_DiscardGarbage(t *testing.T) {
 				Float[float64]().Draw(t, "whatever 1/2")
 			},
 			"Whatever2": func(t *T) {
-				SliceOfDistinct(Int[int](), ID[int]).Draw(t, "whatever 2")
+				SliceOfDistinct(Int[int]()).Draw(t, "whatever 2")
 			},
 			"Whatever3": func(t *T) {
 				OneOf(SliceOf(Int[byte]()), SliceOf(IntMax[byte](239))).Draw(t, "whatever 3")
