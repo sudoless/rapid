@@ -9,7 +9,7 @@ help: ## list targets
 	@grep -h -E '^[a-zA-Z0-9/_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: check
-check: fmt-check lint test-race ## everything a PR must pass
+check: fmt-check lint deps headers test-race ## everything a PR must pass
 
 .PHONY: fmt
 fmt: ## format the Go sources with the config's formatters (gofumpt, goimports)
@@ -26,6 +26,18 @@ lint: ## run golangci-lint over the module
 .PHONY: lint-src
 lint-src: ## run golangci-lint, skipping test files
 	@golangci-lint run --config=$(LINT_CONFIG) --tests=false ./...
+
+.PHONY: deps
+deps: ## fail if the module requires anything beyond the standard library, or go.mod is untidy
+	@test "$$(go list -m all)" = "$$(go list -m)" || { echo "the module requires other modules:"; go list -m all | tail -n +2; exit 1; }
+	@go mod tidy -diff
+
+.PHONY: headers
+headers: ## fail if a Go file lacks its licence header: Clear BSD (SPDX) or MPL-2.0
+	@missing=$$(for f in $$(git ls-files '*.go'); do \
+		head -n 6 "$$f" | grep -qE 'SPDX-License-Identifier: BSD-3-Clause-Clear|Mozilla Public' || echo "$$f"; \
+	done); \
+	test -z "$$missing" || { echo "no licence header in:"; echo "$$missing"; exit 1; }
 
 .PHONY: test
 test: ## run the tests
