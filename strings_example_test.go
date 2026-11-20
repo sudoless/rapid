@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"unicode"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 func ExampleRune() {

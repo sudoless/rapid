@@ -1,4 +1,4 @@
-# rapid [![PkgGoDev][godev-img]][godev] [![CI][ci-img]][ci]
+# rapid
 
 Rapid is a Go library for property-based testing.
 
@@ -15,12 +15,9 @@ automatically minimizes the failing test case before presenting it.
 - Support for state machine ("stateful" or "model-based") testing
 - No dependencies outside the Go standard library
 
-*If you like rapid but are looking for a Rust alternative, check out
-[chaos_theory](https://github.com/flyingmutant/chaos_theory)*.
-
 ## Examples
 
-Here is what a trivial test using rapid looks like ([playground](https://go.dev/play/p/QJhOzo_BByz)):
+Here is what a trivial test using rapid looks like:
 
 ```go
 package rapid_test
@@ -29,7 +26,7 @@ import (
 	"slices"
 	"testing"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 func TestSortStrings(t *testing.T) {
@@ -45,10 +42,8 @@ func TestSortStrings(t *testing.T) {
 
 More complete examples:
 
-- `ParseDate` function test:
-  [source code](./example_function_test.go), [playground](https://go.dev/play/p/tZFU8zv8AUl)
-- `Queue` state machine test:
-  [source code](./example_statemachine_test.go), [playground](https://go.dev/play/p/cxEh4deG-4n)
+- [`ParseDate` function test](./example_function_test.go)
+- [`Queue` state machine test](./example_statemachine_test.go)
 
 ## Comparison
 
@@ -58,7 +53,7 @@ Rapid aims to bring to Go the power and convenience
 Compared to [testing.F.Fuzz](https://pkg.go.dev/testing#F.Fuzz), rapid shines
 in generating complex structured data, including state machine tests, but lacks
 coverage-guided feedback and mutations. Note that with
-[`MakeFuzz`](https://pkg.go.dev/pgregory.net/rapid#MakeFuzz), any rapid test
+[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
 can be used as a fuzz target for the standard fuzzer.
 
 Compared to [gopter](https://pkg.go.dev/github.com/leanovate/gopter), rapid
@@ -174,7 +169,7 @@ generation that maximizes the coverage.
 Both approaches are useful. Property-based tests are used alongside regular
 example-based tests during development, and fuzzing is used to search for edge
 cases and security vulnerabilities. With
-[`MakeFuzz`](https://pkg.go.dev/pgregory.net/rapid#MakeFuzz), any rapid test
+[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
 can be used as a fuzz target.
 
 ## Usage
@@ -195,18 +190,12 @@ instance, `RAPID_CHECKS=10 go test` sets the default for `-rapid.checks=10`,
 and an explicit flag still overrides the environment default when both are
 present.
 
-## Status
-
-Rapid is stable: tests using rapid should continue to work with all future
-rapid releases with the same major version. Possible exceptions to this rule
-are API changes that replace the concrete type of parameter with an interface
-type, or other similar mostly non-breaking changes.
-
 ## License
 
-Rapid is licensed under the [Mozilla Public License Version 2.0](./LICENSE).
+Rapid is a fork of [flyingmutant/rapid](https://github.com/flyingmutant/rapid)
+and is licensed file by file:
 
-[godev-img]: https://pkg.go.dev/badge/pgregory.net/rapid
-[godev]: https://pkg.go.dev/pgregory.net/rapid
-[ci-img]: https://github.com/flyingmutant/rapid/workflows/CI/badge.svg
-[ci]: https://github.com/flyingmutant/rapid/actions
+- Files that carry `SPDX-License-Identifier: BSD-3-Clause-Clear` are under
+  [The Clear BSD License](./LICENSE), copyright SUDOLESS SRL.
+- All other files are under the
+  [Mozilla Public License Version 2.0](./LICENSE-MPL).

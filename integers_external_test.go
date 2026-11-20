@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 var (

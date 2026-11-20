@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 type privateFields struct {

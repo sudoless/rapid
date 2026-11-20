@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 func TestSliceOf(t *testing.T) {

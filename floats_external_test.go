@@ -11,7 +11,7 @@ import (
 	"sort"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 func TestFloatNoInf(t *testing.T) {
