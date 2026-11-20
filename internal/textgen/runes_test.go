@@ -7,8 +7,10 @@
 package textgen
 
 import (
+	"fmt"
 	"regexp/syntax"
 	"testing"
+	"unicode"
 )
 
 // A class's RuneSet holds the runes the class matches, in the order of its ranges.
@@ -42,6 +44,45 @@ func TestClassRunes(t *testing.T) {
 			for idx, r := range want {
 				if got := set.At(idx); got != r {
 					t.Fatalf("At(%v) = %q, want %q", idx, got, r)
+				}
+			}
+		})
+	}
+}
+
+// A table's RuneSet holds the runes the table does, in table order, strided ranges included, expanded or not.
+func TestTableSet(t *testing.T) {
+	t.Parallel()
+
+	tables := append([]*unicode.RangeTable{
+		{R32: []unicode.Range32{{Lo: 0x10000, Hi: 0x10010, Stride: 4}, {Lo: 0x10FFFE, Hi: 0x10FFFF, Stride: 1}}},
+	}, DefaultTables...)
+	for idx, table := range tables {
+		t.Run(fmt.Sprint(idx), func(t *testing.T) {
+			t.Parallel()
+
+			var want []rune
+			for _, span := range table.R16 {
+				for r := uint32(span.Lo); r <= uint32(span.Hi); r += uint32(span.Stride) {
+					want = append(want, rune(r))
+				}
+			}
+			for _, span := range table.R32 {
+				for r := uint64(span.Lo); r <= uint64(span.Hi); r += uint64(span.Stride) {
+					want = append(want, rune(r))
+				}
+			}
+
+			expanded := TableSet(table)
+			expanded.expand()
+			for _, set := range []*RuneSet{TableSet(table), expanded} {
+				if set.Len() != len(want) {
+					t.Fatalf("Len() = %v, want %v", set.Len(), len(want))
+				}
+				for idx, r := range want {
+					if got := set.At(idx); got != r {
+						t.Fatalf("At(%v) = %q, want %q", idx, got, r)
+					}
 				}
 			}
 		})

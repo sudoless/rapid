@@ -28,16 +28,12 @@ var (
 
 // Rune creates a rune generator. Rune is equivalent to [RuneFrom] with default set of runes and tables.
 func Rune() *Generator[rune] {
-	return runesFrom(true, textgen.DefaultRunes, textgen.DefaultTables...)
+	return newGenerator[rune](newRuneGen(true, textgen.DefaultRunes, textgen.DefaultSets))
 }
 
 // RuneFrom creates a rune generator from provided runes and tables.
 // RuneFrom panics if both runes and tables are empty. RuneFrom panics if tables contain an empty table.
 func RuneFrom(runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
-	return runesFrom(false, runes, tables...)
-}
-
-func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 	if len(tables) == 0 {
 		assert.Truef(len(runes) > 0, "at least one rune should be specified")
 	}
@@ -45,6 +41,16 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 		assert.Truef(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
 	}
 
+	sets := make([]*textgen.RuneSet, len(tables))
+	for idx := range tables {
+		sets[idx] = textgen.TableSet(tables[idx])
+		assert.Truef(sets[idx].Len() > 0, "empty *unicode.RangeTable %v", idx)
+	}
+
+	return newGenerator[rune](newRuneGen(false, runes, sets))
+}
+
+func newRuneGen(default_ bool, runes []rune, tables []*textgen.RuneSet) *runeGen {
 	var weights []int
 	if len(runes) > 0 {
 		weights = append(weights, len(tables))
@@ -53,24 +59,18 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 		weights = append(weights, 1)
 	}
 
-	tables_ := make([][]rune, len(tables))
-	for idx := range tables {
-		tables_[idx] = textgen.TableRunes(tables[idx], tables[idx])
-		assert.Truef(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
-	}
-
-	return newGenerator[rune](&runeGen{
+	return &runeGen{
 		die:      bitstream.NewLoadedDie(weights),
 		runes:    runes,
-		tables:   tables_,
+		tables:   tables,
 		default_: default_,
-	})
+	}
 }
 
 type runeGen struct {
 	die      *bitstream.LoadedDie
 	runes    []rune
-	tables   [][]rune
+	tables   []*textgen.RuneSet
 	default_ bool
 }
 
@@ -83,16 +83,21 @@ func (g *runeGen) String() string {
 }
 
 func (g *runeGen) value(t *T) rune {
-	n := g.die.Roll(t.s)
+	return g.draw(t.s, g.tables)
+}
 
-	runes := g.runes
-	if len(g.runes) == 0 {
-		runes = g.tables[n]
-	} else if n > 0 {
-		runes = g.tables[n-1]
+// draw rolls g's die for its runes or one of tables, which stand in for g's own, and draws a rune from it.
+func (g *runeGen) draw(s bitstream.Stream, tables []*textgen.RuneSet) rune {
+	n := g.die.Roll(s)
+	if len(g.runes) > 0 {
+		if n == 0 {
+			return g.runes[bitstream.Index(s, len(g.runes), true)]
+		}
+		n--
 	}
 
-	return runes[bitstream.Index(t.s, len(runes), true)]
+	set := tables[n]
+	return set.At(bitstream.Index(s, set.Len(), true))
 }
 
 // String is a shorthand for [StringOf]([Rune]()).
@@ -313,16 +318,13 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	t.s.EndGroup(i, false)
 }
 
-// A character class draws as a RuneFrom of one table would: in a standalone group labelled as one, a roll
-// of a one-sided die, then the index of its rune. Classes so shrink as they always have.
-const classLabel bitstream.Label = "Rune(0 runes, 1 tables)"
-
-var classDie = bitstream.NewLoadedDie([]int{1})
+// classRunes is RuneFrom of one table, as a character class draws: in a standalone group labelled by
+// classRunes, through its die. Classes so shrink as RuneFrom groups do.
+var classRunes = newRuneGen(false, nil, make([]*textgen.RuneSet, 1))
 
 func drawClass(t *T, runes *textgen.RuneSet) rune {
-	i := t.s.BeginGroup(classLabel, true)
-	_ = classDie.Roll(t.s)
-	r := runes.At(bitstream.Index(t.s, runes.Len(), true))
+	i := t.s.BeginGroup(classRunes, true)
+	r := classRunes.draw(t.s, []*textgen.RuneSet{runes})
 	t.s.EndGroup(i, false)
 	return r
 }
