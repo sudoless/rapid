@@ -19,63 +19,19 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/textgen"
 )
 
 var (
-	defaultRunes = []rune{
-		'A', 'a', '?',
-		'~', '!', '@', '#', '$', '%', '^', '&', '*', '_', '-', '+', '=',
-		'.', ',', ':', ';',
-		' ', '\t', '\r', '\n',
-		'/', '\\', '|',
-		'(', '[', '{', '<',
-		'\'', '"', '`',
-		'\x00', '\x0B', '\x1B', '\x7F', // NUL, VT, ESC, DEL
-		'\uFEFF', '\uFFFD', '\u202E', // BOM, replacement character, RTL override
-		'Ⱥ', // In UTF-8, Ⱥ increases in length from 2 to 3 bytes when lowercased
-	}
-
-	// unicode.Categories without surrogates (which are not allowed in UTF-8), ordered by taste.
-	defaultTables = []*unicode.RangeTable{
-		unicode.Lu, // Letter, uppercase        (1781)
-		unicode.Ll, // Letter, lowercase        (2145)
-		unicode.Lt, // Letter, titlecase          (31)
-		unicode.Lm, // Letter, modifier          (250)
-		unicode.Lo, // Letter, other          (121212)
-		unicode.Nd, // Number, decimal digit     (610)
-		unicode.Nl, // Number, letter            (236)
-		unicode.No, // Number, other             (807)
-		unicode.P,  // Punctuation               (788)
-		unicode.Sm, // Symbol, math              (948)
-		unicode.Sc, // Symbol, currency           (57)
-		unicode.Sk, // Symbol, modifier          (121)
-		unicode.So, // Symbol, other            (5984)
-		unicode.Mn, // Mark, nonspacing         (1805)
-		unicode.Me, // Mark, enclosing            (13)
-		unicode.Mc, // Mark, spacing combining   (415)
-		unicode.Z,  // Separator                  (19)
-		unicode.Cc, // Other, control             (65)
-		unicode.Cf, // Other, format             (152)
-		unicode.Co, // Other, private use     (137468)
-	}
-
-	expandedTables  = sync.Map{} // *unicode.RangeTable / regexp name -> []rune
-	compiledRegexps = sync.Map{} // regexp -> compiledRegexp
-	regexpNames     = sync.Map{} // *regexp.Regexp -> string
-	charClassGens   = sync.Map{} // regexp name -> *Generator
+	charClassGens = sync.Map{} // regexp name -> *Generator
 
 	anyRuneGen     = Rune()
 	anyRuneGenNoNL = Rune().Filter(func(r rune) bool { return r != '\n' })
 )
 
-type compiledRegexp struct {
-	syn *syntax.Regexp
-	re  *regexp.Regexp
-}
-
 // Rune creates a rune generator. Rune is equivalent to [RuneFrom] with default set of runes and tables.
 func Rune() *Generator[rune] {
-	return runesFrom(true, defaultRunes, defaultTables...)
+	return runesFrom(true, textgen.DefaultRunes, textgen.DefaultTables...)
 }
 
 // RuneFrom creates a rune generator from provided runes and tables.
@@ -102,7 +58,7 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 
 	tables_ := make([][]rune, len(tables))
 	for idx := range tables {
-		tables_[idx] = expandRangeTable(tables[idx], tables[idx])
+		tables_[idx] = textgen.TableRunes(tables[idx], tables[idx])
 		assert.Truef(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
 	}
 
@@ -224,28 +180,28 @@ func (g *stringGen) value(t *T) string {
 
 // StringMatching creates a UTF-8 string generator matching the provided [syntax.Perl] regular expression.
 func StringMatching(expr string) *Generator[string] {
-	compiled, err := compileRegexp(expr)
+	compiled, err := textgen.CompileRegexp(expr)
 	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[string](&regexpStringGen{
 		regexpGen{
 			expr: expr,
-			syn:  compiled.syn,
-			re:   compiled.re,
+			syn:  compiled.Syntax,
+			re:   compiled.Matcher,
 		},
 	})
 }
 
 // SliceOfBytesMatching creates a UTF-8 byte slice generator matching the provided [syntax.Perl] regular expression.
 func SliceOfBytesMatching(expr string) *Generator[[]byte] {
-	compiled, err := compileRegexp(expr)
+	compiled, err := textgen.CompileRegexp(expr)
 	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[[]byte](&regexpSliceGen{
 		regexpGen{
 			expr: expr,
-			syn:  compiled.syn,
-			re:   compiled.re,
+			syn:  compiled.Syntax,
+			re:   compiled.Matcher,
 		},
 	})
 }
@@ -315,7 +271,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	case syntax.OpLiteral:
 		t.s.DrawBits(0)
 		for _, char := range re.Rune {
-			_, _ = w.WriteRune(maybeFoldCase(t.s, char, re.Flags))
+			_, _ = w.WriteRune(textgen.FoldCase(t.s, char, re.Flags))
 		}
 	case syntax.OpCharClass, syntax.OpAnyCharNotNL, syntax.OpAnyChar:
 		sub := anyRuneGen
@@ -326,7 +282,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 			sub = anyRuneGenNoNL
 		}
 		r := sub.value(t)
-		_, _ = w.WriteRune(maybeFoldCase(t.s, r, re.Flags))
+		_, _ = w.WriteRune(textgen.FoldCase(t.s, r, re.Flags))
 	case syntax.OpBeginLine, syntax.OpEndLine,
 		syntax.OpBeginText, syntax.OpEndText,
 		syntax.OpWordBoundary, syntax.OpNoWordBoundary:
@@ -343,7 +299,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		case syntax.OpQuest:
 			lo, hi = 0, 1
 		}
-		repeat := bitstream.NewRepeat(lo, hi, -1, regexpName(re.Sub[0]))
+		repeat := bitstream.NewRepeat(lo, hi, -1, textgen.RegexpName(re.Sub[0]))
 		for repeat.More(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
@@ -361,105 +317,17 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	t.s.EndGroup(i, false)
 }
 
-func maybeFoldCase(s bitstream.Stream, r rune, flags syntax.Flags) rune {
-	n := uint64(0)
-	if flags&syntax.FoldCase != 0 {
-		n, _, _ = bitstream.UintN(s, 4, false)
-	}
-
-	for range n {
-		r = unicode.SimpleFold(r)
-	}
-
-	return r
-}
-
-func expandRangeTable(t *unicode.RangeTable, key any) []rune {
-	cached, ok := expandedTables.Load(key)
-	if ok {
-		return cached.([]rune)
-	}
-
-	n := 0
-	for _, span := range t.R16 {
-		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
-	}
-	for _, span := range t.R32 {
-		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
-	}
-
-	ret := make([]rune, 0, n)
-	for _, span := range t.R16 {
-		for code := uint32(span.Lo); code <= uint32(span.Hi); code += uint32(span.Stride) {
-			ret = append(ret, rune(code))
-		}
-	}
-	for _, span := range t.R32 {
-		for code := uint64(span.Lo); code <= uint64(span.Hi); code += uint64(span.Stride) {
-			ret = append(ret, rune(code))
-		}
-	}
-	expandedTables.Store(key, ret)
-
-	return ret
-}
-
-func compileRegexp(expr string) (compiledRegexp, error) {
-	cached, ok := compiledRegexps.Load(expr)
-	if ok {
-		return cached.(compiledRegexp), nil
-	}
-
-	syn, err := syntax.Parse(expr, syntax.Perl)
-	if err != nil {
-		return compiledRegexp{}, fmt.Errorf("failed to parse regexp %q: %w", expr, err)
-	}
-
-	re, err := regexp.Compile(expr)
-	if err != nil {
-		return compiledRegexp{}, fmt.Errorf("failed to compile regexp %q: %w", expr, err)
-	}
-
-	ret := compiledRegexp{syn, re}
-	compiledRegexps.Store(expr, ret)
-
-	return ret, nil
-}
-
-func regexpName(re *syntax.Regexp) string {
-	cached, ok := regexpNames.Load(re)
-	if ok {
-		return cached.(string)
-	}
-
-	s := re.String()
-	regexpNames.Store(re, s)
-
-	return s
-}
-
 func charClassGen(re *syntax.Regexp) *Generator[rune] {
-	cached, ok := charClassGens.Load(regexpName(re))
+	cached, ok := charClassGens.Load(textgen.RegexpName(re))
 	if ok {
 		return cached.(*Generator[rune])
 	}
 
-	t := &unicode.RangeTable{R32: make([]unicode.Range32, 0, len(re.Rune)/2)}
-	for idx := 0; idx < len(re.Rune); idx += 2 {
-		// not a valid unicode.Range32, since it requires that Lo and Hi must always be >= 1<<16
-		// however, we don't really care, since the only use of these ranges is as input to expandRangeTable
-		t.R32 = append(t.R32, unicode.Range32{
-			Lo:     uint32(re.Rune[idx]),
-			Hi:     uint32(re.Rune[idx+1]),
-			Stride: 1,
-		})
-	}
-
 	g := newGenerator[rune](&runeGen{
 		die:    bitstream.NewLoadedDie([]int{1}),
-		tables: [][]rune{expandRangeTable(t, regexpName(re))},
+		tables: [][]rune{textgen.ClassRunes(re)},
 	})
-	charClassGens.Store(regexpName(re), g)
+	charClassGens.Store(textgen.RegexpName(re), g)
 
 	return g
 }
