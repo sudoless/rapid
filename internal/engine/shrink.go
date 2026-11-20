@@ -55,10 +55,12 @@ type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
 // or the test case and failure of a replay that failed differently.
 // Under -rapid.debugvis it also writes every step to vis-<test name>.html, the name made safe as for fail files.
 func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
+	best := slices.Clone(rec.Data)
 	rec.Prune()
 
 	s := &shrinker{
 		tb:        tb,
+		best:      best,
 		rec:       rec,
 		err:       err,
 		run:       run,
@@ -100,8 +102,9 @@ func writeVisFile(testName string, steps []bitstream.Recorded) error {
 
 type shrinker struct {
 	tb        Logger
-	rec       bitstream.Recorded
-	labels    []string // rec's group labels, resolved on first use
+	best      []uint64           // the last test case run, which failed with err
+	rec       bitstream.Recorded // best's recording, pruned of discarded groups: what the shrinker edits
+	labels    []string           // rec's group labels, resolved on first use
 	err       *TestError
 	run       Run
 	visBits   []bitstream.Recorded
@@ -122,7 +125,7 @@ func (s *shrinker) debugf(verbose_ bool, format string, args ...any) {
 func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *TestError) {
 	defer func() {
 		if r := recover(); r != nil {
-			buf, err = s.rec.Data, r.(*TestError)
+			buf, err = s.best, r.(*TestError)
 		}
 	}()
 
@@ -149,7 +152,7 @@ func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *TestError) {
 	}
 	s.debugf(false, "done, %v rounds total (%v tries, %v shrinks, %v cache hits):\n%v", i, tries, s.shrinks, s.hits, s.tries)
 
-	return s.rec.Data, s.err
+	return s.best, s.err
 }
 
 func (s *shrinker) removeGroups(deadline time.Time) {
@@ -320,6 +323,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
 	err2 := s.run(s2, Flags.Debug && Flags.Verbose, nil)
+	s.best = buf // a pruned recording can leave out what made buf fail, so only buf is known to fail
 	s.rec = s2.Recorded
 	s.rec.Prune()
 	s.labels = nil
