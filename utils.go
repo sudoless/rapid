@@ -113,13 +113,14 @@ func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
 
 	var posMin, negMin uint64
 	var pNeg float64
-	if lo >= 0 {
+	switch {
+	case lo >= 0:
 		posMin = uint64(lo)
 		pNeg = 0
-	} else if hi <= 0 {
+	case hi <= 0:
 		negMin = uint64(-hi)
 		pNeg = 1
-	} else {
+	default:
 		posMin = 0
 		negMin = 1
 		pos := uint64(hi) + 1

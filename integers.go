@@ -251,19 +251,20 @@ type integerGen[I integer] struct {
 }
 
 func (g *integerGen[I]) String() string {
-	if g.hasMin && g.hasMax {
+	switch {
+	case g.hasMin && g.hasMax:
 		if g.signed {
 			return fmt.Sprintf("%sRange(%d, %d)", g.kind, g.smin, g.smax)
 		} else {
 			return fmt.Sprintf("%sRange(%d, %d)", g.kind, g.umin, g.umax)
 		}
-	} else if g.hasMin {
+	case g.hasMin:
 		if g.signed {
 			return fmt.Sprintf("%sMin(%d)", g.kind, g.smin)
 		} else {
 			return fmt.Sprintf("%sMin(%d)", g.kind, g.umin)
 		}
-	} else if g.hasMax {
+	case g.hasMax:
 		if g.signed {
 			return fmt.Sprintf("%sMax(%d)", g.kind, g.smax)
 		} else {

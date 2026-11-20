@@ -99,11 +99,12 @@ type (
 )
 
 func (g *floatGen) stringImpl(kind string) string {
-	if g.min != g.minVal && g.max != g.maxVal {
+	switch {
+	case g.min != g.minVal && g.max != g.maxVal:
 		return fmt.Sprintf("%sRange(%g, %g)", kind, g.min, g.max)
-	} else if g.min != g.minVal {
+	case g.min != g.minVal:
 		return fmt.Sprintf("%sMin(%g)", kind, g.min)
-	} else if g.max != g.maxVal {
+	case g.max != g.maxVal:
 		return fmt.Sprintf("%sMax(%g)", kind, g.max)
 	}
 
@@ -127,11 +128,12 @@ func (g *float64Gen) value(t *T) float64 {
 }
 
 func ufloatFracBits(e int32, signifBits uint) uint {
-	if e <= 0 {
+	switch {
+	case e <= 0:
 		return signifBits
-	} else if uint(e) < signifBits {
+	case uint(e) < signifBits:
 		return signifBits - uint(e)
-	} else {
+	default:
 		return 0
 	}
 }
@@ -259,13 +261,14 @@ func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64
 
 func genFloatRange(s bitStream, lo, hi float64, signifBits uint) (bool, int32, uint64, uint64) {
 	var posMin, negMin, pNeg float64
-	if lo >= 0 {
+	switch {
+	case lo >= 0:
 		posMin = lo
 		pNeg = 0
-	} else if hi <= 0 {
+	case hi <= 0:
 		negMin = -hi
 		pNeg = 1
-	} else {
+	default:
 		pNeg = 0.5
 	}
 

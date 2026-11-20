@@ -427,17 +427,18 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 		err := checkOnce(t, prop)
 		dt := time.Since(start)
 		total += dt
-		if err == nil {
+		switch {
+		case err == nil:
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v OK (%v)", iter+1, dt)
 			}
 			valid++
-		} else if err.isInvalidData() {
+		case err.isInvalidData():
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v invalid (%v)", iter+1, dt)
 			}
 			invalid++
-		} else {
+		default:
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v failed: %v", iter+1, err)
 			}
@@ -792,16 +793,17 @@ func (t *T) Log(args ...any) {
 func (t *T) Output() io.Writer {
 	t.Helper()
 
-	if t.rawLog != nil {
+	switch {
+	case t.rawLog != nil:
 		return t.rawLog.Writer()
-	} else if t.tbLog {
+	case t.tbLog:
 		if tout, ok := t.tb.(interface{ Output() io.Writer }); ok {
 			return tout.Output()
 		} else {
 			t.Fatal("[rapid] Output requires a TB with an Output method")
 			return nil
 		}
-	} else {
+	default:
 		return io.Discard
 	}
 }
