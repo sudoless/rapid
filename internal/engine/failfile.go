@@ -41,9 +41,9 @@ func testFileName(testName string) string {
 		safe.WriteRune(char)
 	}
 
-	h := fnv.New32a()
+	h := fnv.New64a()
 	_, _ = h.Write([]byte(testName)) // a hash.Hash never returns an error
-	return fmt.Sprintf("%s-%08x", safe.String(), h.Sum32())
+	return fmt.Sprintf("%s-%016x", safe.String(), h.Sum64())
 }
 
 // failFileSeq numbers the fail file names this process hands out.

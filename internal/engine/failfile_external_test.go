@@ -36,7 +36,10 @@ func TestFailFilePattern(t *testing.T) {
 func TestFailFilePatternSeparatesDistinctTestNames(t *testing.T) {
 	t.Parallel()
 
-	names := []string{"TestCalc/1+2", "TestCalc/1*2", "TestCalc/1.2", "TestCalc/1_2", "TestCalc_1/2"}
+	names := []string{
+		"TestCalc/1+2", "TestCalc/1*2", "TestCalc/1.2", "TestCalc/1_2", "TestCalc_1/2",
+		"TestCalc/)@+$+#(@!#,:", "TestCalc/.((.(#?!)*$(", // sanitise alike, and share a 32-bit FNV-1a hash
+	}
 	for _, name := range names {
 		for _, other := range names {
 			if name == other {
