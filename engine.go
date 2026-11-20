@@ -259,7 +259,8 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 	}
 
 	t.Logf("[rapid] trying to minimize the failing test case")
-	buf, err3 := shrink(tb, shrinkDeadline(deadline), s.Recorded, err2, prop)
+	run := func(s bitstream.Stream, log bool) *engine.TestError { return checkOnce(newT(tb, s, log, nil), prop) }
+	buf, err3 := engine.Shrink(tb, shrinkDeadline(deadline), s.Recorded, err2, run)
 
 	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
