@@ -11,9 +11,6 @@ import (
 	"testing"
 )
 
-// https://github.com/leanovate/gopter/blob/master/commands/example_circularqueue_test.go
-var gopterBug = false
-
 // https://pkg.go.dev/github.com/leanovate/gopter/commands?tab=doc#example-package-BuggyCounter
 type buggyCounter struct {
 	n int
@@ -129,20 +126,12 @@ func (q *buggyQueue) Get() int {
 }
 
 func (q *buggyQueue) Put(i int) {
-	if gopterBug && q.in == 4 && i > 0 {
-		q.buf[len(q.buf)-1] *= i
-	}
-
 	q.buf[q.in] = i
 	q.in = (q.in + 1) % len(q.buf)
 }
 
 func (q *buggyQueue) Size() int {
-	if gopterBug {
-		return (q.in - q.out + len(q.buf)) % len(q.buf)
-	} else {
-		return (q.in - q.out) % len(q.buf)
-	}
+	return (q.in - q.out) % len(q.buf)
 }
 
 func queueTest(t *T) {
