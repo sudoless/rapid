@@ -7,6 +7,7 @@
 package engine
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"hash/maphash"
@@ -33,8 +34,13 @@ type Settings struct {
 // the matching RAPID_* environment variables set their defaults.
 var Flags Settings
 
+// errEnv says which RAPID_* variables could not be parsed, and so kept their default.
+// Check and Fuzz fail with it, rather than the package failing to initialize.
+var errEnv error
+
 func init() {
-	defaults := loadDefaults(os.LookupEnv)
+	var defaults Settings
+	defaults, errEnv = loadDefaults(os.LookupEnv)
 	flag.IntVar(&Flags.Checks, "rapid.checks", defaults.Checks, "rapid: number of checks to perform")
 	flag.IntVar(&Flags.Steps, "rapid.steps", defaults.Steps, "rapid: average number of Repeat actions to execute")
 	flag.StringVar(&Flags.FailFile, "rapid.failfile", defaults.FailFile, "rapid: fail file to use to reproduce test failure")
@@ -64,78 +70,47 @@ func defaultSettings() Settings {
 	}
 }
 
-func loadDefaults(lookup func(string) (string, bool)) Settings {
+// loadDefaults returns the settings the RAPID_* variables lookup finds give. A variable that does not parse
+// keeps its default, and the error says which and why.
+func loadDefaults(lookup func(string) (string, bool)) (Settings, error) {
 	defaults := defaultSettings()
+	env := envReader{lookup: lookup}
 
-	defaults.Checks = envInt(lookup, "RAPID_CHECKS", defaults.Checks)
-	defaults.Steps = envInt(lookup, "RAPID_STEPS", defaults.Steps)
-	defaults.FailFile = envString(lookup, "RAPID_FAILFILE", defaults.FailFile)
-	defaults.NoFailFile = envBool(lookup, "RAPID_NOFAILFILE", defaults.NoFailFile)
-	defaults.Seed = envUint64(lookup, "RAPID_SEED", defaults.Seed)
-	defaults.Log = envBool(lookup, "RAPID_LOG", defaults.Log)
-	defaults.Verbose = envBool(lookup, "RAPID_V", defaults.Verbose)
-	defaults.Debug = envBool(lookup, "RAPID_DEBUG", defaults.Debug)
-	defaults.DebugVis = envBool(lookup, "RAPID_DEBUGVIS", defaults.DebugVis)
-	defaults.ShrinkTime = envDuration(lookup, "RAPID_SHRINKTIME", defaults.ShrinkTime)
+	defaults.Checks = envValue(&env, "RAPID_CHECKS", defaults.Checks, parseInt)
+	defaults.Steps = envValue(&env, "RAPID_STEPS", defaults.Steps, parseInt)
+	defaults.FailFile = envValue(&env, "RAPID_FAILFILE", defaults.FailFile, func(s string) (string, error) { return s, nil })
+	defaults.NoFailFile = envValue(&env, "RAPID_NOFAILFILE", defaults.NoFailFile, strconv.ParseBool)
+	defaults.Seed = envValue(&env, "RAPID_SEED", defaults.Seed, func(s string) (uint64, error) { return strconv.ParseUint(s, 0, 64) })
+	defaults.Log = envValue(&env, "RAPID_LOG", defaults.Log, strconv.ParseBool)
+	defaults.Verbose = envValue(&env, "RAPID_V", defaults.Verbose, strconv.ParseBool)
+	defaults.Debug = envValue(&env, "RAPID_DEBUG", defaults.Debug, strconv.ParseBool)
+	defaults.DebugVis = envValue(&env, "RAPID_DEBUGVIS", defaults.DebugVis, strconv.ParseBool)
+	defaults.ShrinkTime = envValue(&env, "RAPID_SHRINKTIME", defaults.ShrinkTime, time.ParseDuration)
 
-	return defaults
+	return defaults, errors.Join(env.errs...)
 }
 
-func envString(lookup func(string) (string, bool), key, defaultValue string) string {
-	if v, ok := lookup(key); ok {
-		return v
-	}
-	return defaultValue
+// envReader reads RAPID_* variables through lookup, and collects the errors of those that do not parse.
+type envReader struct {
+	lookup func(string) (string, bool)
+	errs   []error
 }
 
-func envInt(lookup func(string) (string, bool), key string, defaultValue int) int {
-	v, ok := lookup(key)
+// envValue returns the variable key parsed by parse, or defaultValue when key is unset or does not parse.
+func envValue[V any](env *envReader, key string, defaultValue V, parse func(string) (V, error)) V {
+	s, ok := env.lookup(key)
 	if !ok {
 		return defaultValue
 	}
-	n, err := strconv.ParseInt(v, 0, strconv.IntSize)
+	v, err := parse(s)
 	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return int(n)
-}
-
-func envBool(lookup func(string) (string, bool), key string, defaultValue bool) bool {
-	v, ok := lookup(key)
-	if !ok {
+		env.errs = append(env.errs, fmt.Errorf("parsing %s=%q: %w", key, s, err))
 		return defaultValue
 	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return b
+	return v
 }
 
-func envUint64(lookup func(string) (string, bool), key string, defaultValue uint64) uint64 {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	n, err := strconv.ParseUint(v, 0, 64)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return n
-}
-
-func envDuration(lookup func(string) (string, bool), key string, defaultValue time.Duration) time.Duration {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return d
-}
-
-func panicInvalidEnv(key, value string, err error) {
-	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
+func parseInt(s string) (int, error) {
+	n, err := strconv.ParseInt(s, 0, strconv.IntSize)
+	return int(n), err
 }

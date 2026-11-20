@@ -5,6 +5,9 @@
 package engine
 
 import (
+	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -12,9 +15,12 @@ import (
 func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 	t.Parallel()
 
-	got := loadDefaults(func(string) (string, bool) {
+	got, err := loadDefaults(func(string) (string, bool) {
 		return "", false
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	want := defaultSettings()
 
 	if got != want {
@@ -38,10 +44,13 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 		"RAPID_SHRINKTIME": "45s",
 	}
 
-	got := loadDefaults(func(key string) (string, bool) {
+	got, err := loadDefaults(func(key string) (string, bool) {
 		value, ok := env[key]
 		return value, ok
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if got.Checks != 200 {
 		t.Fatalf("checks: got %d, want %d", got.Checks, 200)
@@ -66,18 +75,27 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 	}
 }
 
-func TestLoadCmdlineDefaultsInvalidEnvPanics(t *testing.T) {
+// A variable that does not parse keeps its default, and the error names it; the others still apply.
+func TestLoadCmdlineDefaultsInvalidEnv(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic for invalid env value")
-		}
-	}()
-
-	loadDefaults(func(string) (string, bool) {
-		return "not-an-int", true
+	env := map[string]string{"RAPID_CHECKS": "abc", "RAPID_V": "maybe", "RAPID_STEPS": "40"}
+	got, err := loadDefaults(func(key string) (string, bool) {
+		value, ok := env[key]
+		return value, ok
 	})
+
+	if got.Checks != 100 || got.Verbose || got.Steps != 40 {
+		t.Fatalf("got checks %v, verbose %v, steps %v; want 100, false, 40", got.Checks, got.Verbose, got.Steps)
+	}
+	if !errors.Is(err, strconv.ErrSyntax) {
+		t.Fatalf("err = %v, want it to wrap %v", err, strconv.ErrSyntax)
+	}
+	for _, key := range []string{"RAPID_CHECKS", "RAPID_V"} {
+		if !strings.Contains(err.Error(), key) {
+			t.Errorf("err = %v, want it to name %v", err, key)
+		}
+	}
 }
 
 func BenchmarkBaseSeed(b *testing.B) {
