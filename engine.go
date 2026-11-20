@@ -36,13 +36,14 @@ var tracebackBlacklist = map[string]bool{
 	"go.sdls.io/rapid.runAction.func1":                    true,
 }
 
-// Check fails the current test if rapid can find a test case which falsifies prop.
+// Check fails the current test if rapid can find a test case which falsifies prop. Options set how long
+// it looks, in place of the -rapid.* flags.
 //
 // Property is falsified in case of a panic or a call to
 // [*T.Fatalf], [*T.Fatal], [*T.Errorf], [*T.Error], [*T.FailNow] or [*T.Fail].
-func Check(t TB, prop func(*T)) {
+func Check(t TB, prop func(*T), opts ...CheckOption) {
 	t.Helper()
-	engine.Check(t, runner(t, prop))
+	engine.Check(t, checkLimits(opts), runner(t, prop))
 }
 
 // MakeCheck is a convenience function for defining subtests suitable for
@@ -59,10 +60,11 @@ func Check(t TB, prop func(*T)) {
 //	        // test code
 //	    })
 //	})
-func MakeCheck(prop func(*T)) func(*testing.T) {
+func MakeCheck(prop func(*T), opts ...CheckOption) func(*testing.T) {
+	lim := checkLimits(opts)
 	return func(t *testing.T) {
 		t.Helper()
-		engine.Check(t, runner(t, prop))
+		engine.Check(t, lim, runner(t, prop))
 	}
 }
 
