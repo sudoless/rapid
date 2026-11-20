@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/stattest"
 	"go.sdls.io/rapid/internal/textgen"
 )
 
@@ -33,5 +34,36 @@ func TestClassDrawsAsRuneFrom(t *testing.T) {
 		if got != want {
 			t.Fatalf("seed %v: the class drew %q, RuneFrom %q", seed, got, want)
 		}
+	}
+}
+
+// StringMatching generates strings matching its regexp (strings.go:183). A character class that holds no
+// rune matches nothing, as OpNoMatch does, so a regexp that holds one where it may be skipped still has
+// matches to generate, and a draw that reaches it is at worst invalid data, never a failed property.
+func TestStringMatchingEmptyClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		expr string
+	}{
+		{"optional", `a\P{Any}?`},
+		{"star", `a[^\x00-\x{10FFFF}]*`},
+		{"alternative", `a|b\P{Any}`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := search(t, stattest.FixedSeed, func(t *T) {
+				if s := StringMatching(tc.expr).Draw(t, "s"); s != "a" {
+					t.Fatalf("%q matches %q only as %q", s, tc.expr, "a")
+				}
+			})
+			if res.Err1 != nil {
+				t.Fatalf("StringMatching(%q) failed the property: %v", tc.expr, res.Err1)
+			}
+		})
 	}
 }
