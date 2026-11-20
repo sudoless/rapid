@@ -7,14 +7,22 @@
 package rapid
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"strconv"
 	"testing"
 )
 
-var flaky = flag.Bool("flaky", false, "run flaky tests")
+// fixedStatSeed seeds the statistical checks in the default suite; TestStress
+// (build tag stress) runs the same checks on random seeds.
+const fixedStatSeed = 1
+
+// Each statistical check draws statDraws values and allows statSigmas standard
+// errors, so a correct generator fails one bound with probability below 1e-6.
+const (
+	statDraws  = 10000
+	statSigmas = 5
+)
 
 func createRandomBitStream(t *testing.T) bitStream {
 	t.Helper()
@@ -59,18 +67,22 @@ func TestGenGeom(t *testing.T) {
 
 func TestGenGeomMean(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := newRandomBitStream(baseSeed(), false)
+	checkGenGeomMean(t, fixedStatSeed)
+}
 
-	for i := range 100 { //nolint:paralleltest // subtests draw from one shared bitstream, in order
+func checkGenGeomMean(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
+
+	// Subtests run in order: they draw from one shared bitstream.
+	for i := range 100 {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			p := genFloat01(s)
 
 			var geoms []uint64
-			for range 10000 {
+			for range statDraws {
 				geoms = append(geoms, genGeom(s, p))
 			}
 
@@ -81,20 +93,22 @@ func TestGenGeomMean(t *testing.T) {
 			avg /= float64(len(geoms))
 
 			mean := (1 - p) / p
-			if math.Abs(avg-mean) > 0.5 { // true science
-				t.Fatalf("for p=%v geom avg=%v vs expected mean=%v", p, avg, mean)
+			stderr := math.Sqrt((1 - p) / (p * p) / float64(len(geoms)))
+			if math.Abs(avg-mean) > statSigmas*stderr {
+				t.Fatalf("for p=%v geom avg=%v vs expected mean=%v (stderr %v)", p, avg, mean, stderr)
 			}
 		})
 	}
 }
 
-func ensureWithin3Sigma(t *testing.T, ctx any, y int, n int, p float64) {
+func ensureWithinSigmas(t *testing.T, ctx any, y int, p float64) {
 	t.Helper()
 
+	n := statDraws
 	mu := float64(n) * p
 	s := math.Sqrt(float64(n) * p * (1 - p))
 
-	if float64(y) < mu-3*s || float64(y) > mu+3*s {
+	if float64(y) < mu-statSigmas*s || float64(y) > mu+statSigmas*s {
 		if ctx != nil {
 			t.Errorf("for %v: got %v out of %v (p %v, mu %v, stddev %v)", ctx, y, n, p, mu, s)
 		} else {
@@ -105,34 +119,40 @@ func ensureWithin3Sigma(t *testing.T, ctx any, y int, n int, p float64) {
 
 func TestGenUintN(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkGenUintN(t, fixedStatSeed)
+}
+
+func checkGenUintN(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
 	hi := []uint64{0, 1, 2, 5, 13}
 
 	for _, m := range hi {
 		r := make([]int, m+1)
-		n := 1000
+		n := statDraws
 		for range n {
 			u, _, _ := genUintN(s, m, false)
 			r[u]++
 		}
 
 		for u := range r {
-			ensureWithin3Sigma(t, m, r[u], n, 1/float64(m+1))
+			ensureWithinSigmas(t, m, r[u], 1/float64(m+1))
 		}
 	}
 }
 
 func TestGenUintRange(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkGenUintRange(t, fixedStatSeed)
+}
+
+func checkGenUintRange(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
 	ranges := [][]uint64{
 		{0, 0},
 		{0, 1},
@@ -147,7 +167,7 @@ func TestGenUintRange(t *testing.T) {
 
 	for _, r := range ranges {
 		m := map[uint64]int{}
-		n := 1000
+		n := statDraws
 		for range n {
 			u, _, _ := genUintRange(s, r[0], r[1], false)
 			m[u]++
@@ -157,18 +177,21 @@ func TestGenUintRange(t *testing.T) {
 			if u < r[0] || u > r[1] {
 				t.Errorf("%v out of range [%v, %v]", u, r[0], r[1])
 			}
-			ensureWithin3Sigma(t, fmt.Sprintf("%v from %v", u, r), m[u], n, 1/float64(r[1]-r[0]+1))
+			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", u, r), m[u], 1/float64(r[1]-r[0]+1))
 		}
 	}
 }
 
 func TestGenIntRange(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkGenIntRange(t, fixedStatSeed)
+}
+
+func checkGenIntRange(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
 	ranges := [][]int64{
 		{0, 0},
 		{0, 1},
@@ -193,7 +216,7 @@ func TestGenIntRange(t *testing.T) {
 
 	for _, r := range ranges {
 		m := map[int64]int{}
-		n := 1000
+		n := statDraws
 		for range n {
 			u, _, _ := genIntRange(s, r[0], r[1], false)
 			m[u]++
@@ -203,22 +226,25 @@ func TestGenIntRange(t *testing.T) {
 			if u < r[0] || u > r[1] {
 				t.Errorf("%v out of range [%v, %v]", u, r[0], r[1])
 			}
-			ensureWithin3Sigma(t, fmt.Sprintf("%v from %v", u, r), m[u], n, 1/float64(r[1]-r[0]+1))
+			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", u, r), m[u], 1/float64(r[1]-r[0]+1))
 		}
 	}
 }
 
 func TestFlipBiasedCoin(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkFlipBiasedCoin(t, fixedStatSeed)
+}
+
+func checkFlipBiasedCoin(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
 	ps := []float64{0, 0.3, 0.5, 0.7, 1}
 
 	for _, p := range ps {
-		n := 1000
+		n := statDraws
 		y := 0
 		for range n {
 			if flipBiasedCoin(s, p) {
@@ -226,17 +252,20 @@ func TestFlipBiasedCoin(t *testing.T) {
 			}
 		}
 
-		ensureWithin3Sigma(t, p, y, n, p)
+		ensureWithinSigmas(t, p, y, p)
 	}
 }
 
 func TestLoadedDie(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkLoadedDie(t, fixedStatSeed)
+}
+
+func checkLoadedDie(t *testing.T, seed uint64) {
+	t.Helper()
+
+	s := newRandomBitStream(seed, false)
 	weights := [][]int{
 		{1},
 		{1, 2},
@@ -246,7 +275,7 @@ func TestLoadedDie(t *testing.T) {
 
 	for _, ws := range weights {
 		d := newLoadedDie(ws)
-		n := 1000
+		n := statDraws
 		r := make([]int, len(ws))
 
 		for range n {
@@ -259,18 +288,20 @@ func TestLoadedDie(t *testing.T) {
 		}
 
 		for i, w := range ws {
-			ensureWithin3Sigma(t, ws, r[i], n, float64(w)/float64(total))
+			ensureWithinSigmas(t, ws, r[i], float64(w)/float64(total))
 		}
 	}
 }
 
 func TestRepeat(t *testing.T) {
 	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
 
-	s := createRandomBitStream(t)
+	checkRepeat(t, fixedStatSeed)
+}
+
+func checkRepeat(t *testing.T, seed uint64) {
+	t.Helper()
+
 	mmas := [][3]int{
 		{0, 0, 0},
 		{0, 1, 0},
@@ -292,33 +323,45 @@ func TestRepeat(t *testing.T) {
 		{1000, math.MaxInt32, 1000 + 1000},
 	}
 
-	for _, mma := range mmas {
-		lo, hi, avg := mma[0], mma[1], mma[2]
+	for idx, mma := range mmas {
+		t.Run(fmt.Sprint(mma), func(t *testing.T) {
+			t.Parallel()
 
-		n := 5000
-		c := make([]int, n)
-		for i := range n {
-			r := newRepeat(lo, hi, float64(avg), "")
-			for r.more(s) {
-				c[i]++
+			lo, hi, avg := mma[0], mma[1], mma[2]
+			s := newRandomBitStream(seed+uint64(idx), false)
+
+			n := 5000
+			c := make([]int, n)
+			for i := range n {
+				r := newRepeat(lo, hi, float64(avg), "")
+				for r.more(s) {
+					c[i]++
+				}
+
+				if c[i] < lo || c[i] > hi {
+					t.Errorf("got %v tries with bounds [%v, %v]", c[i], lo, hi)
+				}
 			}
 
-			if c[i] < lo || c[i] > hi {
-				t.Errorf("got %v tries with bounds [%v, %v]", c[i], lo, hi)
-			}
-		}
+			if lo == 1000 && hi == math.MaxInt32 {
+				mu := float64(0)
+				for _, e := range c {
+					mu += float64(e)
+				}
+				mu /= float64(len(c))
 
-		if lo == 1000 && hi == math.MaxInt32 {
-			mu := float64(0)
-			for _, e := range c {
-				mu += float64(e)
-			}
-			mu /= float64(len(c))
+				variance := float64(0)
+				for _, e := range c {
+					variance += (float64(e) - mu) * (float64(e) - mu)
+				}
+				variance /= float64(len(c) - 1)
+				stderr := math.Sqrt(variance / float64(len(c)))
 
-			diff := math.Abs(mu - float64(avg))
-			if diff > 0.5 { // true science
-				t.Errorf("real avg %v vs desired %v, diff %v (%v tries)", mu, avg, diff, n)
+				diff := math.Abs(mu - float64(avg))
+				if diff > statSigmas*stderr {
+					t.Errorf("real avg %v vs desired %v, diff %v (stderr %v, %v tries)", mu, avg, diff, stderr, n)
+				}
 			}
-		}
+		})
 	}
 }

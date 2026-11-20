@@ -3,6 +3,8 @@
 
 version: "2"
 run:
+  build-tags:
+    - stress                    # stress_test.go builds only under this tag
   allow-parallel-runners: true
   concurrency: 16
   timeout: 5m

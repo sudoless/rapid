@@ -13,7 +13,7 @@ make fmt       # gofumpt and goimports, through golangci-lint
 make help      # every target
 ```
 
-Statistical tests are skipped unless `-flaky` (package `rapid`) or `-flaky.ext` (package `rapid_test`) is set; `make test-flaky` sets both.
+Statistical and coverage checks run once on a fixed seed in the default suite. `make test-stress` runs them on random seeds (build tag `stress`); a failing run logs the seed, which `-rapid.seed` replays.
 
 ## Invariants
 

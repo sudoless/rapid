@@ -1,7 +1,8 @@
 # Copyright (c) 2026 SUDOLESS SRL
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 
-LINT_CONFIG := devz/golangci-lint.yaml
+LINT_CONFIG  := devz/golangci-lint.yaml
+STRESS_COUNT ?= 200
 
 .PHONY: help
 help: ## list targets
@@ -34,9 +35,9 @@ test: ## run the tests
 test-race: ## run the tests with the race detector, shuffled, bypassing the cache
 	@go test -race -count=1 -shuffle=on ./...
 
-.PHONY: test-flaky
-test-flaky: ## run the tests, including the statistical ones skipped by default
-	@go test ./... -args -flaky -flaky.ext
+.PHONY: test-stress
+test-stress: ## run the statistical and coverage checks on STRESS_COUNT random seeds
+	@go test -tags stress -run '^TestStress$$' -count=$(STRESS_COUNT) ./...
 
 .PHONY: bench
 bench: ## run the benchmarks

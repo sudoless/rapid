@@ -66,9 +66,6 @@ func TestShrink_FloatCmp(t *testing.T) {
 		{false, -1000000, -1000000.5, false},
 		{false, -math.E, -2.75, false},
 	}
-	if *flaky {
-		ref = append(ref, cmp{false, 0, -1, true}) // sometimes we end up at exactly 0
-	}
 
 	for _, r := range ref {
 		t.Run(fmt.Sprintf("%v", r), func(t *testing.T) {
