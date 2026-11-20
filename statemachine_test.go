@@ -8,6 +8,7 @@ package rapid
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"go.sdls.io/rapid/internal/engine"
@@ -294,7 +295,7 @@ func TestStateMachineActions(t *testing.T) {
 		skips := 0
 		res := search(t, stattest.FixedSeed, func(t *T) {
 			sm := &stateMachineTest{}
-			t.repeat(StateMachineActions(sm), 30)
+			t.RepeatSteps(StateMachineActions(sm), 30)
 			for idx, step := range sm.run {
 				if step != "Post-Skip" {
 					continue
@@ -328,4 +329,37 @@ func BenchmarkCheckQueue(b *testing.B) {
 	for b.Loop() {
 		_ = search(b, engine.BaseSeed(), queueTest)
 	}
+}
+
+// RepeatSteps runs about the number of actions it is given, whatever -rapid.steps or -short say.
+func TestRepeatSteps(t *testing.T) {
+	t.Parallel()
+
+	for _, steps := range []int{3, 60} {
+		t.Run(strconv.Itoa(steps), func(t *testing.T) {
+			t.Parallel()
+
+			cases, actions := 0, 0
+			res := search(t, stattest.FixedSeed, func(t *T) {
+				cases++
+				t.RepeatSteps(map[string]func(*T){"Act": func(*T) { actions++ }}, steps)
+			})
+			if res.Err1 != nil {
+				t.Fatal(res.Err1)
+			}
+			mean := float64(actions) / float64(cases)
+			if mean < float64(steps)/2 || mean > float64(steps)*2 {
+				t.Fatalf("a mean of %.2f actions over %v test cases, want about %v", mean, cases, steps)
+			}
+		})
+	}
+
+	t.Run("fewer than 1 panics", func(t *testing.T) {
+		t.Parallel()
+
+		res := search(t, stattest.FixedSeed, func(t *T) { t.RepeatSteps(map[string]func(*T){"Act": func(*T) {}}, 0) })
+		if res.Err1 == nil {
+			t.Fatal("RepeatSteps(0) did not panic")
+		}
+	})
 }

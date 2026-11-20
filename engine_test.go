@@ -55,7 +55,7 @@ func TestPanicTraceback(t *testing.T) {
 			func(t *T) *engine.TestError {
 				return checkOnce(t, func(t *T) {
 					var sm brokenMachine
-					t.repeat(StateMachineActions(&sm), 30) // its own step count, so the broken action runs whatever -rapid.steps says
+					t.RepeatSteps(StateMachineActions(&sm), 30) // the broken action runs whatever -rapid.steps says
 				})
 			},
 		},

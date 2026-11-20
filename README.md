@@ -198,6 +198,9 @@ while a deep run raises `-rapid.checks` for the rest:
 rapid.Check(t, prop, rapid.Checks(20), rapid.SearchTime(30*time.Second), rapid.ShrinkTime(10*time.Second))
 ```
 
+`(*T).RepeatSteps` fixes the average number of state machine actions in the
+same way, where `(*T).Repeat` follows `-rapid.steps`.
+
 ## License
 
 Rapid is a fork of [flyingmutant/rapid](https://github.com/flyingmutant/rapid)
