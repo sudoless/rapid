@@ -111,8 +111,8 @@ func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
 	}
 
 	tries := 0
-	for _, n := range s.tries {
-		tries += n
+	for _, count := range s.tries {
+		tries += count
 	}
 	s.debugf(false, "done, %v rounds total (%v tries, %v shrinks, %v cache hits):\n%v", i, tries, s.shrinks, s.hits, s.tries)
 
@@ -120,31 +120,31 @@ func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
 }
 
 func (s *shrinker) removeGroups(deadline time.Time) {
-	for i := 0; i < len(s.rec.groups) && time.Now().Before(deadline); i++ {
-		g := s.rec.groups[i]
+	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.groups[idx]
 		if !g.standalone || g.end < 0 {
 			continue
 		}
 
-		if s.accept(without(s.rec.data, g), labelRemoveGroup, "remove group %q at %v: [%v, %v)", g.label, i, g.begin, g.end) {
-			i--
+		if s.accept(without(s.rec.data, g), labelRemoveGroup, "remove group %q at %v: [%v, %v)", g.label, idx, g.begin, g.end) {
+			idx--
 		}
 	}
 }
 
 func (s *shrinker) minimizeBlocks(deadline time.Time) {
-	for i := 0; i < len(s.rec.data) && time.Now().Before(deadline); i++ {
-		minimize(s.rec.data[i], func(u uint64, label string) bool {
+	for idx := 0; idx < len(s.rec.data) && time.Now().Before(deadline); idx++ {
+		minimize(s.rec.data[idx], func(u uint64, label string) bool {
 			buf := append([]uint64(nil), s.rec.data...)
-			buf[i] = u
-			return s.accept(buf, label, "minimize block %v: %v to %v", i, s.rec.data[i], u)
+			buf[idx] = u
+			return s.accept(buf, label, "minimize block %v: %v to %v", idx, s.rec.data[idx], u)
 		})
 	}
 }
 
 func (s *shrinker) lowerFloatHack(deadline time.Time) {
-	for i := 0; i < len(s.rec.groups) && time.Now().Before(deadline); i++ {
-		g := s.rec.groups[i]
+	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.groups[idx]
 		if !g.standalone || g.end != g.begin+7 {
 			continue
 		}
@@ -155,41 +155,41 @@ func (s *shrinker) lowerFloatHack(deadline time.Time) {
 		buf[g.begin+5] = math.MaxUint64
 		buf[g.begin+6] = math.MaxUint64
 
-		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.label, i, buf[g.begin+3]) {
+		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.label, idx, buf[g.begin+3]) {
 			buf := append([]uint64(nil), s.rec.data...)
 			buf[g.begin+4] -= 1
 			buf[g.begin+5] = math.MaxUint64
 			buf[g.begin+6] = math.MaxUint64
 
-			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.label, i, buf[g.begin+4]) {
+			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.label, idx, buf[g.begin+4]) {
 				buf := append([]uint64(nil), s.rec.data...)
 				buf[g.begin+5] -= 1
 				buf[g.begin+6] = math.MaxUint64
 
-				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.label, i, buf[g.begin+5])
+				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.label, idx, buf[g.begin+5])
 			}
 		}
 	}
 }
 
 func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
-	for i := 0; i < len(s.rec.data) && time.Now().Before(deadline); i++ {
-		if s.rec.data[i] == 0 {
+	for idx := 0; idx < len(s.rec.data) && time.Now().Before(deadline); idx++ {
+		if s.rec.data[idx] == 0 {
 			continue
 		}
 
 		buf := append([]uint64(nil), s.rec.data...)
-		buf[i] -= 1
+		buf[idx] -= 1
 
-		for j := range len(s.rec.groups) {
-			g := s.rec.groups[j]
-			if !g.standalone || g.end < 0 || (i >= g.begin && i < g.end) {
+		for jdx := range len(s.rec.groups) {
+			g := s.rec.groups[jdx]
+			if !g.standalone || g.end < 0 || (idx >= g.begin && idx < g.end) {
 				continue
 			}
 
 			if s.accept(without(buf, g), labelRemoveGroupAndLower, "lower block %v to %v and remove group %q at %v: [%v, %v)",
-				i, buf[i], g.label, j, g.begin, g.end) {
-				i--
+				idx, buf[idx], g.label, jdx, g.begin, g.end) {
+				idx--
 				break
 			}
 		}
@@ -197,16 +197,16 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 }
 
 func (s *shrinker) sortGroups(deadline time.Time) {
-	for i := 1; i < len(s.rec.groups) && time.Now().Before(deadline); i++ {
-		for j := i; j > 0; {
-			g := s.rec.groups[j]
+	for idx := 1; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
+		for jdx := idx; jdx > 0; {
+			g := s.rec.groups[jdx]
 			if !g.standalone || g.end < 0 {
 				break
 			}
 
-			j_ := j
-			for j--; j >= 0; j-- {
-				h := s.rec.groups[j]
+			j_ := jdx
+			for jdx--; jdx >= 0; jdx-- {
+				h := s.rec.groups[jdx]
 				if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
 					continue
 				}
@@ -218,7 +218,7 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				buf = append(buf, s.rec.data[g.end:]...)
 
 				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
-					g.label, j_, g.begin, g.end, h.label, j, h.begin, h.end) {
+					g.label, j_, g.begin, g.end, h.label, jdx, h.begin, h.end) {
 					break
 				}
 			}
@@ -227,15 +227,15 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 }
 
 func (s *shrinker) removeGroupSpans(deadline time.Time) {
-	for i := 0; i < len(s.rec.groups) && time.Now().Before(deadline); i++ {
-		g := s.rec.groups[i]
+	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.groups[idx]
 		if !g.standalone || g.end < 0 {
 			continue
 		}
 
 		groups := []groupInfo{g}
-		for j := i + 1; j < len(s.rec.groups); j++ {
-			h := s.rec.groups[j]
+		for jdx := idx + 1; jdx < len(s.rec.groups); jdx++ {
+			h := s.rec.groups[jdx]
 			if !h.standalone || h.end < 0 || h.begin < groups[len(groups)-1].end {
 				continue
 			}
@@ -244,7 +244,7 @@ func (s *shrinker) removeGroupSpans(deadline time.Time) {
 			buf := without(s.rec.data, groups...)
 
 			if s.accept(buf, labelRemoveGroupSpan, "remove %v groups %v", len(groups), groups) {
-				i--
+				idx--
 				break
 			}
 		}
@@ -295,9 +295,9 @@ func minimize(u uint64, cond func(uint64, string) bool) uint64 {
 	if u == 0 {
 		return 0
 	}
-	for i := uint64(0); i < u && i < small; i++ {
-		if cond(i, labelMinBlockTrySmall) {
-			return i
+	for candidate := uint64(0); candidate < u && candidate < small; candidate++ {
+		if cond(candidate, labelMinBlockTrySmall) {
+			return candidate
 		}
 	}
 	if u <= small {
@@ -335,19 +335,19 @@ func (m *minimizer) rShift() {
 func (m *minimizer) unsetBits() {
 	size := bits.Len64(m.best)
 
-	for i := size - 1; i >= 0; i-- {
-		m.accept(m.best^1<<uint(i), labelMinBlockUnset)
+	for bit := size - 1; bit >= 0; bit-- {
+		m.accept(m.best^1<<uint(bit), labelMinBlockUnset)
 	}
 }
 
 func (m *minimizer) sortBits() {
 	size := bits.Len64(m.best)
 
-	for i := size - 1; i >= 0; i-- {
-		h := uint64(1 << uint(i))
+	for bit := size - 1; bit >= 0; bit-- {
+		h := uint64(1 << uint(bit))
 		if m.best&h != 0 {
-			for j := range i {
-				l := uint64(1 << uint(j))
+			for lowerBit := range bit {
+				l := uint64(1 << uint(lowerBit))
 				if m.best&l == 0 {
 					if m.accept(m.best^(l|h), labelMinBlockSort) {
 						break
@@ -378,8 +378,8 @@ func (m *minimizer) binSearch() {
 func without(data []uint64, groups ...groupInfo) []uint64 {
 	buf := append([]uint64(nil), data...)
 
-	for _, g := range slices.Backward(groups) {
-		buf = append(buf[:g.begin], buf[g.end:]...)
+	for _, group := range slices.Backward(groups) {
+		buf = append(buf[:group.begin], buf[group.end:]...)
 	}
 
 	return buf
@@ -400,11 +400,11 @@ func compareData(a, b []uint64) int {
 		return 1
 	}
 
-	for i := range a {
-		if a[i] < b[i] {
+	for idx := range a {
+		if a[idx] < b[idx] {
 			return -1
 		}
-		if a[i] > b[i] {
+		if a[idx] > b[idx] {
 			return 1
 		}
 	}

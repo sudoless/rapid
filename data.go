@@ -136,16 +136,16 @@ func (rec *recordedBits) endGroup(i int, discard bool) {
 func (rec *recordedBits) prune() {
 	assert(rec.persist)
 
-	for i := 0; i < len(rec.groups); {
-		if rec.groups[i].discard {
-			rec.removeGroup(i) // O(n^2)
+	for idx := 0; idx < len(rec.groups); {
+		if rec.groups[idx].discard {
+			rec.removeGroup(idx) // O(n^2)
 		} else {
-			i++
+			idx++
 		}
 	}
 
-	for _, g := range rec.groups {
-		assert(g.begin != g.end)
+	for _, group := range rec.groups {
+		assert(group.begin != group.end)
 	}
 }
 
@@ -162,12 +162,12 @@ func (rec *recordedBits) removeGroup(i int) {
 	rec.groups = append(rec.groups[:i], rec.groups[j:]...)
 
 	n := g.end - g.begin
-	for j := range rec.groups {
-		if rec.groups[j].begin >= g.end {
-			rec.groups[j].begin -= n
+	for idx := range rec.groups {
+		if rec.groups[idx].begin >= g.end {
+			rec.groups[idx].begin -= n
 		}
-		if rec.groups[j].end >= g.end {
-			rec.groups[j].end -= n
+		if rec.groups[idx].end >= g.end {
+			rec.groups[idx].end -= n
 		}
 	}
 }

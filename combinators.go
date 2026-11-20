@@ -197,9 +197,9 @@ func (g *permGen[S, E]) value(t *T) S {
 
 	// shrink-friendly variant of Fisher–Yates shuffle: shrinks to lower number of smaller distance swaps
 	repeat := newRepeat(0, m, math.MaxInt, "permute")
-	for i := 0; repeat.more(t.s); i++ {
-		j, _, _ := genUintRange(t.s, uint64(i), uint64(n-1), false)
-		s[i], s[j] = s[j], s[i]
+	for idx := 0; repeat.more(t.s); idx++ {
+		j, _, _ := genUintRange(t.s, uint64(idx), uint64(n-1), false)
+		s[idx], s[j] = s[j], s[idx]
 	}
 
 	return s
@@ -221,8 +221,8 @@ type oneOfGen[V any] struct {
 
 func (g *oneOfGen[V]) String() string {
 	strs := make([]string, len(g.gens))
-	for i, g := range g.gens {
-		strs[i] = g.String()
+	for idx, gen := range g.gens {
+		strs[idx] = gen.String()
 	}
 
 	return fmt.Sprintf("OneOf(%v)", strings.Join(strs, ", "))

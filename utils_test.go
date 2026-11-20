@@ -77,8 +77,8 @@ func checkGenGeomMean(t *testing.T, seed uint64) {
 	s := newRandomBitStream(seed, false)
 
 	// Subtests run in order: they draw from one shared bitstream.
-	for i := range 100 {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for idx := range 100 {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
 			p := genFloat01(s)
 
 			var geoms []uint64
@@ -87,8 +87,8 @@ func checkGenGeomMean(t *testing.T, seed uint64) {
 			}
 
 			avg := 0.0
-			for _, f := range geoms {
-				avg += float64(f)
+			for _, geom := range geoms {
+				avg += float64(geom)
 			}
 			avg /= float64(len(geoms))
 
@@ -129,16 +129,16 @@ func checkGenUintN(t *testing.T, seed uint64) {
 	s := newRandomBitStream(seed, false)
 	hi := []uint64{0, 1, 2, 5, 13}
 
-	for _, m := range hi {
-		r := make([]int, m+1)
+	for _, bound := range hi {
+		r := make([]int, bound+1)
 		n := statDraws
 		for range n {
-			u, _, _ := genUintN(s, m, false)
+			u, _, _ := genUintN(s, bound, false)
 			r[u]++
 		}
 
-		for u := range r {
-			ensureWithinSigmas(t, m, r[u], 1/float64(m+1))
+		for value := range r {
+			ensureWithinSigmas(t, bound, r[value], 1/float64(bound+1))
 		}
 	}
 }
@@ -165,19 +165,19 @@ func checkGenUintRange(t *testing.T, seed uint64) {
 		{math.MaxUint64, math.MaxUint64},
 	}
 
-	for _, r := range ranges {
+	for _, bounds := range ranges {
 		m := map[uint64]int{}
 		n := statDraws
 		for range n {
-			u, _, _ := genUintRange(s, r[0], r[1], false)
+			u, _, _ := genUintRange(s, bounds[0], bounds[1], false)
 			m[u]++
 		}
 
-		for u := range m {
-			if u < r[0] || u > r[1] {
-				t.Errorf("%v out of range [%v, %v]", u, r[0], r[1])
+		for value := range m {
+			if value < bounds[0] || value > bounds[1] {
+				t.Errorf("%v out of range [%v, %v]", value, bounds[0], bounds[1])
 			}
-			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", u, r), m[u], 1/float64(r[1]-r[0]+1))
+			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
 		}
 	}
 }
@@ -214,19 +214,19 @@ func checkGenIntRange(t *testing.T, seed uint64) {
 		{math.MinInt64, math.MinInt64},
 	}
 
-	for _, r := range ranges {
+	for _, bounds := range ranges {
 		m := map[int64]int{}
 		n := statDraws
 		for range n {
-			u, _, _ := genIntRange(s, r[0], r[1], false)
+			u, _, _ := genIntRange(s, bounds[0], bounds[1], false)
 			m[u]++
 		}
 
-		for u := range m {
-			if u < r[0] || u > r[1] {
-				t.Errorf("%v out of range [%v, %v]", u, r[0], r[1])
+		for value := range m {
+			if value < bounds[0] || value > bounds[1] {
+				t.Errorf("%v out of range [%v, %v]", value, bounds[0], bounds[1])
 			}
-			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", u, r), m[u], 1/float64(r[1]-r[0]+1))
+			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
 		}
 	}
 }
@@ -243,16 +243,16 @@ func checkFlipBiasedCoin(t *testing.T, seed uint64) {
 	s := newRandomBitStream(seed, false)
 	ps := []float64{0, 0.3, 0.5, 0.7, 1}
 
-	for _, p := range ps {
+	for _, prob := range ps {
 		n := statDraws
 		y := 0
 		for range n {
-			if flipBiasedCoin(s, p) {
+			if flipBiasedCoin(s, prob) {
 				y++
 			}
 		}
 
-		ensureWithinSigmas(t, p, y, p)
+		ensureWithinSigmas(t, prob, y, prob)
 	}
 }
 
@@ -283,12 +283,12 @@ func checkLoadedDie(t *testing.T, seed uint64) {
 		}
 
 		total := 0
-		for _, w := range ws {
-			total += w
+		for _, weight := range ws {
+			total += weight
 		}
 
-		for i, w := range ws {
-			ensureWithinSigmas(t, ws, r[i], float64(w)/float64(total))
+		for idx, weight := range ws {
+			ensureWithinSigmas(t, ws, r[idx], float64(weight)/float64(total))
 		}
 	}
 }
@@ -332,27 +332,27 @@ func checkRepeat(t *testing.T, seed uint64) {
 
 			n := 5000
 			c := make([]int, n)
-			for i := range n {
+			for idx := range n {
 				r := newRepeat(lo, hi, float64(avg), "")
 				for r.more(s) {
-					c[i]++
+					c[idx]++
 				}
 
-				if c[i] < lo || c[i] > hi {
-					t.Errorf("got %v tries with bounds [%v, %v]", c[i], lo, hi)
+				if c[idx] < lo || c[idx] > hi {
+					t.Errorf("got %v tries with bounds [%v, %v]", c[idx], lo, hi)
 				}
 			}
 
 			if lo == 1000 && hi == math.MaxInt32 {
 				mu := float64(0)
-				for _, e := range c {
-					mu += float64(e)
+				for _, count := range c {
+					mu += float64(count)
 				}
 				mu /= float64(len(c))
 
 				variance := float64(0)
-				for _, e := range c {
-					variance += (float64(e) - mu) * (float64(e) - mu)
+				for _, count := range c {
+					variance += (float64(count) - mu) * (float64(count) - mu)
 				}
 				variance /= float64(len(c) - 1)
 				stderr := math.Sqrt(variance / float64(len(c)))

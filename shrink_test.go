@@ -34,16 +34,16 @@ func TestShrink_IntCmp(t *testing.T) {
 		{false, 0, 0, true},
 	}
 
-	for _, r := range ref {
-		t.Run(fmt.Sprintf("%v", r), func(t *testing.T) {
+	for _, testCase := range ref {
+		t.Run(fmt.Sprintf("%v", testCase), func(t *testing.T) {
 			t.Parallel()
 
 			checkShrink(t, func(t *T) {
 				i := Int().Draw(t, "i")
-				if ((r.gt && i > r.a) || (!r.gt && i < r.a)) || (r.eq && i == r.a) {
+				if ((testCase.gt && i > testCase.a) || (!testCase.gt && i < testCase.a)) || (testCase.eq && i == testCase.a) {
 					t.Fail()
 				}
-			}, r.b)
+			}, testCase.b)
 		})
 	}
 }
@@ -67,16 +67,16 @@ func TestShrink_FloatCmp(t *testing.T) {
 		{false, -math.E, -2.75, false},
 	}
 
-	for _, r := range ref {
-		t.Run(fmt.Sprintf("%v", r), func(t *testing.T) {
+	for _, testCase := range ref {
+		t.Run(fmt.Sprintf("%v", testCase), func(t *testing.T) {
 			t.Parallel()
 
 			checkShrink(t, func(t *T) {
 				f := Float64().Draw(t, "f")
-				if ((r.gt && f > r.a) || (!r.gt && f < r.a)) || (r.eq && f == r.a) {
+				if ((testCase.gt && f > testCase.a) || (!testCase.gt && f < testCase.a)) || (testCase.eq && f == testCase.a) {
 					t.Fail()
 				}
-			}, r.b)
+			}, testCase.b)
 		})
 	}
 }
@@ -87,8 +87,8 @@ func TestShrink_IntSliceNElemsGt(t *testing.T) {
 	checkShrink(t, func(t *T) {
 		s := SliceOf(Int()).Draw(t, "s")
 		n := 0
-		for _, i := range s {
-			if i > 1000000 {
+		for _, elem := range s {
+			if elem > 1000000 {
 				n++
 			}
 		}
@@ -129,11 +129,11 @@ func TestShrink_IntSliceNoDuplicates(t *testing.T) {
 		s := SliceOfN(IntMin(1), 5, -1).Draw(t, "s")
 		sort.Ints(s)
 		last := 0
-		for _, i := range s {
-			if i == last {
+		for _, elem := range s {
+			if elem == last {
 				return
 			}
-			last = i
+			last = elem
 		}
 		t.Fail()
 	}, []int{1, 2, 3, 4, 5})
@@ -207,8 +207,8 @@ func TestMinimize_LowerBound(t *testing.T) {
 func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 	t.Helper()
 
-	for i := range shrinkTestRuns {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for run := range shrinkTestRuns {
+		t.Run(strconv.Itoa(run), func(t *testing.T) {
 			t.Helper()
 			t.Parallel()
 

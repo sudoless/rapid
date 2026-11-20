@@ -33,10 +33,10 @@ func TestJsfRand(t *testing.T) {
 	ctx := &jsf64ctx{}
 	ctx.init(0xcafe5eed00000001)
 
-	for _, g := range golden {
+	for _, want := range golden {
 		u := ctx.rand()
-		if u != g {
-			t.Errorf("0x%x instead of golden 0x%x", u, g)
+		if u != want {
+			t.Errorf("0x%x instead of golden 0x%x", u, want)
 		}
 	}
 }
@@ -46,7 +46,7 @@ func BenchmarkJsfRand(b *testing.B) {
 	ctx.init(1)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ctx.rand()
 	}
 }
@@ -55,7 +55,7 @@ func BenchmarkMathRand(b *testing.B) {
 	s := rand.NewSource(1).(rand.Source64)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s.Uint64()
 	}
 }
@@ -65,15 +65,15 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 
 	s := createRandomBitStream(t)
 
-	for n := 1; n <= 64; n++ {
-		for i := range 100 {
-			t.Run(fmt.Sprintf("%v bits #%v", n, i), func(t *testing.T) {
-				b := s.drawBits(n)
-				if bits.Len64(b) > n {
-					t.Errorf("%v: bitlen too big for %v bits", b, n)
+	for width := 1; width <= 64; width++ {
+		for idx := range 100 {
+			t.Run(fmt.Sprintf("%v bits #%v", width, idx), func(t *testing.T) {
+				b := s.drawBits(width)
+				if bits.Len64(b) > width {
+					t.Errorf("%v: bitlen too big for %v bits", b, width)
 				}
-				if bits.OnesCount64(b) > n {
-					t.Errorf("%v: too much ones for %v bits", b, n)
+				if bits.OnesCount64(b) > width {
+					t.Errorf("%v: too much ones for %v bits", b, width)
 				}
 			})
 		}
@@ -81,7 +81,7 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 }
 
 func BenchmarkBaseSeed(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		baseSeed()
 	}
 }
@@ -90,7 +90,7 @@ func BenchmarkRandomBitStream_DrawBits1(b *testing.B) {
 	s := newRandomBitStream(baseSeed(), false)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s.drawBits(1)
 	}
 }
@@ -99,7 +99,7 @@ func BenchmarkRandomBitStream_DrawBits64(b *testing.B) {
 	s := newRandomBitStream(baseSeed(), false)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s.drawBits(64)
 	}
 }

@@ -22,7 +22,7 @@ func BenchmarkTrivialGenImplValue(b *testing.B) {
 	g := trivialGenImpl{}
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		g.value(t)
 	}
 }
@@ -32,7 +32,7 @@ func BenchmarkGenerator_Value(b *testing.B) {
 	g := newGenerator[uint64](trivialGenImpl{})
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		g.value(t)
 	}
 }

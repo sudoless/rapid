@@ -248,8 +248,8 @@ func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64
 	sf, _, _ := genUintRange(s, sfMin, sfMax, false)
 	s.endGroup(j, false)
 
-	for i := range uint(maxR) - uint(r) {
-		mask := ^(uint64(1) << i)
+	for bit := range uint(maxR) - uint(r) {
+		mask := ^(uint64(1) << bit)
 		if sf&mask < sfMin {
 			break
 		}

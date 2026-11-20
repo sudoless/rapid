@@ -24,12 +24,12 @@ func TestSliceOf(t *testing.T) {
 		SliceOf(Uint()).AsAny(),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				v := g.Draw(t, "v")
+				v := gen.Draw(t, "v")
 				if rv(v).Kind() != reflect.Slice {
 					t.Fatalf("got not a slice")
 				}
@@ -49,8 +49,8 @@ func TestSliceOfDistinct(t *testing.T) {
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
 		m := map[int]struct{}{}
-		for _, i := range s {
-			m[i] = struct{}{}
+		for _, elem := range s {
+			m[elem] = struct{}{}
 		}
 		if len(m) != len(s) {
 			t.Fatalf("%v unique out of %v", len(m), len(s))
@@ -66,8 +66,8 @@ func TestSliceOfDistinctBy(t *testing.T) {
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
 		m := map[int]struct{}{}
-		for _, i := range s {
-			m[i%5] = struct{}{}
+		for _, elem := range s {
+			m[elem%5] = struct{}{}
 		}
 		if len(m) != len(s) {
 			t.Fatalf("%v unique out of %v", len(m), len(s))
@@ -84,12 +84,12 @@ func TestMapOf(t *testing.T) {
 		MapOf(Uint(), SliceOf(Bool())).AsAny(),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				v := g.Draw(t, "v")
+				v := gen.Draw(t, "v")
 				if rv(v).Kind() != reflect.Map {
 					t.Fatalf("got not a map")
 				}
@@ -108,9 +108,9 @@ func TestMapOfValues(t *testing.T) {
 
 	Check(t, func(t *T) {
 		m := g.Draw(t, "m")
-		for k, v := range m {
-			if k != v.x {
-				t.Fatalf("got key %v with value %v", k, v)
+		for key, val := range m {
+			if key != val.x {
+				t.Fatalf("got key %v with value %v", key, val)
 			}
 		}
 	})
@@ -133,8 +133,8 @@ func TestCollectionLenLimits(t *testing.T) {
 		},
 	}
 
-	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for idx, gf := range genFuncs {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {

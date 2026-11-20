@@ -16,12 +16,12 @@ func TestCollectionsWithImpossibleMinSize(t *testing.T) {
 		SliceOfNDistinct(Int(), 10, -1, func(i int) int { return i % 5 }).AsAny(),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			s := createRandomBitStream(t)
-			_, err := recoverValue(g, newT(nil, s, false, nil))
+			_, err := recoverValue(gen, newT(nil, s, false, nil))
 			if err == nil || !err.isInvalidData() {
 				t.Fatalf("got error %v instead of invalid data", err)
 			}

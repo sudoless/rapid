@@ -62,8 +62,8 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	for _, rd := range recData {
 		var images []*visTmplImage
 
-		for _, u := range rd.data {
-			tmplImg, err := visNewUint64Image(u).toTmplImage()
+		for _, word := range rd.data {
+			tmplImg, err := visNewUint64Image(word).toTmplImage()
 			if err != nil {
 				return err
 			}

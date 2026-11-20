@@ -98,9 +98,9 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 	}
 
 	tables_ := make([][]rune, len(tables))
-	for i := range tables {
-		tables_[i] = expandRangeTable(tables[i], tables[i])
-		assertf(len(tables_[i]) > 0, "empty *unicode.RangeTable %v", i)
+	for idx := range tables {
+		tables_[idx] = expandRangeTable(tables[idx], tables[idx])
+		assertf(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
 	}
 
 	return newGenerator[rune](&runeGen{
@@ -312,8 +312,8 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		t.s.drawBits(0)
 	case syntax.OpLiteral:
 		t.s.drawBits(0)
-		for _, r := range re.Rune {
-			_, _ = w.WriteRune(maybeFoldCase(t.s, r, re.Flags))
+		for _, char := range re.Rune {
+			_, _ = w.WriteRune(maybeFoldCase(t.s, char, re.Flags))
 		}
 	case syntax.OpCharClass, syntax.OpAnyCharNotNL, syntax.OpAnyChar:
 		sub := anyRuneGen
@@ -379,22 +379,22 @@ func expandRangeTable(t *unicode.RangeTable, key any) []rune {
 	}
 
 	n := 0
-	for _, r := range t.R16 {
-		n += int(r.Hi-r.Lo)/int(r.Stride) + 1
+	for _, span := range t.R16 {
+		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
 	}
-	for _, r := range t.R32 {
-		n += int(r.Hi-r.Lo)/int(r.Stride) + 1
+	for _, span := range t.R32 {
+		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
 	}
 
 	ret := make([]rune, 0, n)
-	for _, r := range t.R16 {
-		for i := uint32(r.Lo); i <= uint32(r.Hi); i += uint32(r.Stride) {
-			ret = append(ret, rune(i))
+	for _, span := range t.R16 {
+		for code := uint32(span.Lo); code <= uint32(span.Hi); code += uint32(span.Stride) {
+			ret = append(ret, rune(code))
 		}
 	}
-	for _, r := range t.R32 {
-		for i := uint64(r.Lo); i <= uint64(r.Hi); i += uint64(r.Stride) {
-			ret = append(ret, rune(i))
+	for _, span := range t.R32 {
+		for code := uint64(span.Lo); code <= uint64(span.Hi); code += uint64(span.Stride) {
+			ret = append(ret, rune(code))
 		}
 	}
 	expandedTables.Store(key, ret)
@@ -443,12 +443,12 @@ func charClassGen(re *syntax.Regexp) *Generator[rune] {
 	}
 
 	t := &unicode.RangeTable{R32: make([]unicode.Range32, 0, len(re.Rune)/2)}
-	for i := 0; i < len(re.Rune); i += 2 {
+	for idx := 0; idx < len(re.Rune); idx += 2 {
 		// not a valid unicode.Range32, since it requires that Lo and Hi must always be >= 1<<16
 		// however, we don't really care, since the only use of these ranges is as input to expandRangeTable
 		t.R32 = append(t.R32, unicode.Range32{
-			Lo:     uint32(re.Rune[i]),
-			Hi:     uint32(re.Rune[i+1]),
+			Lo:     uint32(re.Rune[idx]),
+			Hi:     uint32(re.Rune[idx+1]),
 			Stride: 1,
 		})
 	}

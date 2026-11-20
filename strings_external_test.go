@@ -27,12 +27,12 @@ func TestStringOfRunesIsUTF8(t *testing.T) {
 		StringOf(RuneFrom([]rune{'a', 'b', 'c'})),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				s := g.Draw(t, "s")
+				s := gen.Draw(t, "s")
 				if !utf8.ValidString(s) {
 					t.Fatalf("invalid UTF-8 string: %q", s)
 				}
@@ -49,8 +49,8 @@ func TestStringRuneCountLimits(t *testing.T) {
 		func(i, j int) *Generator[string] { return StringOfN(Rune(), i, j, -1) },
 	}
 
-	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for idx, gf := range genFuncs {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
@@ -78,8 +78,8 @@ func TestStringNMaxLen(t *testing.T) {
 		func(i int) *Generator[string] { return StringOfN(Rune(), -1, -1, i) },
 	}
 
-	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for idx, gf := range genFuncs {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {

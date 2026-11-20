@@ -172,16 +172,16 @@ func newLoadedDie(weights []int) *loadedDie {
 	}
 
 	total := 0
-	for _, w := range weights {
-		assert(w > 0 && w < 100)
-		total += w
+	for _, weight := range weights {
+		assert(weight > 0 && weight < 100)
+		total += weight
 	}
 
 	table := make([]int, total)
 	i := 0
-	for n, w := range weights {
-		for j := i; i < j+w; i++ {
-			table[i] = n
+	for face, weight := range weights {
+		for start := i; i < start+weight; i++ {
+			table[i] = face
 		}
 	}
 
