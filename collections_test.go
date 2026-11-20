@@ -27,7 +27,7 @@ func TestCollectionsWithImpossibleMinSize(t *testing.T) {
 
 			s := bitstream.NewRandom(stattest.Seed(t), false)
 			_, err := recoverValue(gen, newT(nil, s, false, nil))
-			if err == nil || !err.isInvalidData() {
+			if err == nil || !err.IsInvalidData() {
 				t.Fatalf("got error %v instead of invalid data", err)
 			}
 		})

@@ -139,7 +139,7 @@ func (sm *stateMachine) executeAction(t *T) bool {
 		}
 	}
 
-	panic(stopTest(noValidActionsMsg))
+	panic(engine.StopTest(noValidActionsMsg))
 }
 
 func runAction(t *T, action func(*T)) (invalid, skipped bool) {

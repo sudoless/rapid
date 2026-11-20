@@ -7,6 +7,8 @@ package rapid
 import (
 	"testing"
 	"testing/synctest"
+
+	"go.sdls.io/rapid/internal/engine"
 )
 
 // SyncTest runs prop within a testing/synctest bubble.
@@ -33,16 +35,16 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 	// which would bypass rapid's panic-based failure capture/shrinking. Run the bubble in a
 	// separate goroutine, swallow failures inside the bubble, and re-panic outside as a
 	// *testError so checkOnce can shrink and generate failfiles as usual.
-	resultCh := make(chan *testError, 1)
+	resultCh := make(chan *engine.TestError, 1)
 
 	go func() {
-		var captured *testError
+		var captured *engine.TestError
 		returned := false
 		defer func() {
 			if r := recover(); r != nil {
 				captured = panicToError(r)
 			} else if !returned && captured == nil {
-				captured = panicToError(stopTest("[rapid] SyncTest aborted via testing.FailNow"))
+				captured = panicToError(engine.StopTest("[rapid] SyncTest aborted via testing.FailNow"))
 			}
 			resultCh <- captured
 		}()

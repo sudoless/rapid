@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package engine
 
 import (
 	"encoding/binary"
@@ -19,8 +19,10 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
-	"go.sdls.io/rapid/internal/engine"
 )
+
+// smallBlock bounds the block values minimize tries one by one before it shifts and clears bits.
+const smallBlock = 5
 
 const (
 	labelLowerFloatExp       = "lower_float_exp"
@@ -37,14 +39,29 @@ const (
 	labelSortGroups          = "sort_groups"
 )
 
-func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, prop func(*T)) ([]uint64, *testError) {
+// Logger is where Shrink reports its progress: the test running the property.
+type Logger interface {
+	Helper()
+	Logf(format string, args ...any)
+	Name() string
+}
+
+// Run runs the property on the test case s draws and returns how it failed, or nil when it passed;
+// log says whether the property's own output goes to the test log.
+type Run func(s bitstream.Stream, log bool) *TestError
+
+// Shrink minimises rec, a test case that failed with err, until deadline: it keeps every smaller
+// test case that run fails on in the same way. It returns the smallest such test case and its failure,
+// or the test case and failure of a replay that failed differently.
+// Under -rapid.debugvis it also writes every step to vis-<test name>.html.
+func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
 	rec.Prune()
 
 	s := &shrinker{
 		tb:        tb,
 		rec:       rec,
 		err:       err,
-		prop:      prop,
+		run:       run,
 		visBits:   []bitstream.Recorded{rec},
 		tries:     map[string]int{},
 		cacheSeed: maphash.MakeSeed(),
@@ -53,7 +70,7 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 
 	buf, err := s.shrink(deadline)
 
-	if engine.Flags.DebugVis {
+	if Flags.DebugVis {
 		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
 		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
 		if err != nil {
@@ -61,7 +78,7 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 		} else {
 			defer func() { _ = f.Close() }()
 
-			if err = engine.WriteVisHTML(f, tb.Name(), s.visBits); err != nil {
+			if err = WriteVisHTML(f, tb.Name(), s.visBits); err != nil {
 				tb.Logf("failed to write debugvis file %v: %v", name, err)
 			}
 		}
@@ -71,10 +88,10 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 }
 
 type shrinker struct {
-	tb        tb
+	tb        Logger
 	rec       bitstream.Recorded
-	err       *testError
-	prop      func(*T)
+	err       *TestError
+	run       Run
 	visBits   []bitstream.Recorded
 	tries     map[string]int
 	shrinks   int
@@ -84,16 +101,16 @@ type shrinker struct {
 }
 
 func (s *shrinker) debugf(verbose_ bool, format string, args ...any) {
-	if engine.Flags.Debug && (!verbose_ || engine.Flags.Verbose) {
+	if Flags.Debug && (!verbose_ || Flags.Verbose) {
 		s.tb.Helper()
 		s.tb.Logf("[shrink] "+format, args...)
 	}
 }
 
-func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
+func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *TestError) {
 	defer func() {
 		if r := recover(); r != nil {
-			buf, err = s.rec.Data, r.(*testError)
+			buf, err = s.rec.Data, r.(*TestError)
 		}
 	}()
 
@@ -279,8 +296,8 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
-	err1 := checkOnce(newT(s.tb, s1, engine.Flags.Debug && engine.Flags.Verbose, nil), s.prop)
-	if traceback(err1) != traceback(s.err) {
+	err1 := s.run(s1, Flags.Debug && Flags.Verbose)
+	if Traceback(err1) != Traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
 	}
@@ -289,14 +306,14 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
-	err2 := checkOnce(newT(s.tb, s2, engine.Flags.Debug && engine.Flags.Verbose, nil), s.prop)
+	err2 := s.run(s2, Flags.Debug && Flags.Verbose)
 	s.rec = s2.Recorded
 	s.rec.Prune()
 	assert.True(compareData(s.rec.Data, buf) <= 0)
-	if engine.Flags.DebugVis {
+	if Flags.DebugVis {
 		s.visBits = append(s.visBits, s.rec)
 	}
-	if !sameError(err1, err2) {
+	if !SameError(err1, err2) {
 		panic(err2)
 	}
 
@@ -310,12 +327,12 @@ func minimize(u uint64, cond func(uint64, string) bool) uint64 {
 	if u == 0 {
 		return 0
 	}
-	for candidate := uint64(0); candidate < u && candidate < small; candidate++ {
+	for candidate := uint64(0); candidate < u && candidate < smallBlock; candidate++ {
 		if cond(candidate, labelMinBlockTrySmall) {
 			return candidate
 		}
 	}
-	if u <= small {
+	if u <= smallBlock {
 		return u
 	}
 
@@ -335,7 +352,7 @@ type minimizer struct {
 }
 
 func (m *minimizer) accept(u uint64, label string) bool {
-	if u >= m.best || u < small || !m.cond(u, label) {
+	if u >= m.best || u < smallBlock || !m.cond(u, label) {
 		return false
 	}
 	m.best = u

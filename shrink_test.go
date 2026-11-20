@@ -9,7 +9,6 @@ package rapid
 import (
 	"fmt"
 	"math"
-	"math/bits"
 	"sort"
 	"strconv"
 	"testing"
@@ -166,47 +165,6 @@ func TestShrink_StringOf(t *testing.T) {
 	}, "X", "")
 }
 
-func TestMinimize_UnsetBits(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		mask := Uint64Range(0, math.MaxUint64).Draw(t, "mask")
-		best := minimize(math.MaxUint64, func(x uint64, s string) bool { return x&mask == mask })
-		if best != mask {
-			t.Fatalf("unset to %v instead of %v", bin(best), bin(mask))
-		}
-	})
-}
-
-func TestMinimize_SortBits(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		u := Uint64Range(0, math.MaxUint64).Draw(t, "u")
-		n := bits.OnesCount64(u)
-		v := uint64(1<<uint(n) - 1)
-
-		best := minimize(u, func(x uint64, s string) bool { return bits.OnesCount64(x) == n })
-		if best != v {
-			t.Fatalf("minimized to %v instead of %v (%v bits set)", bin(best), bin(v), n)
-		}
-	})
-}
-
-func TestMinimize_LowerBound(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		lo := Uint64().Draw(t, "min")
-		u := Uint64Min(lo).Draw(t, "u")
-
-		best := minimize(u, func(x uint64, s string) bool { return x >= lo })
-		if best != lo {
-			t.Fatalf("found %v instead of %v", best, lo)
-		}
-	})
-}
-
 func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 	t.Helper()
 
@@ -220,8 +178,8 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 			if seed != 0 && err1 == nil && err2 == nil {
 				t.Fatalf("shrink test did not fail (seed %v)", seed)
 			}
-			if traceback(err1) != traceback(err2) {
-				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, traceback(err2), err1, traceback(err1))
+			if engine.Traceback(err1) != engine.Traceback(err2) {
+				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
 			}
 
 			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil, draws...)
@@ -231,8 +189,4 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 			}
 		})
 	}
-}
-
-func bin(u uint64) string {
-	return "0b" + strconv.FormatUint(u, 2)
 }

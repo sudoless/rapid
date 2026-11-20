@@ -118,7 +118,7 @@ func example[V any](g *Generator[V], t *T) (V, int, error) {
 	}
 }
 
-func recoverValue[V any](g *Generator[V], t *T) (v V, err *testError) {
+func recoverValue[V any](g *Generator[V], t *T) (v V, err *engine.TestError) {
 	defer func() { err = panicToError(recover()) }()
 
 	return g.value(t), nil
