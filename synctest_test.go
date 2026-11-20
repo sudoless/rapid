@@ -19,7 +19,7 @@ func TestSyncTest(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		var cleaned atomic.Bool
 
-		rapid.SyncTest(rt, func(inner *rapid.T) {
+		rt.SyncTest(func(inner *rapid.T) {
 			inner.Cleanup(func() {
 				cleaned.Store(true)
 			})
@@ -45,4 +45,52 @@ func TestSyncTest(t *testing.T) {
 			rt.Fatalf("cleanup registered inside SyncTest did not run")
 		}
 	})
+}
+
+// Context and Cleanup are safe to call from another goroutine while the property runs a SyncTest bubble.
+func TestSyncTestWhileAnotherGoroutineUsesT(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for range 100 {
+				_ = rt.Context()
+				rt.Cleanup(func() {})
+			}
+		}()
+		rt.SyncTest(func(*rapid.T) {})
+		<-done
+	})
+}
+
+// A Repeat action whose only draws happen inside SyncTest has drawn: skipping it afterwards rejects
+// the action, rather than marking it not applicable until Repeat finds no valid action.
+func TestSyncTestDrawsCountForRepeat(t *testing.T) {
+	t.Parallel()
+
+	_, _, failed := rapid.CheckOutcome(t, func(rt *rapid.T) {
+		rt.Repeat(map[string]func(*rapid.T){
+			"DrawThenSkip": func(rt *rapid.T) {
+				rt.SyncTest(func(bt *rapid.T) { _ = rapid.IntRange(0, 9).Draw(bt, "v") })
+				rt.SkipNow()
+			},
+		})
+	})
+	if failed {
+		t.Fatal("an action that drew inside SyncTest and then skipped counted as not applicable")
+	}
+}
+
+// A failure recorded inside SyncTest fails the test case that ran the bubble.
+func TestSyncTestRecordedFailureFailsTestCase(t *testing.T) {
+	t.Parallel()
+
+	_, _, failed := rapid.CheckOutcome(t, func(rt *rapid.T) {
+		rt.SyncTest(func(bt *rapid.T) { bt.Errorf("bad") })
+	})
+	if !failed {
+		t.Fatal("Errorf inside SyncTest did not fail the test case")
+	}
 }
