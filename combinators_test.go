@@ -11,6 +11,7 @@ import (
 
 	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/engine"
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 type intPair struct {
@@ -26,5 +27,21 @@ func BenchmarkHeavyChain3(b *testing.B) {
 
 	for b.Loop() {
 		g3.value(t)
+	}
+}
+
+// A Deferred whose fn panics fails the same way on every draw, so the failure reproduces and is shrunk
+// rather than reported as flaky.
+func TestDeferredPanicReproduces(t *testing.T) {
+	t.Parallel()
+
+	gen := Deferred(func() *Generator[int] { panic("deferred fn is broken") })
+	res := search(t, stattest.FixedSeed, func(t *T) { _ = gen.Draw(t, "v") })
+
+	if res.Err1 == nil || res.Err2 == nil {
+		t.Fatalf("the property did not fail: Err1 %v, Err2 %v", res.Err1, res.Err2)
+	}
+	if tb1, tb2 := engine.Traceback(res.Err1), engine.Traceback(res.Err2); tb1 != tb2 {
+		t.Fatalf("the replay panicked from another stack, so the failure reads as flaky\nreplay:\n%voriginal:\n%v", tb2, tb1)
 	}
 }
