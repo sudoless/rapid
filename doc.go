@@ -26,7 +26,7 @@ Primitives:
 Collections:
   - [String], [StringMatching], [StringOf], [StringOfN], [StringN]
   - [SliceOfBytesMatching]
-  - [SliceOf], [SliceOfN], [SliceOfDistinct], [SliceOfNDistinct]
+  - [SliceOf], [SliceOfN], [SliceOfDistinct], [SliceOfNDistinct], [SliceOfDistinctFunc], [SliceOfNDistinctFunc]
   - [Permutation]
   - [MapOf], [MapOfN], [MapOfValues], [MapOfNValues]
 

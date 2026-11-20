@@ -41,7 +41,35 @@ func ExampleSliceOfN() {
 }
 
 func ExampleSliceOfDistinct() {
-	gen := rapid.SliceOfDistinct(rapid.IntMin(0), func(i int) int { return i % 2 })
+	gen := rapid.SliceOfDistinct(rapid.IntRange(0, 9))
+
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
+	}
+	// Output:
+	// [1 8 3 2 6 4 9 0]
+	// [2 1 0 4 7 3 9 8]
+	// [0 4 1 5 2 3 6 9]
+	// [1 9 6 0 8]
+	// []
+}
+
+func ExampleSliceOfNDistinct() {
+	gen := rapid.SliceOfNDistinct(rapid.IntRange(0, 9), 3, 3)
+
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
+	}
+	// Output:
+	// [1 8 3]
+	// [2 1 0]
+	// [0 4 1]
+	// [1 9 6]
+	// [0 4 7]
+}
+
+func ExampleSliceOfDistinctFunc() {
+	gen := rapid.SliceOfDistinctFunc(rapid.IntMin(0), func(i int) int { return i % 2 })
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))
@@ -54,8 +82,8 @@ func ExampleSliceOfDistinct() {
 	// []
 }
 
-func ExampleSliceOfNDistinct() {
-	gen := rapid.SliceOfNDistinct(rapid.IntMin(0), 2, 2, func(i int) int { return i % 2 })
+func ExampleSliceOfNDistinctFunc() {
+	gen := rapid.SliceOfNDistinctFunc(rapid.IntMin(0), 2, 2, func(i int) int { return i % 2 })
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))
