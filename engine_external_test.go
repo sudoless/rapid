@@ -259,3 +259,33 @@ func TestCheckCleanupContextCreatedInCleanup(t *testing.T) {
 		})
 	})
 }
+
+// A property that panics fails, whatever its cleanups do: a cleanup's skip does not hide the panic.
+func TestCheckPanicNotMaskedByCleanupSkip(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		prop func(*T)
+	}{
+		{"property", func(t *T) {
+			t.Cleanup(func() { t.SkipNow() })
+			panic("boom")
+		}},
+		{"SyncTest bubble", func(t *T) {
+			t.SyncTest(func(t *T) {
+				t.Cleanup(func() { t.SkipNow() })
+				panic("boom")
+			})
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if valid, invalid, failed := CheckOutcome(t, tc.prop); !failed {
+				t.Fatalf("panic not reported (valid %d, invalid %d)", valid, invalid)
+			}
+		})
+	}
+}
