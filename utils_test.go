@@ -11,17 +11,8 @@ import (
 	"math"
 	"strconv"
 	"testing"
-)
 
-// fixedStatSeed seeds the statistical checks in the default suite; TestStress
-// (build tag stress) runs the same checks on random seeds.
-const fixedStatSeed = 1
-
-// Each statistical check draws statDraws values and allows statSigmas standard
-// errors, so a correct generator fails one bound with probability below 1e-6.
-const (
-	statDraws  = 10000
-	statSigmas = 5
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 func createRandomBitStream(t *testing.T) bitStream {
@@ -68,7 +59,7 @@ func TestGenGeom(t *testing.T) {
 func TestGenGeomMean(t *testing.T) {
 	t.Parallel()
 
-	checkGenGeomMean(t, fixedStatSeed)
+	checkGenGeomMean(t, stattest.FixedSeed)
 }
 
 func checkGenGeomMean(t *testing.T, seed uint64) {
@@ -82,7 +73,7 @@ func checkGenGeomMean(t *testing.T, seed uint64) {
 			p := genFloat01(s)
 
 			var geoms []uint64
-			for range statDraws {
+			for range stattest.Draws {
 				geoms = append(geoms, genGeom(s, p))
 			}
 
@@ -94,33 +85,17 @@ func checkGenGeomMean(t *testing.T, seed uint64) {
 
 			mean := (1 - p) / p
 			stderr := math.Sqrt((1 - p) / (p * p) / float64(len(geoms)))
-			if math.Abs(avg-mean) > statSigmas*stderr {
+			if math.Abs(avg-mean) > stattest.Sigmas*stderr {
 				t.Fatalf("for p=%v geom avg=%v vs expected mean=%v (stderr %v)", p, avg, mean, stderr)
 			}
 		})
 	}
 }
 
-func ensureWithinSigmas(t *testing.T, ctx any, y int, p float64) {
-	t.Helper()
-
-	n := statDraws
-	mu := float64(n) * p
-	s := math.Sqrt(float64(n) * p * (1 - p))
-
-	if float64(y) < mu-statSigmas*s || float64(y) > mu+statSigmas*s {
-		if ctx != nil {
-			t.Errorf("for %v: got %v out of %v (p %v, mu %v, stddev %v)", ctx, y, n, p, mu, s)
-		} else {
-			t.Errorf("got %v out of %v (p %v, mu %v, stddev %v)", y, n, p, mu, s)
-		}
-	}
-}
-
 func TestGenUintN(t *testing.T) {
 	t.Parallel()
 
-	checkGenUintN(t, fixedStatSeed)
+	checkGenUintN(t, stattest.FixedSeed)
 }
 
 func checkGenUintN(t *testing.T, seed uint64) {
@@ -131,14 +106,14 @@ func checkGenUintN(t *testing.T, seed uint64) {
 
 	for _, bound := range hi {
 		r := make([]int, bound+1)
-		n := statDraws
+		n := stattest.Draws
 		for range n {
 			u, _, _ := genUintN(s, bound, false)
 			r[u]++
 		}
 
 		for value := range r {
-			ensureWithinSigmas(t, bound, r[value], 1/float64(bound+1))
+			stattest.WithinSigmas(t, bound, r[value], 1/float64(bound+1))
 		}
 	}
 }
@@ -146,7 +121,7 @@ func checkGenUintN(t *testing.T, seed uint64) {
 func TestGenUintRange(t *testing.T) {
 	t.Parallel()
 
-	checkGenUintRange(t, fixedStatSeed)
+	checkGenUintRange(t, stattest.FixedSeed)
 }
 
 func checkGenUintRange(t *testing.T, seed uint64) {
@@ -167,7 +142,7 @@ func checkGenUintRange(t *testing.T, seed uint64) {
 
 	for _, bounds := range ranges {
 		m := map[uint64]int{}
-		n := statDraws
+		n := stattest.Draws
 		for range n {
 			u, _, _ := genUintRange(s, bounds[0], bounds[1], false)
 			m[u]++
@@ -177,7 +152,7 @@ func checkGenUintRange(t *testing.T, seed uint64) {
 			if value < bounds[0] || value > bounds[1] {
 				t.Errorf("%v out of range [%v, %v]", value, bounds[0], bounds[1])
 			}
-			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
+			stattest.WithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
 		}
 	}
 }
@@ -185,7 +160,7 @@ func checkGenUintRange(t *testing.T, seed uint64) {
 func TestGenIntRange(t *testing.T) {
 	t.Parallel()
 
-	checkGenIntRange(t, fixedStatSeed)
+	checkGenIntRange(t, stattest.FixedSeed)
 }
 
 func checkGenIntRange(t *testing.T, seed uint64) {
@@ -216,7 +191,7 @@ func checkGenIntRange(t *testing.T, seed uint64) {
 
 	for _, bounds := range ranges {
 		m := map[int64]int{}
-		n := statDraws
+		n := stattest.Draws
 		for range n {
 			u, _, _ := genIntRange(s, bounds[0], bounds[1], false)
 			m[u]++
@@ -226,7 +201,7 @@ func checkGenIntRange(t *testing.T, seed uint64) {
 			if value < bounds[0] || value > bounds[1] {
 				t.Errorf("%v out of range [%v, %v]", value, bounds[0], bounds[1])
 			}
-			ensureWithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
+			stattest.WithinSigmas(t, fmt.Sprintf("%v from %v", value, bounds), m[value], 1/float64(bounds[1]-bounds[0]+1))
 		}
 	}
 }
@@ -234,7 +209,7 @@ func checkGenIntRange(t *testing.T, seed uint64) {
 func TestFlipBiasedCoin(t *testing.T) {
 	t.Parallel()
 
-	checkFlipBiasedCoin(t, fixedStatSeed)
+	checkFlipBiasedCoin(t, stattest.FixedSeed)
 }
 
 func checkFlipBiasedCoin(t *testing.T, seed uint64) {
@@ -244,7 +219,7 @@ func checkFlipBiasedCoin(t *testing.T, seed uint64) {
 	ps := []float64{0, 0.3, 0.5, 0.7, 1}
 
 	for _, prob := range ps {
-		n := statDraws
+		n := stattest.Draws
 		y := 0
 		for range n {
 			if flipBiasedCoin(s, prob) {
@@ -252,14 +227,14 @@ func checkFlipBiasedCoin(t *testing.T, seed uint64) {
 			}
 		}
 
-		ensureWithinSigmas(t, prob, y, prob)
+		stattest.WithinSigmas(t, prob, y, prob)
 	}
 }
 
 func TestLoadedDie(t *testing.T) {
 	t.Parallel()
 
-	checkLoadedDie(t, fixedStatSeed)
+	checkLoadedDie(t, stattest.FixedSeed)
 }
 
 func checkLoadedDie(t *testing.T, seed uint64) {
@@ -275,7 +250,7 @@ func checkLoadedDie(t *testing.T, seed uint64) {
 
 	for _, ws := range weights {
 		d := newLoadedDie(ws)
-		n := statDraws
+		n := stattest.Draws
 		r := make([]int, len(ws))
 
 		for range n {
@@ -288,7 +263,7 @@ func checkLoadedDie(t *testing.T, seed uint64) {
 		}
 
 		for idx, weight := range ws {
-			ensureWithinSigmas(t, ws, r[idx], float64(weight)/float64(total))
+			stattest.WithinSigmas(t, ws, r[idx], float64(weight)/float64(total))
 		}
 	}
 }
@@ -296,7 +271,7 @@ func checkLoadedDie(t *testing.T, seed uint64) {
 func TestRepeat(t *testing.T) {
 	t.Parallel()
 
-	checkRepeat(t, fixedStatSeed)
+	checkRepeat(t, stattest.FixedSeed)
 }
 
 func checkRepeat(t *testing.T, seed uint64) {
@@ -358,7 +333,7 @@ func checkRepeat(t *testing.T, seed uint64) {
 				stderr := math.Sqrt(variance / float64(len(c)))
 
 				diff := math.Abs(mu - float64(avg))
-				if diff > statSigmas*stderr {
+				if diff > stattest.Sigmas*stderr {
 					t.Errorf("real avg %v vs desired %v, diff %v (stderr %v, %v tries)", mu, avg, diff, stderr, n)
 				}
 			}

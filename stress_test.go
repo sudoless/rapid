@@ -8,7 +8,7 @@ package rapid
 import "testing"
 
 // TestStress runs the statistical and coverage checks, which the default suite
-// runs on fixedStatSeed, on one random seed per run. `make test-stress` repeats
+// runs on stattest.FixedSeed, on one random seed per run. `make test-stress` repeats
 // it; a failing run logs the seed that replays it with -rapid.seed.
 func TestStress(t *testing.T) {
 	t.Parallel()
