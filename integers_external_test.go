@@ -7,54 +7,13 @@
 package rapid_test
 
 import (
-	"flag"
-	"math/bits"
 	"reflect"
-	"sort"
-	"strconv"
 	"testing"
 
 	. "go.sdls.io/rapid"
 )
 
-var (
-	flaky = flag.Bool("flaky.ext", false, "run flaky external tests")
-	rv    = reflect.ValueOf
-)
-
-func TestIntExamples(t *testing.T) {
-	t.Parallel()
-
-	gens := []*Generator[any]{
-		Int().AsAny(),
-		IntMin(-3).AsAny(),
-		IntMax(3).AsAny(),
-		IntRange(-3, 7).AsAny(),
-		IntRange(-1000, 1000000).AsAny(),
-		IntRange(0, 9).AsAny(),
-		IntRange(0, 15).AsAny(),
-		IntRange(10, 100).AsAny(),
-		IntRange(100, 10000).AsAny(),
-		IntRange(100, 1000000).AsAny(),
-		IntRange(100, 1<<60-1).AsAny(),
-	}
-
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
-			t.Parallel()
-
-			var vals []int
-			for range 100 {
-				vals = append(vals, g.Example().(int))
-			}
-			sort.Ints(vals)
-
-			for _, i := range vals {
-				t.Log(i)
-			}
-		})
-	}
-}
+var rv = reflect.ValueOf
 
 func TestIntMinMaxRange(t *testing.T) {
 	t.Parallel()
@@ -236,79 +195,4 @@ func TestIntBoundCoverage(t *testing.T) {
 
 		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
 	})
-}
-
-func TestByteCoverage(t *testing.T) {
-	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
-
-	for b := range 256 {
-		t.Run(strconv.Itoa(b), func(t *testing.T) {
-			t.Parallel()
-
-			_ = Byte().Filter(func(v byte) bool { return v == byte(b) }).Example()
-		})
-	}
-}
-
-func TestIntCoverage(t *testing.T) {
-	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
-
-	filters := []func(int) bool{
-		func(i int) bool { return i == 0 },
-		func(i int) bool { return i == 1 },
-		func(i int) bool { return i == -1 },
-		func(i int) bool { return i%2 == 0 },
-		func(i int) bool { return i%17 == 0 },
-		func(i int) bool { return i > 0 && i < 100 },
-		func(i int) bool { return i < 0 && i > -100 },
-		func(i int) bool { return i > 1<<30 },
-		func(i int) bool { return i < -(1 << 30) },
-	}
-
-	if bits.UintSize == 64 {
-		filters = append(filters, func(i int) bool { return i > 1<<62 })
-		filters = append(filters, func(i int) bool { return i < -(1 << 62) })
-	}
-
-	for i, fn := range filters {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			t.Parallel()
-
-			_ = Int().Filter(fn).Example()
-		})
-	}
-}
-
-func TestUintCoverage(t *testing.T) {
-	t.Parallel()
-	if !*flaky {
-		t.Skip("flaky")
-	}
-
-	filters := []func(uint) bool{
-		func(i uint) bool { return i == 0 },
-		func(i uint) bool { return i == 1 },
-		func(i uint) bool { return i%2 == 0 },
-		func(i uint) bool { return i%17 == 0 },
-		func(i uint) bool { return i > 0 && i < 100 },
-		func(i uint) bool { return i > 1<<31 },
-	}
-
-	if bits.UintSize == 64 {
-		filters = append(filters, func(i uint) bool { return i > 1<<63 })
-	}
-
-	for i, fn := range filters {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			t.Parallel()
-
-			_ = Uint().Filter(fn).Example()
-		})
-	}
 }

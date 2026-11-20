@@ -186,7 +186,7 @@ func TestCheckCleanupPanic(t *testing.T) {
 		}
 	}()
 
-	Check(ignoreErrorsTB{t}, func(t *T) {
+	prop := func(t *T) {
 		idx := len(state)
 		state = append(state, true)
 		t.Cleanup(func() {
@@ -195,7 +195,14 @@ func TestCheckCleanupPanic(t *testing.T) {
 				panic("cleanup panic")
 			}
 		})
-	})
+	}
+
+	//nolint:dogsled // doCheck reports eight values; two matter here
+	_, _, _, _, _, buf, err, _ := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+	if err == nil {
+		t.Fatalf("cleanup panic not reported")
+	}
+	_ = checkOnce(newT(t, newBufBitStream(buf, false), false, nil), prop)
 }
 
 func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
@@ -267,12 +274,3 @@ func TestOutputRawLog(t *testing.T) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out)
 	}
 }
-
-// ignoreErrorsTB is a TB that ignores all errors posted to it.
-type ignoreErrorsTB struct{ TB }
-
-func (ignoreErrorsTB) Error(...any)          {}
-func (ignoreErrorsTB) Errorf(string, ...any) {}
-func (ignoreErrorsTB) Fatal(...any)          {}
-func (ignoreErrorsTB) Fatalf(string, ...any) {}
-func (ignoreErrorsTB) Fail()                 {}

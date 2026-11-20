@@ -288,7 +288,7 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 		}
 	} else {
 		if failfile == "" && !flags.nofailfile {
-			_, failfile = failFileName(tb.Name())
+			failfile = failFileName(tb.Name())
 			out := captureTestOutput(tb, prop, buf)
 			err := saveFailFile(failfile, rapidVersion, out, seed, buf)
 			if err != nil {
