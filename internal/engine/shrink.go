@@ -8,7 +8,6 @@ package engine
 
 import (
 	"encoding/binary"
-	"fmt"
 	"hash/maphash"
 	"log"
 	"math"
@@ -54,7 +53,7 @@ type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
 // shrinkTestCase minimises rec, a test case that failed with err, until deadline: it keeps every smaller
 // test case that run fails on in the same way. It returns the smallest such test case and its failure,
 // or the test case and failure of a replay that failed differently.
-// Under -rapid.debugvis it also writes every step to vis-<test name>.html.
+// Under -rapid.debugvis it also writes every step to vis-<test name>.html, the name made safe as for fail files.
 func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
 	rec.Prune()
 
@@ -72,7 +71,7 @@ func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *
 	buf, err := s.shrink(deadline)
 
 	if Flags.DebugVis {
-		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
+		name := "vis-" + testFileName(tb.Name()) + ".html"
 		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
 		if err != nil {
 			tb.Logf("failed to create debugvis file %v: %v", name, err)
