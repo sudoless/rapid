@@ -59,18 +59,16 @@ type sliceGen[E any, K comparable] struct {
 }
 
 func (g *sliceGen[E, K]) String() string {
-	if g.keyFn == nil {
-		if g.minLen < 0 && g.maxLen < 0 {
-			return fmt.Sprintf("SliceOf(%v)", g.elem)
-		} else {
-			return fmt.Sprintf("SliceOfN(%v, minLen=%v, maxLen=%v)", g.elem, g.minLen, g.maxLen)
-		}
-	} else {
-		if g.minLen < 0 && g.maxLen < 0 {
-			return fmt.Sprintf("SliceOfDistinct(%v, key=%T)", g.elem, g.keyFn)
-		} else {
-			return fmt.Sprintf("SliceOfNDistinct(%v, minLen=%v, maxLen=%v, key=%T)", g.elem, g.minLen, g.maxLen, g.keyFn)
-		}
+	unbounded := g.minLen < 0 && g.maxLen < 0
+	switch {
+	case g.keyFn == nil && unbounded:
+		return fmt.Sprintf("SliceOf(%v)", g.elem)
+	case g.keyFn == nil:
+		return fmt.Sprintf("SliceOfN(%v, minLen=%v, maxLen=%v)", g.elem, g.minLen, g.maxLen)
+	case unbounded:
+		return fmt.Sprintf("SliceOfDistinct(%v, key=%T)", g.elem, g.keyFn)
+	default:
+		return fmt.Sprintf("SliceOfNDistinct(%v, minLen=%v, maxLen=%v, key=%T)", g.elem, g.minLen, g.maxLen, g.keyFn)
 	}
 }
 
@@ -148,18 +146,16 @@ type mapGen[K comparable, V any] struct {
 }
 
 func (g *mapGen[K, V]) String() string {
-	if g.key != nil {
-		if g.minLen < 0 && g.maxLen < 0 {
-			return fmt.Sprintf("MapOf(%v, %v)", g.key, g.val)
-		} else {
-			return fmt.Sprintf("MapOfN(%v, %v, minLen=%v, maxLen=%v)", g.key, g.val, g.minLen, g.maxLen)
-		}
-	} else {
-		if g.minLen < 0 && g.maxLen < 0 {
-			return fmt.Sprintf("MapOfValues(%v, key=%T)", g.val, g.keyFn)
-		} else {
-			return fmt.Sprintf("MapOfNValues(%v, minLen=%v, maxLen=%v, key=%T)", g.val, g.minLen, g.maxLen, g.keyFn)
-		}
+	unbounded := g.minLen < 0 && g.maxLen < 0
+	switch {
+	case g.key != nil && unbounded:
+		return fmt.Sprintf("MapOf(%v, %v)", g.key, g.val)
+	case g.key != nil:
+		return fmt.Sprintf("MapOfN(%v, %v, minLen=%v, maxLen=%v)", g.key, g.val, g.minLen, g.maxLen)
+	case unbounded:
+		return fmt.Sprintf("MapOfValues(%v, key=%T)", g.val, g.keyFn)
+	default:
+		return fmt.Sprintf("MapOfNValues(%v, minLen=%v, maxLen=%v, key=%T)", g.val, g.minLen, g.maxLen, g.keyFn)
 	}
 }
 
