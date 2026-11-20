@@ -212,7 +212,8 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 			t.Helper()
 			t.Parallel()
 
-			_, _, _, seed, _, buf, err1, err2 := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+			res := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+			seed, err1, err2 := res.seed, res.err1, res.err2
 			if seed != 0 && err1 == nil && err2 == nil {
 				t.Fatalf("shrink test did not fail (seed %v)", seed)
 			}
@@ -220,7 +221,7 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, traceback(err2), err1, traceback(err1))
 			}
 
-			nt := newT(t, newBufBitStream(buf, false), false, nil, draws...)
+			nt := newT(t, newBufBitStream(res.buf, false), false, nil, draws...)
 			_ = checkOnce(nt, prop)
 			if nt.draws != len(draws) {
 				t.Fatalf("different number of draws: %v vs expected %v", nt.draws, len(draws))

@@ -204,27 +204,37 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				break
 			}
 
-			kdx := jdx - 1
-			for ; kdx >= 0; kdx-- {
-				h := s.rec.groups[kdx]
-				if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
-					continue
-				}
-
-				buf := append([]uint64(nil), s.rec.data[:h.begin]...)
-				buf = append(buf, s.rec.data[g.begin:g.end]...)
-				buf = append(buf, s.rec.data[h.end:g.begin]...)
-				buf = append(buf, s.rec.data[h.begin:h.end]...)
-				buf = append(buf, s.rec.data[g.end:]...)
-
-				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
-					g.label, jdx, g.begin, g.end, h.label, kdx, h.begin, h.end) {
-					break
-				}
-			}
-			jdx = kdx
+			jdx = s.swapWithEarlier(jdx, g)
 		}
 	}
+}
+
+// swapWithEarlier tries to swap group g, at index jdx, with an earlier standalone group of the same label
+// that ends before g begins, nearest first. It returns the index g moved to, or -1 when no swap was accepted.
+func (s *shrinker) swapWithEarlier(jdx int, g groupInfo) int {
+	for kdx := jdx - 1; kdx >= 0; kdx-- {
+		h := s.rec.groups[kdx]
+		if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
+			continue
+		}
+
+		if s.accept(swapSpans(s.rec.data, h, g), labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
+			g.label, jdx, g.begin, g.end, h.label, kdx, h.begin, h.end) {
+			return kdx
+		}
+	}
+
+	return -1
+}
+
+// swapSpans returns a copy of data with the spans of groups a and b exchanged; a ends before b begins.
+func swapSpans(data []uint64, a, b groupInfo) []uint64 {
+	buf := append([]uint64(nil), data[:a.begin]...)
+	buf = append(buf, data[b.begin:b.end]...)
+	buf = append(buf, data[a.end:b.begin]...)
+	buf = append(buf, data[a.begin:a.end]...)
+
+	return append(buf, data[b.end:]...)
 }
 
 func (s *shrinker) removeGroupSpans(deadline time.Time) {

@@ -277,51 +277,16 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 
 	start := time.Now()
-	valid, invalid, earlyExit, seed, failfile, buf, err1, err2 := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
+	res := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
 	dt := time.Since(start)
 
-	if err1 == nil && err2 == nil {
-		if valid == checks || (earlyExit && valid > 0) {
-			tb.Logf("[rapid] OK, passed %v tests (%v)", valid, dt)
-		} else {
-			tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", valid, valid+invalid, dt)
-		}
-	} else {
-		if failfile == "" && !flags.nofailfile {
-			failfile = failFileName(tb.Name())
-			out := captureTestOutput(tb, prop, buf)
-			err := saveFailFile(failfile, rapidVersion, out, seed, buf)
-			if err != nil {
-				tb.Logf("[rapid] %v", err)
-				failfile = ""
-			}
-		}
-
-		var repr string
-		switch {
-		case failfile != "" && seed != 0:
-			repr = fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failfile, seed)
-		case failfile != "":
-			repr = fmt.Sprintf("-rapid.failfile=%q", failfile)
-		case seed != 0:
-			repr = fmt.Sprintf("-rapid.seed=%d", seed)
-		}
-
-		name := regexp.QuoteMeta(tb.Name())
-		if traceback(err1) == traceback(err2) {
-			if err2.isStopTest() {
-				tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", valid, err2, name, repr)
-			} else {
-				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
-					valid, err2, name, repr, traceback(err2))
-			}
-		} else {
-			tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
-				"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
-				name, repr, err2, traceback(err2), err1, traceback(err1))
-		}
-
-		_ = checkOnce(newT(tb, newBufBitStream(buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
+	switch {
+	case res.err1 != nil || res.err2 != nil:
+		reportFailure(tb, prop, &res)
+	case res.valid == checks || (res.earlyExit && res.valid > 0):
+		tb.Logf("[rapid] OK, passed %v tests (%v)", res.valid, dt)
+	default:
+		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.valid, res.valid+res.invalid, dt)
 	}
 
 	if tb.Failed() {
@@ -329,9 +294,67 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 }
 
-func doCheck(
-	tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T),
-) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
+// reportFailure saves a fail file for res when there is none, reports the failure with how to reproduce it,
+// and replays the failing test case so its output appears in the test log.
+func reportFailure(tb tb, prop func(*T), res *checkResult) {
+	tb.Helper()
+
+	failfile := res.failfile
+	if failfile == "" && !flags.nofailfile {
+		failfile = failFileName(tb.Name())
+		out := captureTestOutput(tb, prop, res.buf)
+		err := saveFailFile(failfile, rapidVersion, out, res.seed, res.buf)
+		if err != nil {
+			tb.Logf("[rapid] %v", err)
+			failfile = ""
+		}
+	}
+
+	repr := reproFlags(failfile, res.seed)
+	name := regexp.QuoteMeta(tb.Name())
+	err1, err2 := res.err1, res.err2
+	switch {
+	case traceback(err1) != traceback(err2):
+		tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
+			"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
+			name, repr, err2, traceback(err2), err1, traceback(err1))
+	case err2.isStopTest():
+		tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", res.valid, err2, name, repr)
+	default:
+		tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
+			res.valid, err2, name, repr, traceback(err2))
+	}
+
+	_ = checkOnce(newT(tb, newBufBitStream(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
+}
+
+// reproFlags returns the flags that replay a failure from failfile or seed; either may be unset.
+func reproFlags(failfile string, seed uint64) string {
+	switch {
+	case failfile != "" && seed != 0:
+		return fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failfile, seed)
+	case failfile != "":
+		return fmt.Sprintf("-rapid.failfile=%q", failfile)
+	case seed != 0:
+		return fmt.Sprintf("-rapid.seed=%d", seed)
+	default:
+		return ""
+	}
+}
+
+// checkResult is what doCheck learned about a property.
+type checkResult struct {
+	valid     int
+	invalid   int
+	earlyExit bool     // the deadline stopped the search before checks valid test cases ran
+	seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
+	failfile  string   // the fail file the failure was replayed from
+	buf       []uint64 // the failing test case, shrunk when the failure reproduced
+	err1      *testError
+	err2      *testError // the failure on replay; differs from err1 when the test is flaky
+}
+
+func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T)) checkResult {
 	tb.Helper()
 
 	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
@@ -347,13 +370,13 @@ func doCheck(
 	for _, failfile := range failfiles {
 		buf, err1, err2 := checkFailFile(tb, failfile, prop)
 		if err1 != nil || err2 != nil {
-			return 0, 0, false, 0, failfile, buf, err1, err2
+			return checkResult{failfile: failfile, buf: buf, err1: err1, err2: err2}
 		}
 	}
 
 	valid, invalid, earlyExit, seed, err1 := findBug(tb, deadline, checks, seed, prop)
 	if err1 == nil {
-		return valid, invalid, earlyExit, 0, "", nil, nil, nil
+		return checkResult{valid: valid, invalid: invalid, earlyExit: earlyExit}
 	}
 
 	s := newRandomBitStream(seed, true)
@@ -361,13 +384,13 @@ func doCheck(
 	t.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t, prop)
 	if !sameError(err1, err2) {
-		return valid, invalid, false, seed, "", s.data, err1, err2
+		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.data, err1: err1, err2: err2}
 	}
 
 	t.Logf("[rapid] trying to minimize the failing test case")
 	buf, err3 := shrink(tb, shrinkDeadline(deadline), s.recordedBits, err2, prop)
 
-	return valid, invalid, false, seed, "", buf, err2, err3
+	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
 
 func checkFailFile(tb tb, failfile string, prop func(*T)) ([]uint64, *testError, *testError) {
@@ -424,34 +447,49 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 		seed += uint64(iter)
 		r.init(seed)
-		start := time.Now()
-		if t.shouldLog() {
-			t.Logf("[rapid] test #%v start (seed %v)", iter+1, seed)
-		}
-
-		err := checkOnce(t, prop)
-		dt := time.Since(start)
+		dt, err := checkLogged(t, prop, iter+1, seed)
 		total += dt
 		switch {
 		case err == nil:
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v OK (%v)", iter+1, dt)
-			}
 			valid++
 		case err.isInvalidData():
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v invalid (%v)", iter+1, dt)
-			}
 			invalid++
 		default:
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v failed: %v", iter+1, err)
-			}
 			return valid, invalid, false, seed, err
 		}
 	}
 
 	return valid, invalid, false, 0, nil
+}
+
+// checkLogged runs test case number num, generated from seed, and logs its outcome when t logs.
+// The logging is guarded so a quiet run does not build the log arguments.
+func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *testError) {
+	if t.tbLog {
+		t.Helper()
+	}
+	logs := t.shouldLog()
+	start := time.Now()
+	if logs {
+		t.Logf("[rapid] test #%v start (seed %v)", num, seed)
+	}
+
+	err := checkOnce(t, prop)
+	dt := time.Since(start)
+	if !logs {
+		return dt, err
+	}
+
+	switch {
+	case err == nil:
+		t.Logf("[rapid] test #%v OK (%v)", num, dt)
+	case err.isInvalidData():
+		t.Logf("[rapid] test #%v invalid (%v)", num, dt)
+	default:
+		t.Logf("[rapid] test #%v failed: %v", num, err)
+	}
+
+	return dt, err
 }
 
 func checkOnce(t *T, prop func(*T)) (err *testError) {

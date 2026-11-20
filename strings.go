@@ -180,18 +180,16 @@ type stringGen struct {
 }
 
 func (g *stringGen) String() string {
-	if g.elem == anyRuneGen {
-		if g.minRunes < 0 && g.maxRunes < 0 && g.maxLen < 0 {
-			return "String()"
-		} else {
-			return fmt.Sprintf("StringN(minRunes=%v, maxRunes=%v, maxLen=%v)", g.minRunes, g.maxRunes, g.maxLen)
-		}
-	} else {
-		if g.minRunes < 0 && g.maxRunes < 0 && g.maxLen < 0 {
-			return fmt.Sprintf("StringOf(%v)", g.elem)
-		} else {
-			return fmt.Sprintf("StringOfN(%v, minRunes=%v, maxRunes=%v, maxLen=%v)", g.elem, g.minRunes, g.maxRunes, g.maxLen)
-		}
+	unbounded := g.minRunes < 0 && g.maxRunes < 0 && g.maxLen < 0
+	switch {
+	case g.elem == anyRuneGen && unbounded:
+		return "String()"
+	case g.elem == anyRuneGen:
+		return fmt.Sprintf("StringN(minRunes=%v, maxRunes=%v, maxLen=%v)", g.minRunes, g.maxRunes, g.maxLen)
+	case unbounded:
+		return fmt.Sprintf("StringOf(%v)", g.elem)
+	default:
+		return fmt.Sprintf("StringOfN(%v, minRunes=%v, maxRunes=%v, maxLen=%v)", g.elem, g.minRunes, g.maxRunes, g.maxLen)
 	}
 }
 

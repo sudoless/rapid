@@ -197,12 +197,11 @@ func TestCheckCleanupPanic(t *testing.T) {
 		})
 	}
 
-	//nolint:dogsled // doCheck reports eight values; two matter here
-	_, _, _, _, _, buf, err, _ := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
-	if err == nil {
+	res := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+	if res.err1 == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
-	_ = checkOnce(newT(t, newBufBitStream(buf, false), false, nil), prop)
+	_ = checkOnce(newT(t, newBufBitStream(res.buf, false), false, nil), prop)
 }
 
 func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
