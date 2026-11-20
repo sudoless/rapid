@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"hash/maphash"
 	"log"
-	"math"
 	"math/bits"
 	"os"
 	"slices"
@@ -177,30 +176,17 @@ func (s *shrinker) minimizeBlocks(deadline time.Time) {
 }
 
 func (s *shrinker) lowerFloatHack(deadline time.Time) {
+	steps := [bitstream.FloatLowerSteps]string{labelLowerFloatExp, labelLowerFloatSignif, labelLowerFloatFrac}
 	for idx := 0; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
-		g := s.rec.Groups[idx]
-		if !g.Standalone || g.End != g.Begin+7 {
+		if !bitstream.IsFloat(s.rec.Groups, idx) {
 			continue
 		}
 
-		buf := slices.Clone(s.rec.Data)
-		buf[g.Begin+3] -= 1
-		buf[g.Begin+4] = math.MaxUint64
-		buf[g.Begin+5] = math.MaxUint64
-		buf[g.Begin+6] = math.MaxUint64
-
-		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.Label, idx, buf[g.Begin+3]) {
-			buf := slices.Clone(s.rec.Data)
-			buf[g.Begin+4] -= 1
-			buf[g.Begin+5] = math.MaxUint64
-			buf[g.Begin+6] = math.MaxUint64
-
-			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.Label, idx, buf[g.Begin+4]) {
-				buf := slices.Clone(s.rec.Data)
-				buf[g.Begin+5] -= 1
-				buf[g.Begin+6] = math.MaxUint64
-
-				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.Label, idx, buf[g.Begin+5])
+		g := s.rec.Groups[idx]
+		for step, label := range steps {
+			buf := bitstream.LowerFloat(s.rec.Data, g, step)
+			if s.accept(buf, label, "%v of group %q at %v", label, g.Label, idx) {
+				break
 			}
 		}
 	}

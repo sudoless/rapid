@@ -9,6 +9,7 @@ package bitstream
 import (
 	"math"
 	"math/bits"
+	"slices"
 
 	"go.sdls.io/rapid/internal/assert"
 )
@@ -186,4 +187,43 @@ func floatRange(s Stream, lo, hi float64, signifBits uint) (bool, int32, uint64,
 		e, si, sf := ufloatRange(s, posMin, hi, signifBits)
 		return false, e, si, sf
 	}
+}
+
+// A float draw records floatWords words: its sign (word 0), its exponent group (words 1-3, the exponent
+// itself in word 3), and its significand group (words 4-6: the integer part, the count of low fraction bits
+// to clear, and the fraction). The shrinker lowers words 3, 4 and 5 through IsFloat and LowerFloat.
+const (
+	floatWords    = 7
+	floatExpBegin = 1 // where the exponent group begins
+	floatExpWord  = 3 // the first word LowerFloat lowers
+)
+
+// FloatLowerSteps is the number of ways LowerFloat lowers a float: its exponent, its significand, its fraction.
+const FloatLowerSteps = 3
+
+// IsFloat reports whether groups[idx] is the standalone group of one float draw.
+func IsFloat(groups []Group, idx int) bool {
+	g := &groups[idx]
+	if !g.Standalone || g.End != g.Begin+floatWords {
+		return false
+	}
+	for jdx := idx + 1; jdx < len(groups) && groups[jdx].Begin < g.End; jdx++ {
+		if inner := &groups[jdx]; inner.Label == floatExpLabel && inner.Begin == g.Begin+floatExpBegin {
+			return true
+		}
+	}
+	return false
+}
+
+// LowerFloat returns a copy of data in which the float drawn in g, a group IsFloat accepts, is lowered by
+// step: 0 lowers its exponent, 1 its significand and 2 its fraction, each by one, with the words after it
+// at their maximum.
+func LowerFloat(data []uint64, g Group, step int) []uint64 {
+	buf := slices.Clone(data)
+	word := g.Begin + floatExpWord + step
+	buf[word]--
+	for idx := word + 1; idx < g.End; idx++ {
+		buf[idx] = math.MaxUint64
+	}
+	return buf
 }
