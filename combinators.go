@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
@@ -59,16 +60,15 @@ func (g *customGen[V]) maybeValue(t *T) (V, bool) {
 }
 
 // Deferred creates a generator which defers calling fn until attempting to produce a value. This allows
-// to define recursive generators.
+// to define recursive generators. fn is called once, however many goroutines draw from the generator.
 func Deferred[V any](fn func() *Generator[V]) *Generator[V] {
 	return newGenerator[V](&deferredGen[V]{
-		fn: fn,
+		gen: sync.OnceValue(fn),
 	})
 }
 
 type deferredGen[V any] struct {
-	g  *Generator[V]
-	fn func() *Generator[V]
+	gen func() *Generator[V]
 }
 
 func (g *deferredGen[V]) String() string {
@@ -77,10 +77,7 @@ func (g *deferredGen[V]) String() string {
 }
 
 func (g *deferredGen[V]) value(t *T) V {
-	if g.g == nil {
-		g.g = g.fn()
-	}
-	return g.g.value(t)
+	return g.gen().value(t)
 }
 
 func filter[V any](g *Generator[V], fn func(V) bool) *Generator[V] {

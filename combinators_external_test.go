@@ -255,3 +255,29 @@ func TestCustomRecordedFailureFailsExample(t *testing.T) {
 	}()
 	gen.Example(0)
 }
+
+type deferredNode struct {
+	Value int
+	Next  *deferredNode
+}
+
+var (
+	sharedDeferred = Deferred(func() *Generator[int] { return Int[int]() })
+	sharedMake     = Make[deferredNode]() // a pointer field is generated through Deferred
+)
+
+// A generator built once and drawn from by parallel tests resolves its deferred part once; run under -race.
+func TestDeferredSharedBetweenParallelTests(t *testing.T) {
+	t.Parallel()
+
+	for idx := range 4 {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				_ = sharedDeferred.Draw(t, "v")
+				_ = sharedMake.Draw(t, "node")
+			})
+		})
+	}
+}
