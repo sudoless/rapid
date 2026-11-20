@@ -7,8 +7,10 @@
 package rapid_test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	. "go.sdls.io/rapid"
 )
@@ -25,34 +27,34 @@ func TestIntMinMaxRange(t *testing.T) {
 		range_ func(any, any) *Generator[any]
 	}{
 		{
-			Int().AsAny(),
+			Int[int]().AsAny(),
 			func(i any) *Generator[any] { return IntMin(i.(int)).AsAny() },
 			func(i any) *Generator[any] { return IntMax(i.(int)).AsAny() },
 			func(i, j any) *Generator[any] { return IntRange(i.(int), j.(int)).AsAny() },
 		},
 		{
-			Int8().AsAny(),
-			func(i any) *Generator[any] { return Int8Min(i.(int8)).AsAny() },
-			func(i any) *Generator[any] { return Int8Max(i.(int8)).AsAny() },
-			func(i, j any) *Generator[any] { return Int8Range(i.(int8), j.(int8)).AsAny() },
+			Int[int8]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[int8](i.(int8)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[int8](i.(int8)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[int8](i.(int8), j.(int8)).AsAny() },
 		},
 		{
-			Int16().AsAny(),
-			func(i any) *Generator[any] { return Int16Min(i.(int16)).AsAny() },
-			func(i any) *Generator[any] { return Int16Max(i.(int16)).AsAny() },
-			func(i, j any) *Generator[any] { return Int16Range(i.(int16), j.(int16)).AsAny() },
+			Int[int16]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[int16](i.(int16)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[int16](i.(int16)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[int16](i.(int16), j.(int16)).AsAny() },
 		},
 		{
-			Int32().AsAny(),
-			func(i any) *Generator[any] { return Int32Min(i.(int32)).AsAny() },
-			func(i any) *Generator[any] { return Int32Max(i.(int32)).AsAny() },
-			func(i, j any) *Generator[any] { return Int32Range(i.(int32), j.(int32)).AsAny() },
+			Int[int32]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[int32](i.(int32)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[int32](i.(int32)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[int32](i.(int32), j.(int32)).AsAny() },
 		},
 		{
-			Int64().AsAny(),
-			func(i any) *Generator[any] { return Int64Min(i.(int64)).AsAny() },
-			func(i any) *Generator[any] { return Int64Max(i.(int64)).AsAny() },
-			func(i, j any) *Generator[any] { return Int64Range(i.(int64), j.(int64)).AsAny() },
+			Int[int64]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[int64](i.(int64)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[int64](i.(int64)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[int64](i.(int64), j.(int64)).AsAny() },
 		},
 	}
 
@@ -96,46 +98,46 @@ func TestUintMinMaxRange(t *testing.T) {
 		range_ func(any, any) *Generator[any]
 	}{
 		{
-			Byte().AsAny(),
-			func(i any) *Generator[any] { return ByteMin(i.(byte)).AsAny() },
-			func(i any) *Generator[any] { return ByteMax(i.(byte)).AsAny() },
-			func(i, j any) *Generator[any] { return ByteRange(i.(byte), j.(byte)).AsAny() },
+			Int[byte]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[byte](i.(byte)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[byte](i.(byte)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[byte](i.(byte), j.(byte)).AsAny() },
 		},
 		{
-			Uint().AsAny(),
-			func(i any) *Generator[any] { return UintMin(i.(uint)).AsAny() },
-			func(i any) *Generator[any] { return UintMax(i.(uint)).AsAny() },
-			func(i, j any) *Generator[any] { return UintRange(i.(uint), j.(uint)).AsAny() },
+			Int[uint]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uint](i.(uint)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uint](i.(uint)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uint](i.(uint), j.(uint)).AsAny() },
 		},
 		{
-			Uint8().AsAny(),
-			func(i any) *Generator[any] { return Uint8Min(i.(uint8)).AsAny() },
-			func(i any) *Generator[any] { return Uint8Max(i.(uint8)).AsAny() },
-			func(i, j any) *Generator[any] { return Uint8Range(i.(uint8), j.(uint8)).AsAny() },
+			Int[uint8]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uint8](i.(uint8)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uint8](i.(uint8)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uint8](i.(uint8), j.(uint8)).AsAny() },
 		},
 		{
-			Uint16().AsAny(),
-			func(i any) *Generator[any] { return Uint16Min(i.(uint16)).AsAny() },
-			func(i any) *Generator[any] { return Uint16Max(i.(uint16)).AsAny() },
-			func(i, j any) *Generator[any] { return Uint16Range(i.(uint16), j.(uint16)).AsAny() },
+			Int[uint16]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uint16](i.(uint16)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uint16](i.(uint16)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uint16](i.(uint16), j.(uint16)).AsAny() },
 		},
 		{
-			Uint32().AsAny(),
-			func(i any) *Generator[any] { return Uint32Min(i.(uint32)).AsAny() },
-			func(i any) *Generator[any] { return Uint32Max(i.(uint32)).AsAny() },
-			func(i, j any) *Generator[any] { return Uint32Range(i.(uint32), j.(uint32)).AsAny() },
+			Int[uint32]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uint32](i.(uint32)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uint32](i.(uint32)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uint32](i.(uint32), j.(uint32)).AsAny() },
 		},
 		{
-			Uint64().AsAny(),
-			func(i any) *Generator[any] { return Uint64Min(i.(uint64)).AsAny() },
-			func(i any) *Generator[any] { return Uint64Max(i.(uint64)).AsAny() },
-			func(i, j any) *Generator[any] { return Uint64Range(i.(uint64), j.(uint64)).AsAny() },
+			Int[uint64]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uint64](i.(uint64)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uint64](i.(uint64)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uint64](i.(uint64), j.(uint64)).AsAny() },
 		},
 		{
-			Uintptr().AsAny(),
-			func(i any) *Generator[any] { return UintptrMin(i.(uintptr)).AsAny() },
-			func(i any) *Generator[any] { return UintptrMax(i.(uintptr)).AsAny() },
-			func(i, j any) *Generator[any] { return UintptrRange(i.(uintptr), j.(uintptr)).AsAny() },
+			Int[uintptr]().AsAny(),
+			func(i any) *Generator[any] { return IntMin[uintptr](i.(uintptr)).AsAny() },
+			func(i any) *Generator[any] { return IntMax[uintptr](i.(uintptr)).AsAny() },
+			func(i, j any) *Generator[any] { return IntRange[uintptr](i.(uintptr), j.(uintptr)).AsAny() },
 		},
 	}
 
@@ -173,8 +175,8 @@ func TestIntBoundCoverage(t *testing.T) {
 	t.Parallel()
 
 	Check(t, func(t *T) {
-		lo := Int().Draw(t, "min")
-		hi := Int().Draw(t, "max")
+		lo := Int[int]().Draw(t, "min")
+		hi := Int[int]().Draw(t, "max")
 		if lo > hi {
 			lo, hi = hi, lo
 		}
@@ -195,4 +197,49 @@ func TestIntBoundCoverage(t *testing.T) {
 
 		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
 	})
+}
+
+type level uint8
+
+func TestIntNamedType(t *testing.T) {
+	t.Parallel()
+
+	Check(t, func(t *T) {
+		lo := Int[time.Duration]().Draw(t, "lo")
+		hi := IntMin(lo).Draw(t, "hi")
+		d := IntRange(lo, hi).Draw(t, "d")
+		if d < lo || d > hi {
+			t.Fatalf("%d outside of [%d, %d]", d, lo, hi)
+		}
+
+		l := IntMax[level](5).Draw(t, "l")
+		if l > 5 {
+			t.Fatalf("level %d above 5", l)
+		}
+	})
+}
+
+func TestIntString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		gen  fmt.Stringer
+		want string
+	}{
+		{Int[int](), "Int[int]()"},
+		{IntMin[uint8](3), "IntMin[uint8](3)"},
+		{IntMax(-7), "IntMax[int](-7)"},
+		{IntRange[int64](-1, 1<<40), "IntRange[int64](-1, 1099511627776)"},
+		{IntRange[time.Duration](-1, 2), "IntRange[time.Duration](-1, 2)"},
+		{Int[level](), "Int[rapid_test.level]()"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
+
+			if got := tc.gen.String(); got != tc.want {
+				t.Errorf("String() = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }

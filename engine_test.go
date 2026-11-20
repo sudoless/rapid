@@ -92,7 +92,7 @@ func TestPanicTraceback(t *testing.T) {
 }
 
 func BenchmarkCheckOverhead(b *testing.B) {
-	g := Uint()
+	g := Int[uint]()
 	f := func(t *T) {
 		g.Draw(t, "")
 	}
@@ -110,7 +110,7 @@ func TestCheckContext(t *testing.T) {
 
 	var ctx context.Context
 	Check(t, func(t *T) {
-		ctx = context.WithValue(t.Context(), key{}, Int().Draw(t, "x"))
+		ctx = context.WithValue(t.Context(), key{}, Int[int]().Draw(t, "x"))
 		if err := ctx.Err(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

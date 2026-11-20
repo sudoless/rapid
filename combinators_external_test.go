@@ -27,7 +27,7 @@ func genBool(t *T) bool {
 
 func genInterface(t *T) any {
 	if Bool().Draw(t, "coinflip") {
-		return Int8().Draw(t, "")
+		return Int[int8]().Draw(t, "")
 	} else {
 		return Float64().Draw(t, "")
 	}
@@ -35,15 +35,15 @@ func genInterface(t *T) any {
 
 func genSlice(t *T) []uint64 {
 	return []uint64{
-		Uint64().Draw(t, ""),
-		Uint64().Draw(t, ""),
+		Int[uint64]().Draw(t, ""),
+		Int[uint64]().Draw(t, ""),
 	}
 }
 
 func genStruct(t *T) testStruct {
 	return testStruct{
-		x: Int().Draw(t, "x"),
-		y: Int().Draw(t, "y"),
+		x: Int[int]().Draw(t, "x"),
+		y: Int[int]().Draw(t, "y"),
 	}
 }
 
@@ -79,7 +79,7 @@ func TestCustomContext(t *testing.T) {
 			t.Fatalf("context must be valid: %v", err)
 		}
 
-		x := Int().Draw(t, "x")
+		x := Int[int]().Draw(t, "x")
 		return context.WithValue(ctx, key{}, x)
 	})
 
@@ -105,7 +105,7 @@ func TestCustomCleanup(t *testing.T) {
 	var open bool
 	gen := Custom(func(t *T) int {
 		t.Cleanup(func() { open = false })
-		return Int().Draw(t, "")
+		return Int[int]().Draw(t, "")
 	})
 
 	// Cleanup functions registered during a Custom generator
@@ -124,7 +124,7 @@ func TestCustomCleanup(t *testing.T) {
 func TestFilter(t *testing.T) {
 	t.Parallel()
 
-	g := Int().Filter(func(i int) bool { return i >= 0 })
+	g := Int[int]().Filter(func(i int) bool { return i >= 0 })
 
 	Check(t, func(t *T) {
 		v := g.Draw(t, "v")
@@ -137,7 +137,7 @@ func TestFilter(t *testing.T) {
 func TestMap(t *testing.T) {
 	t.Parallel()
 
-	g := Map(Int(), strconv.Itoa)
+	g := Map(Int[int](), strconv.Itoa)
 
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
@@ -173,8 +173,8 @@ func TestSampledFrom(t *testing.T) {
 func TestOneOf_SameType(t *testing.T) {
 	t.Parallel()
 
-	pos := Int().Filter(func(v int) bool { return v >= 10 })
-	neg := Int().Filter(func(v int) bool { return v <= -10 })
+	pos := Int[int]().Filter(func(v int) bool { return v >= 10 })
+	neg := Int[int]().Filter(func(v int) bool { return v <= -10 })
 	g := OneOf(pos, neg)
 
 	Check(t, func(t *T) {
@@ -188,7 +188,7 @@ func TestOneOf_SameType(t *testing.T) {
 func TestOneOf_DifferentTypes(t *testing.T) {
 	t.Parallel()
 
-	g := OneOf(Int().AsAny(), Int8().AsAny(), Int16().AsAny(), Int32().AsAny(), Int64().AsAny())
+	g := OneOf(Int[int]().AsAny(), Int[int8]().AsAny(), Int[int16]().AsAny(), Int[int32]().AsAny(), Int[int64]().AsAny())
 
 	Check(t, func(t *T) {
 		n := g.Draw(t, "n")
@@ -204,7 +204,7 @@ func TestPtr(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				i := Ptr(Int(), allowNil).Draw(t, "i")
+				i := Ptr(Int[int](), allowNil).Draw(t, "i")
 				if i == nil && !allowNil {
 					t.Fatalf("got nil pointer")
 				}

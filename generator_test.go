@@ -43,7 +43,7 @@ func TestExampleHelper(t *testing.T) {
 
 	g := Custom(func(t *T) int {
 		t.Helper()
-		return Int().Draw(t, t.Name())
+		return Int[int]().Draw(t, t.Name())
 	})
 
 	g.Example(0)
@@ -55,7 +55,7 @@ func TestCustomExampleContext(t *testing.T) {
 	type key struct{}
 
 	g := Custom(func(t *T) context.Context {
-		ctx := context.WithValue(t.Context(), key{}, Int().Draw(t, "x"))
+		ctx := context.WithValue(t.Context(), key{}, Int[int]().Draw(t, "x"))
 		if err := ctx.Err(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -79,7 +79,7 @@ func TestCustomExampleCleanup(t *testing.T) {
 	var state bool
 	g := Custom(func(t *T) int {
 		t.Cleanup(func() { state = false })
-		return Int().Draw(t, "x")
+		return Int[int]().Draw(t, "x")
 	})
 
 	state = true

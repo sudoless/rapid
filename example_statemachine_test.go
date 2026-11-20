@@ -64,7 +64,7 @@ func testQueue(t *rapid.T) {
 				t.Skip("queue full")
 			}
 
-			i := rapid.Int().Draw(t, "i")
+			i := rapid.Int[int]().Draw(t, "i")
 			q.Put(i)
 			state = append(state, i)
 		},

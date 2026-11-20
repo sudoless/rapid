@@ -38,9 +38,9 @@ func TestFailFileRoundtrip(t *testing.T) {
 			// OS X seems to have issues with Go 1.16 and String(), reporting "illegal byte sequence" when trying to rename the file
 			testName = StringMatching(`[a-zA-Z0-9._-]+`).Draw(t, "testName")
 			version  = StringMatching(`[a-zA-Z0-9._-]+`).Draw(t, "version")
-			seed     = Uint64().Draw(t, "seed")
-			output   = SliceOf(Byte()).Draw(t, "output")
-			buf      = SliceOf(Uint64()).Draw(t, "buf")
+			seed     = Int[uint64]().Draw(t, "seed")
+			output   = SliceOf(Int[byte]()).Draw(t, "output")
+			buf      = SliceOf(Int[uint64]()).Draw(t, "buf")
 		)
 
 		fileName := engine.FailFileName(testName)

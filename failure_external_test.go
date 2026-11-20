@@ -22,7 +22,7 @@ func TestFailure_ImpossibleData(t *testing.T) {
 	t.Parallel()
 
 	valid, invalid, failed := CheckOutcome(t, func(t *T) {
-		_ = Int().Filter(func(i int) bool { return false }).Draw(t, "i")
+		_ = Int[int]().Filter(func(i int) bool { return false }).Draw(t, "i")
 	})
 	if valid != 0 || invalid == 0 || failed {
 		t.Fatalf("got %v valid and %v invalid test cases, failed %v; want only invalid ones", valid, invalid, failed)
@@ -33,7 +33,7 @@ func TestFailure_SimpleCollection(t *testing.T) {
 	t.Parallel()
 
 	CheckShrink(t, func(t *T) {
-		s := SliceOf(Int().Filter(func(i int) bool { return i%2 == -1 })).Draw(t, "s")
+		s := SliceOf(Int[int]().Filter(func(i int) bool { return i%2 == -1 })).Draw(t, "s")
 		if len(s) > 3 {
 			fatalf(t, "got a long sequence: %v", s)
 		}
@@ -44,7 +44,7 @@ func TestFailure_CollectionElements(t *testing.T) {
 	t.Parallel()
 
 	CheckShrink(t, func(t *T) {
-		s := SliceOfN(Int(), 2, -1).Draw(t, "s")
+		s := SliceOfN(Int[int](), 2, -1).Draw(t, "s")
 
 		n := 0
 		for _, elem := range s {

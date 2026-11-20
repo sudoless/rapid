@@ -20,18 +20,7 @@ or "model-based") tests.
 Primitives:
   - [Bool]
   - [Rune], [RuneFrom]
-  - [Byte], [ByteMin], [ByteMax], [ByteRange]
-  - [Int], [IntMin], [IntMax], [IntRange]
-  - [Int8], [Int8Min], [Int8Max], [Int8Range]
-  - [Int16], [Int16Min], [Int16Max], [Int16Range]
-  - [Int32], [Int32Min], [Int32Max], [Int32Range]
-  - [Int64], [Int64Min], [Int64Max], [Int64Range]
-  - [Uint], [UintMin], [UintMax], [UintRange]
-  - [Uint8], [Uint8Min], [Uint8Max], [Uint8Range]
-  - [Uint16], [Uint16Min], [Uint16Max], [Uint16Range]
-  - [Uint32], [Uint32Min], [Uint32Max], [Uint32Range]
-  - [Uint64], [Uint64Min], [Uint64Max], [Uint64Range]
-  - [Uintptr], [UintptrMin], [UintptrMax], [UintptrRange]
+  - [Int], [IntMin], [IntMax], [IntRange] for every [Integer] type
   - [Float32], [Float32Min], [Float32Max], [Float32Range]
   - [Float64], [Float64Min], [Float64Max], [Float64Range]
 
