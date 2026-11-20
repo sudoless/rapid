@@ -278,3 +278,42 @@ func TestOutputRawLog(t *testing.T) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out)
 	}
 }
+
+// A failure the property records, with Error, Errorf or Fail, belongs to the test case that recorded it:
+// rapid reports it, and replaying that test case reproduces it.
+func TestCheckRecordedFailureBelongsToItsTestCase(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		prop func(*T)
+	}{
+		{"in a cleanup", func(t *T) {
+			x := IntRange(0, 9).Draw(t, "x")
+			t.Cleanup(func() {
+				if x == 3 {
+					t.Errorf("leak at %d", x)
+				}
+			})
+		}},
+		{"before a skip", func(t *T) {
+			if x := IntRange(0, 9).Draw(t, "x"); x == 3 {
+				t.Errorf("bad %d", x)
+				t.SkipNow()
+			}
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := doCheck(t, checkDeadline(nil), 100, stattest.FixedSeed, "", false, tc.prop)
+			if res.err1 == nil {
+				t.Fatalf("recorded failure was not reported (valid %d, invalid %d)", res.valid, res.invalid)
+			}
+			if !engine.SameError(res.err1, res.err2) {
+				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.err1, res.err2)
+			}
+		})
+	}
+}

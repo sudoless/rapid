@@ -302,7 +302,6 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 	var (
 		r       = bitstream.NewRandom(0, false)
-		t       = newT(tb, r, engine.Flags.Verbose, nil)
 		valid   = 0
 		invalid = 0
 	)
@@ -310,6 +309,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 	var total time.Duration
 	for valid < checks && invalid < checks*invalidChecksMult {
 		iter := valid + invalid
+		t := newT(tb, r, engine.Flags.Verbose, nil)
 		if iter > 0 && time.Until(deadline) < total/time.Duration(iter)*5 {
 			if t.shouldLog() {
 				t.Logf("[rapid] early exit after test #%v (%v)", iter, total)
@@ -364,15 +364,23 @@ func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *eng
 	return dt, err
 }
 
+// checkOnce runs prop as one test case. A failure prop or its cleanups recorded with Error, Errorf or Fail
+// fails the test case even when it then panicked as invalid, as a failed testing.T stays failed after Skip.
 func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() { err = panicToError(recover()) }()
+	defer func() {
+		err = panicToError(recover())
+		if err == nil || err.IsInvalidData() {
+			if recorded := t.tc.recorded(); recorded != nil {
+				err = recorded
+			}
+		}
+	}()
 
 	defer t.cleanup()
 	prop(t)
-	t.failOnError()
 
 	return nil
 }
@@ -393,8 +401,13 @@ func panicToError(p any) *engine.TestError {
 		return err
 	}
 
+	return newTestError(p, 4) // skip runtime.Callers, newTestError, panicToError and the deferred recover
+}
+
+// newTestError returns p with the traceback of the goroutine, from skip frames up to checkOnce.
+func newTestError(p any, skip int) *engine.TestError {
 	callers := make([]uintptr, tracebackLen)
-	callers = callers[:runtime.Callers(3, callers)] // skip runtime.Callers, panicToError and the deferred recover
+	callers = callers[:runtime.Callers(skip, callers)]
 	frames := runtime.CallersFrames(callers)
 
 	b := &strings.Builder{}
@@ -477,7 +490,29 @@ type T struct {
 	draws    int
 	refDraws []any
 	mu       sync.RWMutex
-	failed   engine.StopTest
+
+	tc  *testCase // the test case this T belongs to: own, or its parent's for a Custom value or SyncTest bubble
+	own testCase
+}
+
+// testCase is the outcome of one test case, shared by the Ts its property and generators receive.
+type testCase struct {
+	mu     sync.Mutex
+	failed *engine.TestError // the last failure recorded with Error, Errorf, Fail, Fatal, Fatalf or FailNow
+}
+
+func (tc *testCase) record(err *engine.TestError) {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	tc.failed = err
+}
+
+func (tc *testCase) recorded() *engine.TestError {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	return tc.failed
 }
 
 func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
@@ -492,6 +527,7 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ..
 		s:        s,
 		refDraws: refDraws,
 	}
+	t.tc = &t.own
 
 	if rawLog == nil && engine.Flags.Log {
 		testName := "rapid test"
@@ -736,32 +772,28 @@ func (t *T) Fail() {
 	t.fail(false, "(*T).Fail() called")
 }
 
+// Failed reports whether the current test case has failed.
 func (t *T) Failed() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	return t.failed != ""
+	return t.tc.recorded() != nil
 }
 
 func (t *T) skip(msg string) {
 	panic(bitstream.InvalidData(msg))
 }
 
+// fail records the failure msg for the test case, traced from the exported method's caller,
+// and stops the test case when now is set.
 func (t *T) fail(now bool, msg string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.failed = engine.StopTest(msg)
+	err := newTestError(engine.StopTest(msg), 4) // skip runtime.Callers, newTestError, fail and the exported method
+	t.tc.record(err)
 	if now {
-		panic(t.failed)
+		panic(err)
 	}
 }
 
+// failOnError stops the test case if it has recorded a failure.
 func (t *T) failOnError() {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	if t.failed != "" {
-		panic(t.failed)
+	if err := t.tc.recorded(); err != nil {
+		panic(err)
 	}
 }
