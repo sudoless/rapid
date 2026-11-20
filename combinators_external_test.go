@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -290,5 +291,54 @@ func TestDeferredSharedBetweenParallelTests(t *testing.T) {
 				_ = sharedMake.Draw(t, "node")
 			})
 		})
+	}
+}
+
+// A skip in a Custom generator's cleanup does not hide a failure of the generator: the property fails,
+// and Example reports the failure.
+func TestCustomPanicNotMaskedByCleanupSkip(t *testing.T) {
+	t.Parallel()
+
+	gen := Custom(func(t *T) int {
+		t.Cleanup(func() { t.SkipNow() })
+		panic("generator failure")
+	})
+
+	t.Run("Check", func(t *testing.T) {
+		t.Parallel()
+
+		if valid, invalid, failed := CheckOutcome(t, func(t *T) { _ = gen.Draw(t, "v") }); !failed {
+			t.Fatalf("the property passed with %v valid and %v invalid test cases", valid, invalid)
+		}
+	})
+	t.Run("Example", func(t *testing.T) {
+		t.Parallel()
+
+		defer func() {
+			if r := fmt.Sprint(recover()); !strings.Contains(r, "generator failure") {
+				t.Fatalf("Example panicked with %q, want the generator's failure", r)
+			}
+		}()
+		gen.Example(0)
+	})
+}
+
+// A skip in a Custom generator's cleanup discards the try, as a skip in the generator does, and not the
+// whole test case.
+func TestCustomCleanupSkipDiscardsTheTry(t *testing.T) {
+	t.Parallel()
+
+	valid, invalid, failed := CheckOutcome(t, func(t *T) {
+		tries := 0
+		_ = Custom(func(t *T) int {
+			x := IntRange(0, 9).Draw(t, "x")
+			if tries++; tries == 1 {
+				t.Cleanup(func() { t.SkipNow() })
+			}
+			return x
+		}).Draw(t, "v")
+	})
+	if failed || invalid != 0 {
+		t.Fatalf("got %v valid and %v invalid test cases, failed %v; want only valid ones", valid, invalid, failed)
 	}
 }
