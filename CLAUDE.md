@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 SUDOLESS SRL -->
+<!-- SPDX-License-Identifier: BSD-3-Clause-Clear -->
+
 # CLAUDE.md
 
 The repo is public. Commit messages, PRs and docs describe API and behaviour, never decision history.
@@ -16,7 +19,12 @@ go test -args -h                    # lists the -rapid.* flags
 ## Invariants
 
 - The module depends on nothing but the standard library.
-- Licensing is MPL-2.0, file by file: a file that carries the MPL header keeps it, and a modified file stays MPL-2.0.
+- Licensing is split by file. A file that holds or derives from upstream code is MPL-2.0 (`LICENSE-MPL`): it keeps its notices, and editing it leaves it MPL-2.0. A new file written from scratch is Clear BSD (`LICENSE`) and opens with:
+
+  ```go
+  // Copyright (c) <year> SUDOLESS SRL
+  // SPDX-License-Identifier: BSD-3-Clause-Clear
+  ```
 - Generation is deterministic per seed. The `Example*` outputs pin the exact values drawn, so a change to the bitstream, a generator, or the shrinker shows up there as a behaviour change, to be explained before the expected output is updated.
 - A fail file (`testdata/rapid/<test>/*.fail`) replays a failure from its recorded bitstream and is ignored when its version differs from `rapidVersion` (`persist.go`).
 - The `go` line in `go.mod` is the floor. Features from newer Go sit behind a `//go:build go1.N` / `!go1.N` file pair, as `synctest_enabled.go` and `synctest_disabled.go` do.

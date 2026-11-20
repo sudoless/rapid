@@ -192,4 +192,10 @@ present.
 
 ## License
 
-Rapid is licensed under the [Mozilla Public License Version 2.0](./LICENSE).
+Rapid is a fork of [flyingmutant/rapid](https://github.com/flyingmutant/rapid)
+and is licensed file by file:
+
+- Files that carry `SPDX-License-Identifier: BSD-3-Clause-Clear` are under
+  [The Clear BSD License](./LICENSE), copyright SUDOLESS SRL.
+- All other files are under the
+  [Mozilla Public License Version 2.0](./LICENSE-MPL).
