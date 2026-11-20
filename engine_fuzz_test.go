@@ -14,6 +14,9 @@ import (
 )
 
 func FuzzContext(f *testing.F) {
+	f.Add([]byte{})
+	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+
 	type key struct{}
 
 	var ctx context.Context
@@ -39,6 +42,9 @@ func FuzzContext(f *testing.F) {
 }
 
 func FuzzCleanup(f *testing.F) {
+	f.Add([]byte{})
+	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+
 	var state []bool
 	f.Fuzz(MakeFuzz(func(t *T) {
 		idx := len(state)
