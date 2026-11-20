@@ -13,6 +13,7 @@ import (
 	"math"
 	"math/bits"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -375,8 +376,7 @@ func (m *minimizer) binSearch() {
 func without(data []uint64, groups ...groupInfo) []uint64 {
 	buf := append([]uint64(nil), data...)
 
-	for i := len(groups) - 1; i >= 0; i-- {
-		g := groups[i]
+	for _, g := range slices.Backward(groups) {
 		buf = append(buf[:g.begin], buf[g.end:]...)
 	}
 

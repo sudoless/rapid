@@ -37,7 +37,7 @@ func TestMakeIgnoresPrivateFields(t *testing.T) {
 func TestMakeCustomTypeOverride(t *testing.T) {
 	ex := rapid.MakeCustom[privateFields](rapid.MakeConfig{
 		Types: map[reflect.Type]*rapid.Generator[any]{
-			reflect.TypeOf(privateFields{}): rapid.Just(privateFields{private: true}).AsAny(),
+			reflect.TypeFor[privateFields](): rapid.Just(privateFields{private: true}).AsAny(),
 		},
 	}).Example()
 
@@ -51,7 +51,7 @@ func TestMakeCustomFieldOverride(t *testing.T) {
 
 	v := rapid.MakeCustom[fieldOverride](rapid.MakeConfig{
 		Fields: map[reflect.Type]map[string]*rapid.Generator[any]{
-			reflect.TypeOf(fieldOverride{}): {
+			reflect.TypeFor[fieldOverride](): {
 				"Name": rapid.Just(customName).AsAny(),
 			},
 		},

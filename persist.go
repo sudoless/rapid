@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,10 +43,8 @@ func kindaSafeFilename(f string) string {
 	}
 	name := s.String()
 	nameUpper := strings.ToUpper(name)
-	for _, reserved := range windowsReservedNames {
-		if nameUpper == reserved {
-			return name + "_"
-		}
+	if slices.Contains(windowsReservedNames, nameUpper) {
+		return name + "_"
 	}
 	return name
 }
@@ -77,8 +76,7 @@ func saveFailFile(filename string, version string, output []byte, seed uint64, b
 	defer func() { _ = os.Remove(f.Name()) }()
 	defer func() { _ = f.Close() }()
 
-	out := strings.Split(string(output), "\n")
-	for _, s := range out {
+	for s := range strings.SplitSeq(string(output), "\n") {
 		_, err := f.WriteString("# " + s + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)

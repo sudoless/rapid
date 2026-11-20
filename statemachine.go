@@ -94,12 +94,12 @@ func StateMachineActions(sm StateMachine) map[string]func(*T) {
 			continue
 		}
 
-		m, ok := v.Method(i).Interface().(func(*T))
+		m, ok := reflect.TypeAssert[func(*T)](v.Method(i))
 		if ok {
 			actions[name] = m
 		}
 
-		m2, ok := v.Method(i).Interface().(func(TB))
+		m2, ok := reflect.TypeAssert[func(TB)](v.Method(i))
 		if ok {
 			actions[name] = func(t *T) {
 				m2(t)
