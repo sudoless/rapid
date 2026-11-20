@@ -71,7 +71,7 @@ func testDeadline(t *testing.T) (d time.Time, ok bool) {
 
 // Check fails tb when run fails on a test case: one from a fail file, or one generated within lim, whose
 // zero fields take the -rapid.* settings. It reports the failure shrunk, with how to reproduce it, and saves
-// it to a fail file.
+// it to a fail file. Check fails tb as well when the search ends with lim.Cover unmet.
 func Check(tb TB, lim Limits, run Run) {
 	tb.Helper()
 	failOnEnvErr(tb)
@@ -87,8 +87,10 @@ func Check(tb TB, lim Limits, run Run) {
 		report(tb, logRun(tb, run), &res)
 	case res.Valid < lim.Checks && (!res.EarlyExit || res.Valid == 0):
 		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.Valid, res.Valid+res.Invalid, dt)
+	case !res.Events.covers(lim.Cover):
+		tb.Errorf("[rapid] %v (%v)%v", coverFailure(&res, &lim), dt, res.Events.table(res.Valid, lim.Cover))
 	default:
-		tb.Logf("[rapid] OK, passed %v tests (%v)%v", res.Valid, dt, res.Events.table(res.Valid))
+		tb.Logf("[rapid] OK, passed %v tests (%v)%v", res.Valid, dt, res.Events.table(res.Valid, lim.Cover))
 	}
 
 	if tb.Failed() {
@@ -224,9 +226,10 @@ type Result struct {
 }
 
 // Search looks for a test case run fails on: first in the fail file failPath and, with globFailFiles,
-// in every fail file saved for tb, then among lim.Checks test cases generated from seed, until lim's search
-// deadline. It replays a failure it finds, and shrinks it until lim's shrink deadline when the replay fails
-// the same way. Every field of lim but SearchTime has to be set.
+// in every fail file saved for tb, then among test cases generated from seed: lim.Checks valid ones, and more
+// while lim.Cover is unmet, until lim's search deadline. It replays a failure it finds, and shrinks it until
+// lim's shrink deadline when the replay fails the same way. Every field of lim but SearchTime, Cover and
+// CoverChecks has to be set.
 func Search(tb TB, lim Limits, seed uint64, failPath string, globFailFiles bool, run Run) Result {
 	tb.Helper()
 
@@ -298,9 +301,9 @@ func checkFailFile(tb TB, v verbose, failPath string, run Run) ([]uint64, *TestE
 	return buf, err1, err2
 }
 
-// findBug runs test cases generated from seed until one fails, or lim.Checks valid ones ran, or too many were
-// invalid, or deadline is near. The result's Seed is the failing test case's, its Events those of the valid
-// test cases.
+// findBug runs test cases generated from seed until one fails, or lim's search is done: lim.Checks valid test
+// cases ran and met lim.Cover, or lim.CoverChecks valid ones did not, or too many were invalid, or deadline is
+// near. The result's Seed is the failing test case's, its Events those of the valid test cases.
 func findBug(tb TB, v verbose, lim *Limits, deadline time.Time, seed uint64, run Run) Result {
 	tb.Helper()
 
@@ -309,7 +312,10 @@ func findBug(tb TB, v verbose, lim *Limits, deadline time.Time, seed uint64, run
 		res   Result
 		total time.Duration
 	)
-	for res.Valid < lim.Checks && res.Invalid < lim.Checks*invalidChecksMult {
+	done := func() bool {
+		return res.Valid >= lim.Checks && (res.Valid >= lim.CoverChecks || res.Events.covers(lim.Cover))
+	}
+	for !done() && res.Invalid < lim.Checks*invalidChecksMult {
 		iter := res.Valid + res.Invalid
 		if iter > 0 && time.Until(deadline) < total/time.Duration(iter)*5 {
 			if v.logs() {

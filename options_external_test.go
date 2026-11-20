@@ -72,6 +72,7 @@ func TestCheckOptionPanics(t *testing.T) {
 		"Checks(0)":       func() { Checks(0) },
 		"SearchTime(0)":   func() { SearchTime(0) },
 		"ShrinkTime(-1s)": func() { ShrinkTime(-time.Second) },
+		"Cover(e, 0)":     func() { Cover("e", 0) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

@@ -22,16 +22,16 @@ type CheckOption struct {
 	set func(*engine.Limits)
 }
 
-// Checks makes the property run on n valid test cases, whatever -rapid.checks says. Under -short it runs on
-// a fifth of them, and on at least one. Checks panics if n < 1.
+// Checks makes the property run on n valid test cases, whatever -rapid.checks says, and on more when [Cover]
+// asks for them. Under -short it runs on a fifth of them, and on at least one. Checks panics if n < 1.
 func Checks(n int) CheckOption {
 	assert.Truef(n >= 1, "Checks(%v): want at least 1", n)
 	return CheckOption{func(lim *engine.Limits) { lim.Checks = n }}
 }
 
 // SearchTime stops generating test cases for the property after d, so an expensive property is bounded by
-// time as well as by count. The property passes if at least one valid test case ran. Neither replaying fail
-// files nor shrinking a failure counts towards d. SearchTime panics if d <= 0.
+// time as well as by count. The property passes if at least one valid test case ran, and [Cover] is met.
+// Neither replaying fail files nor shrinking a failure counts towards d. SearchTime panics if d <= 0.
 func SearchTime(d time.Duration) CheckOption {
 	assert.Truef(d > 0, "SearchTime(%v): want a positive duration", d)
 	return CheckOption{func(lim *engine.Limits) { lim.SearchTime = d }}

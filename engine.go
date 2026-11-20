@@ -36,8 +36,8 @@ var tracebackBlacklist = map[string]bool{
 	"go.sdls.io/rapid.runAction.func1":                    true,
 }
 
-// Check fails the current test if rapid can find a test case which falsifies prop. Options set how long
-// it looks, in place of the -rapid.* flags.
+// Check fails the current test if rapid can find a test case which falsifies prop, or if a [Cover] option
+// is not met. Options set how long it looks, in place of the -rapid.* flags.
 //
 // Property is falsified in case of a panic or a call to
 // [*T.Fatalf], [*T.Fatal], [*T.Errorf], [*T.Error], [*T.FailNow] or [*T.Fail].

@@ -4,11 +4,22 @@
 package rapid_test
 
 import (
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	. "go.sdls.io/rapid"
 )
+
+// short returns n as -short cuts it: to a fifth, though not below one.
+func short(n int) int {
+	if testing.Short() {
+		return max(n/5, 1)
+	}
+	return n
+}
 
 // checkQuiet runs prop through Check on a TB that records its outcome, and fails t if prop failed.
 func checkQuiet(t *testing.T, prop func(*T), opts ...CheckOption) *quietTB {
@@ -187,4 +198,117 @@ func TestEventDiscardedValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Events marked inside a SyncTest bubble, or from other goroutines, are the test case's.
+func TestEventScopes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		prop func(*T)
+	}{
+		{"SyncTest", func(t *T) { t.SyncTest(func(t *T) { t.Event("marked") }) }},
+		{"goroutines", func(t *T) {
+			var wg sync.WaitGroup
+			for range 2 {
+				wg.Go(func() { t.Event("marked") })
+			}
+			wg.Wait()
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, tc.prop, Checks(10), Cover("marked", 10))
+		})
+	}
+}
+
+// Cover runs the property past its checks until enough valid test cases marked each covered event, and up
+// to ten times its checks or its largest n; -short cuts the counts to a fifth.
+func TestCover(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		opts []CheckOption
+		late int // the run that marks "late", if any
+		want int // runs
+	}{
+		{"met by the checks", []CheckOption{Checks(10), Cover("always", 3)}, 0, short(10)},
+		{"past the checks", []CheckOption{Checks(10), Cover("always", 30)}, 0, short(30)},
+		{"until a late event", []CheckOption{Checks(10), Cover("late", 1)}, 15, 15},
+		{"up to ten times the checks", []CheckOption{Checks(9), Cover("always", 90)}, 0, short(90)},
+		{"n above ten times the checks", []CheckOption{Checks(5), Cover("always", 60)}, 0, short(60)},
+		{"each event on its own", []CheckOption{Checks(10), Cover("always", 40), Cover("late", 1)}, 5, short(40)},
+		{"the last option for an event wins", []CheckOption{Checks(10), Cover("always", 40), Cover("always", 20)}, 0, short(20)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			runs := 0
+			tb := checkQuiet(t, func(t *T) {
+				runs++
+				t.Event("always")
+				if runs == tc.late {
+					t.Event("late")
+				}
+			}, tc.opts...)
+			if runs != tc.want {
+				t.Fatalf("the property ran %v times, want %v; Check logged\n%v", runs, tc.want, tb.log.String())
+			}
+		})
+	}
+}
+
+// A Cover not met fails the test, saying what stopped the search, with the table of events.
+func TestCoverNotMet(t *testing.T) {
+	t.Parallel()
+
+	sleep := func(*T) { time.Sleep(time.Millisecond) }
+	tests := []struct {
+		name string
+		prop func(*T)
+		opts []CheckOption
+		want string
+	}{
+		{"ten times the checks", func(*T) {}, []CheckOption{Checks(10)}, "Cover not met after " + strconv.Itoa(short(100)) + " valid tests"},
+		{"time limit", sleep, []CheckOption{Checks(1_000_000), SearchTime(50 * time.Millisecond)}, "the search reached its time limit"},
+		{"invalid test cases", func() func(*T) {
+			runs := 0
+			return func(t *T) {
+				runs++
+				if runs > 2 {
+					t.SkipNow()
+				}
+			}
+		}(), []CheckOption{Checks(2)}, "the search stopped at " + strconv.Itoa(short(2)*10) + " invalid tests, after 2 valid ones"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tb := &quietTB{name: t.Name()}
+			Check(tb, tc.prop, append(tc.opts, Cover("never", 1))...)
+			if !tb.failed {
+				t.Fatalf("Check passed with Cover unmet; it logged\n%v", tb.log.String())
+			}
+			if !strings.Contains(tb.msg, tc.want) || !strings.Contains(tb.msg, "0.0%  never (cover 1)") {
+				t.Fatalf("Check failed with\n%v\nwant %q and the table of events", tb.msg, tc.want)
+			}
+		})
+	}
+}
+
+// A search the time limit stops passes when its Cover is met.
+func TestCoverMetBeforeTimeLimit(t *testing.T) {
+	t.Parallel()
+
+	checkQuiet(t, func(t *T) {
+		t.Event("always")
+		time.Sleep(time.Millisecond)
+	}, Checks(1_000_000), SearchTime(50*time.Millisecond), Cover("always", 1))
 }

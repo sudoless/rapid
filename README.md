@@ -13,6 +13,7 @@ automatically minimizes the failing test case before presenting it.
 - Fully automatic minimization of failing test cases
 - Persistence and automatic re-running of minimized failing test cases
 - Support for state machine ("stateful" or "model-based") testing
+- Events that show what the test cases covered, and a coverage bound a test can require
 - No dependencies outside the Go standard library
 
 ## Examples
@@ -200,6 +201,26 @@ rapid.Check(t, prop, rapid.Checks(20), rapid.SearchTime(30*time.Second), rapid.S
 
 `(*T).RepeatSteps` fixes the average number of state machine actions in the
 same way, where `(*T).Repeat` follows `-rapid.steps`.
+
+`(*T).Event` marks a test case with an event. A passing `Check` logs how many
+valid test cases marked each, and `rapid.Cover` makes it look for them,
+failing the test when they do not turn up:
+
+```go
+rapid.Check(t, func(t *rapid.T) {
+    order := genOrder.Draw(t, "order")
+    if len(order.Parcels) > 1 {
+        t.Event("multi-parcel")
+    }
+    // test code
+}, rapid.Cover("multi-parcel", 5))
+```
+
+```
+[rapid] OK, passed 100 tests (12ms)
+    events, of 100 valid tests:
+     23   23.0%  multi-parcel (cover 5)
+```
 
 ## License
 

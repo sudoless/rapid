@@ -5,10 +5,13 @@ package rapid
 
 import (
 	"slices"
+
+	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 // Event marks the current test case with name. Once the property passes, [Check] logs a table of the events
-// and how many valid test cases marked each.
+// and how many valid test cases marked each; [Cover] makes it look for test cases that mark one.
 //
 // A test case counts once for each name it marks, however often it marks it, and only when it is valid.
 // A value that is discarded takes its marks with it: a [Custom] try that skips, a value [*Generator.Filter]
@@ -27,6 +30,24 @@ func (t *T) Event(name string) {
 		}
 		t.Logf("[rapid] event %v", name)
 	}
+}
+
+// Cover makes the property run until n valid test cases have marked event with [*T.Event], past the number
+// of checks if it has to. It fails the property if ten times the checks, or ten times the largest n of its
+// Cover options if that is more, do not get there. Under -short, n is cut to a fifth, as the checks are,
+// though not below one. Each event is covered on its own; for the same event, the last option wins. Cover
+// panics if n < 1.
+//
+// The property fails as well if the search stops before event is covered: at the time limit [SearchTime] or
+// the test's deadline sets, or after ten times the checks of invalid test cases.
+func Cover(event string, n int) CheckOption {
+	assert.Truef(n >= 1, "Cover(%q, %v): want at least 1", event, n)
+	return CheckOption{func(lim *engine.Limits) {
+		if lim.Cover == nil {
+			lim.Cover = map[string]int{}
+		}
+		lim.Cover[event] = n
+	}}
 }
 
 // mark adds name to the events of tc, unless it is there already.

@@ -3,24 +3,45 @@
 
 package engine
 
-import "time"
+import (
+	"maps"
+	"slices"
+	"time"
+)
 
 // Limits bound how long Search looks for a failure, and how long it shrinks one.
 type Limits struct {
-	Checks     int           // valid test cases to generate
-	Deadline   time.Time     // when the test has to end; shrinking stops early enough to end before it
-	SearchTime time.Duration // how long to generate test cases for; 0 for no bound but Deadline
-	ShrinkTime time.Duration // how long to shrink a failure for
+	Checks      int            // valid test cases to generate
+	Cover       map[string]int // for each event, the valid test cases that have to mark it
+	CoverChecks int            // valid test cases to generate at most while Cover is unmet
+	Deadline    time.Time      // when the test has to end; shrinking stops early enough to end before it
+	SearchTime  time.Duration  // how long to generate test cases for; 0 for no bound but Deadline
+	ShrinkTime  time.Duration  // how long to shrink a failure for
 }
 
-// limits returns lim with its zero fields taken from the -rapid.* flags and the deadline of tb. When short,
-// the number of checks is cut to a fifth, though not below one.
+// limits returns lim with its zero fields taken from the -rapid.* flags and the deadline of tb, and
+// CoverChecks a multiple of Checks, or of the most that Cover asks for, when lim has a Cover. When short, the counts of test cases, Cover's
+// included, are cut to a fifth, though not below one.
 func limits(tb TB, lim Limits, short bool) Limits {
 	if lim.Checks == 0 {
 		lim.Checks = Flags.Checks
 	}
+	if len(lim.Cover) > 0 && lim.CoverChecks == 0 {
+		lim.CoverChecks = max(lim.Checks, slices.Max(slices.Collect(maps.Values(lim.Cover)))) * coverChecksMult
+	}
 	if short && lim.Checks > 0 {
-		lim.Checks = max(lim.Checks/5, 1)
+		fifth := func(n int) int { return max(n/5, 1) }
+		lim.Checks = fifth(lim.Checks)
+		if lim.CoverChecks > 0 {
+			lim.CoverChecks = fifth(lim.CoverChecks)
+		}
+		if len(lim.Cover) > 0 {
+			cover := make(map[string]int, len(lim.Cover)) // lim.Cover may be shared with other tests
+			for event, n := range lim.Cover {
+				cover[event] = fifth(n)
+			}
+			lim.Cover = cover
+		}
 	}
 	if lim.Deadline.IsZero() {
 		lim.Deadline = Deadline(tb)
