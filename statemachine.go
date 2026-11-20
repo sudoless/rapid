@@ -74,7 +74,7 @@ type StateMachine interface {
 	// All other public methods should have a form ActionName(t *rapid.T)
 	// or ActionName(t rapid.TB) and are used as possible actions.
 	// At least one action has to be specified.
-	Check(*T)
+	Check(t *T)
 }
 
 // StateMachineActions creates an actions map for [*T.Repeat]
