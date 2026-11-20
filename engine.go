@@ -450,7 +450,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 func checkOnce(t *T, prop func(*T)) (err *testError) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	defer func() { err = panicToError(recover(), 3) }()
 
@@ -767,7 +767,7 @@ func (t *T) Logf(format string, args ...any) {
 	if t.rawLog != nil {
 		t.rawLog.Printf(format, args...)
 	} else if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 		t.tb.Logf(format, args...)
 	}
 }
@@ -776,7 +776,7 @@ func (t *T) Log(args ...any) {
 	if t.rawLog != nil {
 		t.rawLog.Print(args...)
 	} else if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 		t.tb.Log(args...)
 	}
 }
@@ -809,7 +809,7 @@ func (t *T) Output() io.Writer {
 // Skipf is equivalent to [T.Logf] followed by [T.SkipNow].
 func (t *T) Skipf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.skip(fmt.Sprintf(format, args...))
@@ -818,7 +818,7 @@ func (t *T) Skipf(format string, args ...any) {
 // Skip is equivalent to [T.Log] followed by [T.SkipNow].
 func (t *T) Skip(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.skip(fmt.Sprint(args...))
@@ -843,7 +843,7 @@ func (t *T) SkipNow() {
 // Errorf is equivalent to [T.Logf] followed by [T.Fail].
 func (t *T) Errorf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.fail(false, fmt.Sprintf(format, args...))
@@ -852,7 +852,7 @@ func (t *T) Errorf(format string, args ...any) {
 // Error is equivalent to [T.Log] followed by [T.Fail].
 func (t *T) Error(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.fail(false, fmt.Sprint(args...))
@@ -861,7 +861,7 @@ func (t *T) Error(args ...any) {
 // Fatalf is equivalent to [T.Logf] followed by [T.FailNow].
 func (t *T) Fatalf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.fail(true, fmt.Sprintf(format, args...))
@@ -870,7 +870,7 @@ func (t *T) Fatalf(format string, args ...any) {
 // Fatal is equivalent to [T.Log] followed by [T.FailNow].
 func (t *T) Fatal(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.fail(true, fmt.Sprint(args...))

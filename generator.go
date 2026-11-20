@@ -41,7 +41,7 @@ func (g *Generator[V]) String() string {
 // Draw produces a value from the generator.
 func (g *Generator[V]) Draw(t *T, label string) V {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 
 	v := g.value(t)
@@ -59,7 +59,7 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 		}
 
 		if t.tbLog {
-			t.tb.Helper()
+			t.Helper()
 		}
 		t.Logf("[rapid] draw %v: %#v", label, v)
 	}
