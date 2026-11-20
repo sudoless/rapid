@@ -447,34 +447,49 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 		seed += uint64(iter)
 		r.init(seed)
-		start := time.Now()
-		if t.shouldLog() {
-			t.Logf("[rapid] test #%v start (seed %v)", iter+1, seed)
-		}
-
-		err := checkOnce(t, prop)
-		dt := time.Since(start)
+		dt, err := checkLogged(t, prop, iter+1, seed)
 		total += dt
 		switch {
 		case err == nil:
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v OK (%v)", iter+1, dt)
-			}
 			valid++
 		case err.isInvalidData():
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v invalid (%v)", iter+1, dt)
-			}
 			invalid++
 		default:
-			if t.shouldLog() {
-				t.Logf("[rapid] test #%v failed: %v", iter+1, err)
-			}
 			return valid, invalid, false, seed, err
 		}
 	}
 
 	return valid, invalid, false, 0, nil
+}
+
+// checkLogged runs test case number num, generated from seed, and logs its outcome when t logs.
+// The logging is guarded so a quiet run does not build the log arguments.
+func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *testError) {
+	if t.tbLog {
+		t.Helper()
+	}
+	logs := t.shouldLog()
+	start := time.Now()
+	if logs {
+		t.Logf("[rapid] test #%v start (seed %v)", num, seed)
+	}
+
+	err := checkOnce(t, prop)
+	dt := time.Since(start)
+	if !logs {
+		return dt, err
+	}
+
+	switch {
+	case err == nil:
+		t.Logf("[rapid] test #%v OK (%v)", num, dt)
+	case err.isInvalidData():
+		t.Logf("[rapid] test #%v invalid (%v)", num, dt)
+	default:
+		t.Logf("[rapid] test #%v failed: %v", num, err)
+	}
+
+	return dt, err
 }
 
 func checkOnce(t *T, prop func(*T)) (err *testError) {
