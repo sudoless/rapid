@@ -130,12 +130,12 @@ func checkFuzz(tb tb, prop func(*T), input []byte) {
 	switch {
 	case err == nil:
 		// do nothing
-	case err.isInvalidData():
+	case err.IsInvalidData():
 		tb.SkipNow()
-	case err.isStopTest():
+	case err.IsStopTest():
 		tb.Fatalf("[rapid] failed: %v", err)
 	default:
-		tb.Fatalf("[rapid] panic: %v\nTraceback:\n%v", err, traceback(err))
+		tb.Fatalf("[rapid] panic: %v\nTraceback:\n%v", err, engine.Traceback(err))
 	}
 }
 
@@ -185,15 +185,15 @@ func reportFailure(tb tb, prop func(*T), res *checkResult) {
 	name := regexp.QuoteMeta(tb.Name())
 	err1, err2 := res.err1, res.err2
 	switch {
-	case traceback(err1) != traceback(err2):
+	case engine.Traceback(err1) != engine.Traceback(err2):
 		tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
 			"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
-			name, repr, err2, traceback(err2), err1, traceback(err1))
-	case err2.isStopTest():
+			name, repr, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
+	case err2.IsStopTest():
 		tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", res.valid, err2, name, repr)
 	default:
 		tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
-			res.valid, err2, name, repr, traceback(err2))
+			res.valid, err2, name, repr, engine.Traceback(err2))
 	}
 
 	_ = checkOnce(newT(tb, bitstream.NewBuffer(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
@@ -221,8 +221,8 @@ type checkResult struct {
 	seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
 	failfile  string   // the fail file the failure was replayed from
 	buf       []uint64 // the failing test case, shrunk when the failure reproduced
-	err1      *testError
-	err2      *testError // the failure on replay; differs from err1 when the test is flaky
+	err1      *engine.TestError
+	err2      *engine.TestError // the failure on replay; differs from err1 when the test is flaky
 }
 
 func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, prop func(*T)) checkResult {
@@ -254,7 +254,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 	t := newT(tb, s, engine.Flags.Verbose, nil)
 	t.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t, prop)
-	if !sameError(err1, err2) {
+	if !engine.SameError(err1, err2) {
 		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.Data, err1: err1, err2: err2}
 	}
 
@@ -264,7 +264,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
 }
 
-func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError, *testError) {
+func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *engine.TestError, *engine.TestError) {
 	tb.Helper()
 
 	version, _, buf, err := engine.LoadFailFile(failPath)
@@ -283,7 +283,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 	if err1 == nil {
 		return nil, nil, nil
 	}
-	if err1.isInvalidData() {
+	if err1.IsInvalidData() {
 		tb.Logf("[rapid] fail file %q is no longer valid", failPath)
 		return nil, nil, nil
 	}
@@ -296,7 +296,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 	return buf, err1, err2
 }
 
-func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) (int, int, bool, uint64, *testError) {
+func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) (int, int, bool, uint64, *engine.TestError) {
 	tb.Helper()
 
 	var (
@@ -323,7 +323,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 		switch {
 		case err == nil:
 			valid++
-		case err.isInvalidData():
+		case err.IsInvalidData():
 			invalid++
 		default:
 			return valid, invalid, false, seed, err
@@ -335,7 +335,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 // checkLogged runs test case number num, generated from seed, and logs its outcome when t logs.
 // The logging is guarded so a quiet run does not build the log arguments.
-func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *testError) {
+func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
@@ -354,7 +354,7 @@ func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *tes
 	switch {
 	case err == nil:
 		t.Logf("[rapid] test #%v OK (%v)", num, dt)
-	case err.isInvalidData():
+	case err.IsInvalidData():
 		t.Logf("[rapid] test #%v invalid (%v)", num, dt)
 	default:
 		t.Logf("[rapid] test #%v failed: %v", num, err)
@@ -363,7 +363,7 @@ func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *tes
 	return dt, err
 }
 
-func checkOnce(t *T, prop func(*T)) (err *testError) {
+func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
@@ -383,19 +383,12 @@ func captureTestOutput(tb tb, prop func(*T), buf []uint64) []byte {
 	return b.Bytes()
 }
 
-type stopTest string
-
-type testError struct {
-	data      any
-	traceback string
-}
-
-func panicToError(p any) *testError {
+func panicToError(p any) *engine.TestError {
 	if p == nil {
 		return nil
 	}
 
-	if err, ok := p.(*testError); ok {
+	if err, ok := p.(*engine.TestError); ok {
 		return err
 	}
 
@@ -417,52 +410,10 @@ func panicToError(p any) *testError {
 		assert.True(err == nil)
 	}
 
-	return &testError{
-		data:      p,
-		traceback: b.String(),
+	return &engine.TestError{
+		Data:  p,
+		Trace: b.String(),
 	}
-}
-
-func (err *testError) Error() string {
-	if msg, ok := err.data.(stopTest); ok {
-		return string(msg)
-	}
-
-	if msg, ok := err.data.(bitstream.InvalidData); ok {
-		return "invalid data: " + string(msg)
-	}
-
-	return fmt.Sprintf("%v", err.data)
-}
-
-func (err *testError) isInvalidData() bool {
-	_, ok := err.data.(bitstream.InvalidData)
-	return ok
-}
-
-func (err *testError) isStopTest() bool {
-	_, ok := err.data.(stopTest)
-	return ok
-}
-
-func sameError(err1, err2 *testError) bool {
-	return errorString(err1) == errorString(err2) && traceback(err1) == traceback(err2)
-}
-
-func errorString(err *testError) string {
-	if err == nil {
-		return ""
-	}
-
-	return err.Error()
-}
-
-func traceback(err *testError) string {
-	if err == nil {
-		return "    <no error>\n"
-	}
-
-	return err.traceback
 }
 
 // TB is a common interface between [*testing.T], [*testing.B] and [*T].
@@ -521,7 +472,7 @@ type T struct {
 	draws    int
 	refDraws []any
 	mu       sync.RWMutex
-	failed   stopTest
+	failed   engine.StopTest
 }
 
 func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
@@ -812,7 +763,7 @@ func (t *T) fail(now bool, msg string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.failed = stopTest(msg)
+	t.failed = engine.StopTest(msg)
 	if now {
 		panic(t.failed)
 	}

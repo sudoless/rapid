@@ -33,13 +33,13 @@ func TestPanicTraceback(t *testing.T) {
 		name       string
 		suffix     string
 		canSucceed bool
-		fail       func(*T) *testError
+		fail       func(*T) *engine.TestError
 	}{
 		{
 			"impossible filter",
 			"go.sdls.io/rapid.find[...]",
 			false,
-			func(t *T) *testError {
+			func(t *T) *engine.TestError {
 				g := Bool().Filter(func(bool) bool { return false })
 				_, err := recoverValue(g, t)
 				return err
@@ -49,7 +49,7 @@ func TestPanicTraceback(t *testing.T) {
 			"broken custom generator",
 			"go.sdls.io/rapid.brokenGen",
 			false,
-			func(t *T) *testError {
+			func(t *T) *engine.TestError {
 				g := Custom(brokenGen)
 				_, err := recoverValue(g, t)
 				return err
@@ -59,7 +59,7 @@ func TestPanicTraceback(t *testing.T) {
 			"broken state machine",
 			"go.sdls.io/rapid.(*brokenMachine).DoNothing",
 			true,
-			func(t *T) *testError {
+			func(t *T) *engine.TestError {
 				return checkOnce(t, func(t *T) {
 					var sm brokenMachine
 					t.Repeat(StateMachineActions(&sm))
@@ -83,9 +83,9 @@ func TestPanicTraceback(t *testing.T) {
 				t.Fatalf("test case did not fail")
 			}
 
-			lines := strings.Split(err.traceback, "\n")
+			lines := strings.Split(err.Trace, "\n")
 			if !strings.HasSuffix(lines[0], td.suffix) {
-				t.Errorf("bad traceback:\n%v", err.traceback)
+				t.Errorf("bad traceback:\n%v", err.Trace)
 			}
 		})
 	}

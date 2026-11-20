@@ -220,8 +220,8 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 			if seed != 0 && err1 == nil && err2 == nil {
 				t.Fatalf("shrink test did not fail (seed %v)", seed)
 			}
-			if traceback(err1) != traceback(err2) {
-				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, traceback(err2), err1, traceback(err1))
+			if engine.Traceback(err1) != engine.Traceback(err2) {
+				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
 			}
 
 			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil, draws...)

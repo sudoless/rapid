@@ -37,7 +37,7 @@ const (
 	labelSortGroups          = "sort_groups"
 )
 
-func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, prop func(*T)) ([]uint64, *testError) {
+func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *engine.TestError, prop func(*T)) ([]uint64, *engine.TestError) {
 	rec.Prune()
 
 	s := &shrinker{
@@ -73,7 +73,7 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 type shrinker struct {
 	tb        tb
 	rec       bitstream.Recorded
-	err       *testError
+	err       *engine.TestError
 	prop      func(*T)
 	visBits   []bitstream.Recorded
 	tries     map[string]int
@@ -90,10 +90,10 @@ func (s *shrinker) debugf(verbose_ bool, format string, args ...any) {
 	}
 }
 
-func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
+func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *engine.TestError) {
 	defer func() {
 		if r := recover(); r != nil {
-			buf, err = s.rec.Data, r.(*testError)
+			buf, err = s.rec.Data, r.(*engine.TestError)
 		}
 	}()
 
@@ -280,7 +280,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
 	err1 := checkOnce(newT(s.tb, s1, engine.Flags.Debug && engine.Flags.Verbose, nil), s.prop)
-	if traceback(err1) != traceback(s.err) {
+	if engine.Traceback(err1) != engine.Traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
 	}
@@ -296,7 +296,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	if engine.Flags.DebugVis {
 		s.visBits = append(s.visBits, s.rec)
 	}
-	if !sameError(err1, err2) {
+	if !engine.SameError(err1, err2) {
 		panic(err2)
 	}
 
