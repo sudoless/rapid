@@ -232,7 +232,7 @@ func NewRepeat(minCount, maxCount int, avgCount float64, label fmt.Stringer) *Re
 		minCount:  minCount,
 		maxCount:  maxCount,
 		avgCount:  avgCount,
-		pContinue: 1 - 1/(1+avgCount-float64(minCount)), // TODO was no -minCount intentional?
+		pContinue: 1 - 1/(1+avgCount-float64(minCount)), // past minCount, a geometric count of mean avgCount-minCount
 		group:     -1,
 		label:     label,
 	}
