@@ -56,7 +56,7 @@ var (
 		unicode.Co, // Other, private use     (137468)
 	}
 
-	expandedTables = sync.Map{} // *unicode.RangeTable or regexp name -> []rune
+	expandedTables = sync.Map{} // *unicode.RangeTable -> []rune
 )
 
 // TableRunes returns the runes t holds, in table order. It caches them under key,
@@ -91,20 +91,16 @@ func TableRunes(t *unicode.RangeTable, key any) []rune {
 	return ret
 }
 
-// ClassRunes returns the runes of the character class re, cached by its name.
-func ClassRunes(re *syntax.Regexp) []rune {
-	t := &unicode.RangeTable{R32: make([]unicode.Range32, 0, len(re.Rune)/2)}
+// ClassRunes returns the runes of the character class re, in the order of its ranges.
+func ClassRunes(re *syntax.Regexp) *RuneSet {
+	set := &RuneSet{}
+	n := 0
 	for idx := 0; idx < len(re.Rune); idx += 2 {
-		// not a valid unicode.Range32, since it requires that Lo and Hi must always be >= 1<<16
-		// however, we don't really care, since the only use of these ranges is as input to TableRunes
-		t.R32 = append(t.R32, unicode.Range32{
-			Lo:     uint32(re.Rune[idx]),
-			Hi:     uint32(re.Rune[idx+1]),
-			Stride: 1,
-		})
+		n += int(re.Rune[idx+1]-re.Rune[idx]) + 1
+		set.lo = append(set.lo, re.Rune[idx])
+		set.ends = append(set.ends, n)
 	}
-
-	return TableRunes(t, RegexpName(re))
+	return set
 }
 
 // FoldCase draws how many times to case-fold r when flags ask for case folding, and folds it.

@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"regexp/syntax"
 	"strings"
-	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -23,8 +22,6 @@ import (
 )
 
 var (
-	charClassGens = sync.Map{} // regexp name -> *Generator
-
 	anyRuneGen     = Rune()
 	anyRuneGenNoNL = Rune().Filter(func(r rune) bool { return r != '\n' })
 )
@@ -180,30 +177,12 @@ func (g *stringGen) value(t *T) string {
 
 // StringMatching creates a UTF-8 string generator matching the provided [syntax.Perl] regular expression.
 func StringMatching(expr string) *Generator[string] {
-	compiled, err := textgen.CompileRegexp(expr)
-	assert.Truef(err == nil, "%v", err)
-
-	return newGenerator[string](&regexpStringGen{
-		regexpGen{
-			expr: expr,
-			syn:  compiled.Syntax,
-			re:   compiled.Matcher,
-		},
-	})
+	return newGenerator[string](&regexpStringGen{newRegexpGen(expr)})
 }
 
 // SliceOfBytesMatching creates a UTF-8 byte slice generator matching the provided [syntax.Perl] regular expression.
 func SliceOfBytesMatching(expr string) *Generator[[]byte] {
-	compiled, err := textgen.CompileRegexp(expr)
-	assert.Truef(err == nil, "%v", err)
-
-	return newGenerator[[]byte](&regexpSliceGen{
-		regexpGen{
-			expr: expr,
-			syn:  compiled.Syntax,
-			re:   compiled.Matcher,
-		},
-	})
+	return newGenerator[[]byte](&regexpSliceGen{newRegexpGen(expr)})
 }
 
 type runeWriter interface {
@@ -211,10 +190,26 @@ type runeWriter interface {
 }
 
 type regexpGen struct {
-	expr string
-	syn  *syntax.Regexp
-	re   *regexp.Regexp
+	expr    string
+	syn     *syntax.Regexp
+	re      *regexp.Regexp
+	labels  map[*syntax.Regexp]fmt.Stringer
+	classes map[*syntax.Regexp]*textgen.RuneSet
 }
+
+func newRegexpGen(expr string) regexpGen {
+	compiled, err := textgen.CompileRegexp(expr)
+	assert.Truef(err == nil, "%v", err)
+
+	return regexpGen{
+		expr:    expr,
+		syn:     compiled.Syntax,
+		re:      compiled.Matcher,
+		labels:  compiled.Labels,
+		classes: compiled.Classes,
+	}
+}
+
 type (
 	regexpStringGen struct{ regexpGen }
 	regexpSliceGen  struct{ regexpGen }
@@ -274,14 +269,15 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 			_, _ = w.WriteRune(textgen.FoldCase(t.s, char, re.Flags))
 		}
 	case syntax.OpCharClass, syntax.OpAnyCharNotNL, syntax.OpAnyChar:
-		sub := anyRuneGen
+		var r rune
 		switch re.Op {
 		case syntax.OpCharClass:
-			sub = charClassGen(re)
+			r = drawClass(t, g.classes[re])
 		case syntax.OpAnyCharNotNL:
-			sub = anyRuneGenNoNL
+			r = anyRuneGenNoNL.value(t)
+		default:
+			r = anyRuneGen.value(t)
 		}
-		r := sub.value(t)
 		_, _ = w.WriteRune(textgen.FoldCase(t.s, r, re.Flags))
 	case syntax.OpBeginLine, syntax.OpEndLine,
 		syntax.OpBeginText, syntax.OpEndText,
@@ -299,7 +295,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		case syntax.OpQuest:
 			lo, hi = 0, 1
 		}
-		repeat := bitstream.NewRepeat(lo, hi, -1, (*regexpLabel)(re.Sub[0]))
+		repeat := bitstream.NewRepeat(lo, hi, -1, g.labels[re.Sub[0]])
 		for repeat.More(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
@@ -317,24 +313,16 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	t.s.EndGroup(i, false)
 }
 
-func charClassGen(re *syntax.Regexp) *Generator[rune] {
-	cached, ok := charClassGens.Load(textgen.RegexpName(re))
-	if ok {
-		return cached.(*Generator[rune])
-	}
+// A character class draws as a RuneFrom of one table would: in a standalone group labelled as one, a roll
+// of a one-sided die, then the index of its rune. Classes so shrink as they always have.
+const classLabel bitstream.Label = "Rune(0 runes, 1 tables)"
 
-	g := newGenerator[rune](&runeGen{
-		die:    bitstream.NewLoadedDie([]int{1}),
-		tables: [][]rune{textgen.ClassRunes(re)},
-	})
-	charClassGens.Store(textgen.RegexpName(re), g)
+var classDie = bitstream.NewLoadedDie([]int{1})
 
-	return g
-}
-
-// regexpLabel labels the repetition of a regexp node by the node's name.
-type regexpLabel syntax.Regexp
-
-func (l *regexpLabel) String() string {
-	return textgen.RegexpName((*syntax.Regexp)(l))
+func drawClass(t *T, runes *textgen.RuneSet) rune {
+	i := t.s.BeginGroup(classLabel, true)
+	_ = classDie.Roll(t.s)
+	r := runes.At(bitstream.Index(t.s, runes.Len(), true))
+	t.s.EndGroup(i, false)
+	return r
 }
