@@ -32,8 +32,12 @@ type kindOverride struct {
 func TestMakeIgnoresPrivateFields(t *testing.T) {
 	t.Parallel()
 
-	// Private fields are ignored (and don't panic).
-	rapid.Make[privateFields]().Example()
+	g := rapid.Make[privateFields]()
+	for seed := range 100 {
+		if v := g.Example(seed); v.private {
+			t.Fatalf("seed %v: private field set to %v, want its zero value", seed, v.private)
+		}
+	}
 }
 
 func TestMakeCustomTypeOverride(t *testing.T) {
