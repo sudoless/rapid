@@ -9,6 +9,7 @@ package rapid
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"slices"
 	"strconv"
 	"testing"
@@ -100,6 +101,24 @@ func TestShrink_IntSliceNElemsGt(t *testing.T) {
 	}, []int{1000001, 1000001})
 }
 
+// Failures recorded with Errorf count as one failure wherever they are recorded, so shrinking may move
+// from one call site to another.
+func TestShrink_ErrorfAtAnySite(t *testing.T) {
+	t.Parallel()
+
+	checkShrink(t, func(t *T) {
+		x := Int[int]().Draw(t, "x")
+		if x < 1000 {
+			return
+		}
+		if x%2 == 0 {
+			t.Errorf("even %d", x)
+		} else {
+			t.Errorf("odd %d", x)
+		}
+	}, 1000)
+}
+
 func TestShrink_IntSliceElemGe(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +201,12 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
 			}
 
-			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil, draws...)
+			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil)
+			nt.onDraw = func(idx int, v any) {
+				if idx >= len(draws) || !reflect.DeepEqual(v, draws[idx]) {
+					t.Fatalf("draw %v is %#v, want %#v", idx, v, draws)
+				}
+			}
 			_ = checkOnce(nt, prop)
 			if nt.draws != len(draws) {
 				t.Fatalf("different number of draws: %v vs expected %v", nt.draws, len(draws))

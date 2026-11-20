@@ -18,7 +18,7 @@ func TestSyncTest_FailureIsCapturedForShrinking(t *testing.T) {
 	rt := newT(tb(t), bitstream.NewRandom(1, true), false, nil)
 
 	err := checkOnce(rt, func(t *T) {
-		SyncTest(t, func(inner *T) {
+		t.SyncTest(func(inner *T) {
 			inner.Fatalf("boom")
 		})
 	})

@@ -21,6 +21,9 @@ const tryLabel bitstream.Label = "try"
 // Custom creates a generator which produces results of calling fn. In fn, values should be generated
 // by calling other generators; it is invalid to return a value from fn without using any other generator.
 // Custom is a primary way of creating user-defined generators.
+//
+// The *T fn receives belongs to the test case drawing the value: a failure fn records with Error, Errorf
+// or Fail fails that test case. Its Context and Cleanup cover one call of fn.
 func Custom[V any](fn func(*T) V) *Generator[V] {
 	return newGenerator[V](&customGen[V]{
 		fn: fn,
@@ -41,7 +44,7 @@ func (g *customGen[V]) value(t *T) V {
 }
 
 func (g *customGen[V]) maybeValue(t *T) (V, bool) {
-	t = newT(t.tb, t.s, engine.Flags.Debug, nil)
+	t = t.child(t.tb, engine.Flags.Debug, nil)
 	defer t.cleanup()
 
 	defer func() {

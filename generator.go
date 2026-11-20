@@ -8,7 +8,6 @@ package rapid
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	"go.sdls.io/rapid/internal/assert"
@@ -50,11 +49,8 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 
 	v := g.value(t)
 
-	if len(t.refDraws) > 0 {
-		ref := t.refDraws[t.draws]
-		if !reflect.DeepEqual(v, ref) {
-			t.tb.Fatalf("draw %v differs: %#v vs expected %#v", t.draws, v, ref)
-		}
+	if t.onDraw != nil {
+		t.onDraw(t.draws, v)
 	}
 
 	if t.tbLog || t.rawLog != nil {
@@ -88,7 +84,7 @@ func (g *Generator[V]) Example(seed ...int) V {
 		s = uint64(seed[0])
 	}
 
-	v, n, err := example(g, newT(nil, bitstream.NewRandom(s, false), false, nil))
+	v, n, err := example(g, bitstream.NewRandom(s, false))
 	assert.Truef(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
 
 	return v
@@ -104,11 +100,10 @@ func (g *Generator[V]) AsAny() *Generator[any] {
 	return asAny(g)
 }
 
-func example[V any](g *Generator[V], t *T) (V, int, error) {
-	defer t.cleanup()
-
+// example draws a value from g on s, giving every attempt a test case of its own.
+func example[V any](g *Generator[V], s bitstream.Stream) (V, int, error) {
 	for attempt := 1; ; attempt++ {
-		r, err := recoverValue(g, t)
+		r, err := recoverValue(g, newT(nil, s, false, nil))
 		if err == nil {
 			return r, attempt, nil
 		} else if attempt == exampleMaxTries {
@@ -118,8 +113,10 @@ func example[V any](g *Generator[V], t *T) (V, int, error) {
 	}
 }
 
+// recoverValue draws a value from g as one test case, and returns how it failed, after its cleanups.
 func recoverValue[V any](g *Generator[V], t *T) (v V, err *engine.TestError) {
-	defer func() { err = panicToError(recover()) }()
+	defer func() { err = t.settle(panicToError(recover())) }()
 
+	defer t.cleanup()
 	return g.value(t), nil
 }

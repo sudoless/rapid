@@ -11,14 +11,13 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
-// SyncTest runs prop within a testing/synctest bubble.
-// Callers must already be executing inside a rapid.Check-style helper;
-// SyncTest forwards failures to the parent *rapid.T and restores its state afterwards.
-func SyncTest(t *T, prop func(*T)) {
-	if t == nil {
-		panic("rapid.SyncTest requires *rapid.T")
-	}
-
+// SyncTest runs prop inside a [testing/synctest] bubble, as part of t's test case.
+//
+// prop receives a T of its own for the bubble. Its Context and Cleanup belong to the bubble, and its
+// cleanups run before the bubble ends, so inside prop use that T rather than t. A failure prop records
+// with Error, Errorf or Fail fails t's test case; Fatal, FailNow, Skip or a panic in prop stops it.
+// Values prop draws count as drawn by t. SyncTest needs a [*testing.T] behind t.
+func (t *T) SyncTest(prop func(*T)) {
 	t.Helper()
 
 	testT, ok := underlyingTestingT(t.tb)
@@ -27,15 +26,15 @@ func SyncTest(t *T, prop func(*T)) {
 		return
 	}
 
-	syncTestWithinRapid(t, testT, prop)
+	t.syncTest(testT, prop)
 }
 
-func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
-	// synctest.Test converts failures inside the bubble into parent.FailNow (runtime.Goexit),
-	// which would bypass rapid's panic-based failure capture/shrinking. Run the bubble in a
-	// separate goroutine, swallow failures inside the bubble, and re-panic outside as a
-	// *testError so checkOnce can shrink and generate failfiles as usual.
+func (t *T) syncTest(parent *testing.T, prop func(*T)) {
+	// synctest.Test turns a failure inside the bubble into parent.FailNow (runtime.Goexit), which would bypass
+	// rapid's panic-based failure capture and shrinking. Run the bubble in a goroutine of its own, catch what
+	// stops prop inside it, and panic with it outside, so checkOnce can shrink and save it as usual.
 	resultCh := make(chan *engine.TestError, 1)
+	draws := t.draws
 
 	go func() {
 		var captured *engine.TestError
@@ -52,56 +51,32 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 		synctest.Test(parent, func(st *testing.T) {
 			st.Helper()
 
-			restore := t.enterBubble(st)
+			bubble := t.child(st, t.tbLog, t.rawLog)
+			bubble.draws = draws
+			bubble.onDraw = t.onDraw
 			defer func() {
 				panicValue := recover()
-				// Always run rapid cleanups, even if the property panicked.
-				if r := t.cleanupRecovered(); r != nil {
+				// Always run the bubble's cleanups, even if the property panicked.
+				if r := bubble.cleanupRecovered(); r != nil {
 					panicValue = r
 				}
-				restore()
+				draws = bubble.draws
 
 				if panicValue != nil {
 					captured = panicToError(panicValue)
 				}
 			}()
 
-			prop(t)
-			t.failOnError()
+			prop(bubble)
 		})
 
 		returned = true
 	}()
 
-	if err := <-resultCh; err != nil {
+	err := <-resultCh
+	t.draws = draws
+	if err != nil {
 		panic(err)
-	}
-}
-
-// enterBubble points t at st, the *testing.T of a synctest bubble, with fresh per-run state,
-// and returns the function that restores the state it replaced.
-// No lock is needed because no other goroutine touches t before control passes to the property.
-func (t *T) enterBubble(st *testing.T) (restore func()) {
-	prevTB := t.tb
-	prevTBLog := t.tbLog // preserved so we keep the original logging behaviour
-	prevCtx := t.ctx
-	prevCancel := t.cancelCtx
-	prevCleanups := t.cleanups
-	prevCleaning := t.cleaning.Load()
-
-	t.tb = st
-	t.ctx = nil
-	t.cancelCtx = nil
-	t.cleanups = nil
-	t.cleaning.Store(false)
-
-	return func() {
-		t.tb = prevTB
-		t.tbLog = prevTBLog
-		t.ctx = prevCtx
-		t.cancelCtx = prevCancel
-		t.cleanups = prevCleanups
-		t.cleaning.Store(prevCleaning)
 	}
 }
 

@@ -302,7 +302,6 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 	var (
 		r       = bitstream.NewRandom(0, false)
-		t       = newT(tb, r, engine.Flags.Verbose, nil)
 		valid   = 0
 		invalid = 0
 	)
@@ -310,6 +309,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 	var total time.Duration
 	for valid < checks && invalid < checks*invalidChecksMult {
 		iter := valid + invalid
+		t := newT(tb, r, engine.Flags.Verbose, nil)
 		if iter > 0 && time.Until(deadline) < total/time.Duration(iter)*5 {
 			if t.shouldLog() {
 				t.Logf("[rapid] early exit after test #%v (%v)", iter, total)
@@ -364,15 +364,15 @@ func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *eng
 	return dt, err
 }
 
+// checkOnce runs prop as one test case, and returns how it failed, after its cleanups.
 func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() { err = panicToError(recover()) }()
+	defer func() { err = t.settle(panicToError(recover())) }()
 
 	defer t.cleanup()
 	prop(t)
-	t.failOnError()
 
 	return nil
 }
@@ -392,9 +392,17 @@ func panicToError(p any) *engine.TestError {
 	if err, ok := p.(*engine.TestError); ok {
 		return err
 	}
+	if invalid, ok := p.(bitstream.InvalidData); ok {
+		return &engine.TestError{Data: invalid} // an invalid test case is discarded, so its traceback would go unread
+	}
 
+	return newTestError(p, 4) // skip runtime.Callers, newTestError, panicToError and the deferred recover
+}
+
+// newTestError returns p with the traceback of the goroutine, from skip frames up to checkOnce.
+func newTestError(p any, skip int) *engine.TestError {
 	callers := make([]uintptr, tracebackLen)
-	callers = callers[:runtime.Callers(3, callers)] // skip runtime.Callers, panicToError and the deferred recover
+	callers = callers[:runtime.Callers(skip, callers)]
 	frames := runtime.CallersFrames(callers)
 
 	b := &strings.Builder{}
@@ -459,39 +467,75 @@ func (nilTB) Context() context.Context { return context.Background() }
 func (nilTB) Output() io.Writer        { return io.Discard }
 
 // T is similar to [testing.T], but with extra bookkeeping for property-based tests.
+// A property receives a new T for every test case it runs.
 //
 // For tests to be reproducible, they should generally run in a single goroutine.
-// If concurrency is unavoidable, methods on *T, such as [*testing.T.Helper] and [*T.Errorf],
-// are safe for concurrent calls, but *Generator.Draw from a given *T is not.
+// As with testing.T, a test case ends when the property returns or calls FailNow, Fatal, Fatalf,
+// SkipNow, Skip or Skipf, and those methods must be called only from the goroutine running the property
+// (or the Custom function or SyncTest bubble the T was given to). The other methods, such as the
+// variations of Log and Error, may be called from several goroutines at once.
+// *Generator.Draw from a given T may not.
 type T struct {
-	tb // unnamed to force re-export of (*T).Helper()
+	helperTB // embedded so t.Helper marks its caller; a method that called tb.Helper would mark itself
+	tb       tb
 
 	ctx       context.Context //nolint:containedctx // backs T.Context, like testing.T
 	cancelCtx context.CancelFunc
 	cleanups  []func()
 	cleaning  atomic.Bool
 
-	tbLog    bool
-	rawLog   *log.Logger
-	s        bitstream.Stream
-	draws    int
-	refDraws []any
-	mu       sync.RWMutex
-	failed   engine.StopTest
+	tbLog  bool
+	rawLog *log.Logger
+	s      bitstream.Stream
+	draws  int
+	onDraw func(idx int, v any) // called with every value drawn through t; set by tests
+	mu     sync.RWMutex
+
+	tc  *testCase // the test case this T belongs to: own, or its parent's for a Custom value or SyncTest bubble
+	own testCase
 }
 
-func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
+var _ TB = (*T)(nil)
+
+// helperTB is the part of the test's TB that T exposes as is.
+type helperTB interface {
+	Helper()
+	Name() string
+}
+
+// testCase is the outcome of one test case, shared by the Ts its property and generators receive.
+type testCase struct {
+	mu     sync.Mutex
+	failed *engine.TestError // the last failure recorded with Error, Errorf, Fail, Fatal, Fatalf or FailNow
+}
+
+func (tc *testCase) record(err *engine.TestError) {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	tc.failed = err
+}
+
+func (tc *testCase) recorded() *engine.TestError {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	return tc.failed
+}
+
+func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 	if tb == nil {
 		tb = nilTB{}
 	}
 
 	t := &T{
+		helperTB: tb,
 		tb:       tb,
 		tbLog:    tbLog,
 		rawLog:   rawLog,
 		s:        s,
-		refDraws: refDraws,
 	}
+	t.tc = &t.own
 
 	if rawLog == nil && engine.Flags.Log {
 		testName := "rapid test"
@@ -503,6 +547,31 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ..
 	}
 
 	return t
+}
+
+// child returns a T for a nested scope of t's test case, such as one Custom value: it draws from t's stream
+// and records failures to t's test case, with its own Context, Cleanups and draw count.
+func (t *T) child(tb tb, tbLog bool, rawLog *log.Logger) *T {
+	return &T{
+		helperTB: tb,
+		tb:       tb,
+		tbLog:    tbLog,
+		rawLog:   rawLog,
+		s:        t.s,
+		tc:       t.tc,
+	}
+}
+
+// settle returns the outcome of t's test case, given err, what its run panicked with.
+// A recorded failure outranks an invalid test case, as a testing.T that fails and then skips stays failed.
+func (t *T) settle(err *engine.TestError) *engine.TestError {
+	if err == nil || err.IsInvalidData() {
+		if recorded := t.tc.recorded(); recorded != nil {
+			return recorded
+		}
+	}
+
+	return err
 }
 
 func (t *T) shouldLog() bool {
@@ -682,7 +751,8 @@ func (t *T) Skip(args ...any) {
 // due to inability to generate enough valid test cases.
 //
 // The test case or action will be treated like it had never been drawn
-// and will not be shown in test logs.
+// and will not be shown in test logs. A test case that has already recorded a failure
+// with Error, Errorf or Fail stays failed, as a testing.T does.
 // Therefore, to avoid confusing test failures later on,
 // [SkipNow] must not be called after the action has already mutated shared state.
 //
@@ -736,32 +806,35 @@ func (t *T) Fail() {
 	t.fail(false, "(*T).Fail() called")
 }
 
+// Failed reports whether the current test case has failed.
 func (t *T) Failed() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	return t.failed != ""
+	return t.tc.recorded() != nil
 }
 
 func (t *T) skip(msg string) {
 	panic(bitstream.InvalidData(msg))
 }
 
-func (t *T) fail(now bool, msg string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+// recordedTrace is the traceback of every failure recorded with Error, Errorf or Fail. The shrinker keeps
+// a smaller test case only when it fails with the same traceback, so these failures all count as one,
+// wherever they were recorded; a Fatal or panic keeps the traceback of where it happened.
+const recordedTrace = "    recorded with (*T).Error, (*T).Errorf or (*T).Fail\n"
 
-	t.failed = engine.StopTest(msg)
-	if now {
-		panic(t.failed)
+// fail records the failure msg for the test case, and stops the test case when now is set.
+func (t *T) fail(now bool, msg string) {
+	if !now {
+		t.tc.record(&engine.TestError{Data: engine.StopTest(msg), Trace: recordedTrace})
+		return
 	}
+
+	err := newTestError(engine.StopTest(msg), 4) // skip runtime.Callers, newTestError, fail and the exported method
+	t.tc.record(err)
+	panic(err)
 }
 
+// failOnError stops the test case if it has recorded a failure.
 func (t *T) failOnError() {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	if t.failed != "" {
-		panic(t.failed)
+	if err := t.tc.recorded(); err != nil {
+		panic(err)
 	}
 }
