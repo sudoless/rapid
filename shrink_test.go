@@ -101,6 +101,24 @@ func TestShrink_IntSliceNElemsGt(t *testing.T) {
 	}, []int{1000001, 1000001})
 }
 
+// Failures recorded with Errorf count as one failure wherever they are recorded, so shrinking may move
+// from one call site to another.
+func TestShrink_ErrorfAtAnySite(t *testing.T) {
+	t.Parallel()
+
+	checkShrink(t, func(t *T) {
+		x := Int[int]().Draw(t, "x")
+		if x < 1000 {
+			return
+		}
+		if x%2 == 0 {
+			t.Errorf("even %d", x)
+		} else {
+			t.Errorf("odd %d", x)
+		}
+	}, 1000)
+}
+
 func TestShrink_IntSliceElemGe(t *testing.T) {
 	t.Parallel()
 

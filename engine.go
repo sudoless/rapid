@@ -815,14 +815,21 @@ func (t *T) skip(msg string) {
 	panic(bitstream.InvalidData(msg))
 }
 
-// fail records the failure msg for the test case, traced from the exported method's caller,
-// and stops the test case when now is set.
+// recordedTrace is the traceback of every failure recorded with Error, Errorf or Fail. The shrinker keeps
+// a smaller test case only when it fails with the same traceback, so these failures all count as one,
+// wherever they were recorded; a Fatal or panic keeps the traceback of where it happened.
+const recordedTrace = "    recorded with (*T).Error, (*T).Errorf or (*T).Fail\n"
+
+// fail records the failure msg for the test case, and stops the test case when now is set.
 func (t *T) fail(now bool, msg string) {
+	if !now {
+		t.tc.record(&engine.TestError{Data: engine.StopTest(msg), Trace: recordedTrace})
+		return
+	}
+
 	err := newTestError(engine.StopTest(msg), 4) // skip runtime.Callers, newTestError, fail and the exported method
 	t.tc.record(err)
-	if now {
-		panic(err)
-	}
+	panic(err)
 }
 
 // failOnError stops the test case if it has recorded a failure.
