@@ -92,3 +92,19 @@ func TestMakeCustomKindOverride(t *testing.T) {
 		t.Fatalf("expected Alias to be %q, got %q", expectedAlias, v.Alias)
 	}
 }
+
+type intPointer *int
+
+// Make generates values of any supported type V (make.go:29), a named pointer type among them: Make
+// draws a nil pointer or one to a drawn value (make.go:150), so some draw yields a non-nil pointer.
+func TestMakeNamedPointer(t *testing.T) {
+	t.Parallel()
+
+	g := rapid.Make[intPointer]()
+	for seed := range 100 {
+		if v := g.Example(seed); v != nil {
+			return
+		}
+	}
+	t.Fatalf("Make[intPointer]() gave nil on every seed in [0, 100)")
+}
