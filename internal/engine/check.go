@@ -85,7 +85,7 @@ func Check(tb TB, run Run) {
 
 	switch {
 	case res.Err1 != nil || res.Err2 != nil:
-		report(tb, run, &res)
+		report(tb, logRun(tb, run), &res)
 	case res.Valid == checks || (res.EarlyExit && res.Valid > 0):
 		tb.Logf("[rapid] OK, passed %v tests (%v)", res.Valid, dt)
 	default:
@@ -101,6 +101,7 @@ func Check(tb TB, run Run) {
 // and fails it when run fails.
 func Fuzz(tb TB, input []byte, run Run) {
 	tb.Helper()
+	run = logRun(tb, run)
 
 	var buf []uint64
 	for len(input) > 0 {
@@ -121,6 +122,22 @@ func Fuzz(tb TB, input []byte, run Run) {
 		tb.Fatalf("[rapid] failed: %v", err)
 	default:
 		tb.Fatalf("[rapid] panic: %v\nTraceback:\n%v", err, Traceback(err))
+	}
+}
+
+// logRun returns run with the property's output sent to stdout under -rapid.log, where the engine's own
+// progress messages go, unless a run is given a logger of its own.
+func logRun(tb TB, run Run) Run {
+	if !Flags.Log {
+		return run
+	}
+
+	out := NewLog(os.Stdout, tb.Name())
+	return func(s bitstream.Stream, tbLog bool, runOut *log.Logger) *TestError {
+		if runOut == nil {
+			runOut = out
+		}
+		return run(s, tbLog, runOut)
 	}
 }
 
@@ -156,7 +173,7 @@ func report(tb TB, run Run, res *Result) {
 			res.Valid, err2, name, repr, Traceback(err2))
 	}
 
-	_ = run(bitstream.NewBuffer(res.Buf, false), true, nil) // output using (*testing.T).Log for proper line numbers
+	_ = run(bitstream.NewBuffer(res.Buf, false), true, nil) // through (*testing.T).Log for its line numbers, or -rapid.log
 }
 
 // reproFlags returns the flags that replay a failure from failPath or seed; either may be unset.
@@ -194,6 +211,7 @@ func Search(tb TB, deadline time.Time, checks int, seed uint64, failPath string,
 	assert.Truef(!tb.Failed(), "check function called with *testing.T which has already failed")
 
 	v := newVerbose(tb)
+	run = logRun(tb, run)
 
 	var failfiles []string
 	if failPath != "" {

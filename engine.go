@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -256,15 +255,6 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 		s:        s,
 	}
 	t.tc = &t.own
-
-	if rawLog == nil && engine.Flags.Log {
-		testName := "rapid test"
-		if tb != nil {
-			testName = tb.Name()
-		}
-
-		t.rawLog = engine.NewLog(os.Stdout, testName)
-	}
 
 	return t
 }
