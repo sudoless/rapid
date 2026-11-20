@@ -41,6 +41,9 @@ var tracebackBlacklist = map[string]bool{
 //
 // Property is falsified in case of a panic or a call to
 // [*T.Fatalf], [*T.Fatal], [*T.Errorf], [*T.Error], [*T.FailNow] or [*T.Fail].
+//
+// Inside a [testing/synctest] bubble, where time is fake, no time bounds Check: it runs all its checks, and
+// shrinks a failure to the end, whatever [SearchTime], [ShrinkTime] or the test's -timeout say.
 func Check(t TB, prop func(*T), opts ...CheckOption) {
 	t.Helper()
 	engine.Check(t, checkLimits(opts), runner(t, prop))
@@ -96,12 +99,23 @@ func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() { err = t.settle(panicToError(recover())) }()
+	var propErr *engine.TestError
+	defer func() { err = t.settle(firstFailure(propErr, panicToError(recover()))) }()
 
 	defer t.cleanup()
+	defer func() { propErr = panicToError(recover()) }() // before the cleanups, which can panic in turn
 	prop(t)
 
 	return nil
+}
+
+// firstFailure returns the property's outcome, unless only its cleanups failed: a skip in a cleanup does not
+// hide a failure of the property.
+func firstFailure(propErr, cleanupErr *engine.TestError) *engine.TestError {
+	if propErr != nil && !propErr.IsInvalidData() || cleanupErr == nil {
+		return propErr
+	}
+	return cleanupErr
 }
 
 func panicToError(p any) *engine.TestError {
@@ -305,13 +319,10 @@ func (t *T) Context() context.Context {
 		return ctx
 	}
 
-	// If we're in the middle of cleaning up
-	// and the context has already been canceled and cleared,
-	// don't create a new one. Return a canceled context instead.
+	// Once the property has exited and cleanup has begun, the context has been canceled and cleared.
+	// Don't create a new one, for a cleanup or a goroutine the property left running: return a canceled one.
 	if t.cleaning.Load() {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		return ctx
+		return canceledContext()
 	}
 
 	// Slow path: lock and check again, create new context if needed.
@@ -323,10 +334,22 @@ func (t *T) Context() context.Context {
 		// while we were waiting for the lock.
 		return t.ctx
 	}
+	if t.cleaning.Load() {
+		// Cleanup began while we were waiting for the lock, and found no context to cancel. It sets cleaning
+		// before it takes the lock, so when cleaning is unset here, it is yet to cancel the context made below.
+		return canceledContext()
+	}
 
 	ctx, cancel := context.WithCancel(t.tb.Context())
 	t.ctx = ctx
 	t.cancelCtx = cancel
+	return ctx
+}
+
+// canceledContext returns a context that is already canceled.
+func canceledContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 	return ctx
 }
 
@@ -355,8 +378,7 @@ func (t *T) Cleanup(f func()) {
 // cleanup runs any cleanup tasks associated with the property check.
 // It is safe to call multiple times.
 func (t *T) cleanup() {
-	t.cleaning.Store(true)
-	defer t.cleaning.Store(false)
+	t.cleaning.Store(true) // for good: the test case is over, and so is its context
 
 	// If a cleanup function panics,
 	// we still want to run the remaining cleanup functions.

@@ -1098,3 +1098,34 @@ func TestSliceOfBytesMatching(t *testing.T) {
 		})
 	}
 }
+
+// StringMatching generates strings matching its regexp. A character class that holds no rune matches
+// nothing, as OpNoMatch does, so a regexp that holds one where it may be skipped still has matches to
+// generate, and a draw that reaches it is at worst invalid data, never a failed property.
+func TestStringMatchingEmptyClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		expr string
+	}{
+		{"optional", `a\P{Any}?`},
+		{"star", `a[^\x00-\x{10FFFF}]*`},
+		{"alternative", `a|b\P{Any}`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, failed := CheckOutcome(t, func(t *T) {
+				if s := StringMatching(tc.expr).Draw(t, "s"); s != "a" {
+					t.Fatalf("%q matches %q only as %q", s, tc.expr, "a")
+				}
+			})
+			if failed {
+				t.Fatalf("StringMatching(%q) failed the property", tc.expr)
+			}
+		})
+	}
+}

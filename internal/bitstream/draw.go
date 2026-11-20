@@ -74,9 +74,11 @@ func genUintNBiased(s Stream, hi uint64) (uint64, bool, bool) {
 	n := geom(s, 1/(m+1)) + 1
 	s.EndGroup(i, false)
 
+	// Past the width, n draws all its bits, and past a threshold it returns hi. The threshold stays above the
+	// width, so the widest ranges draw their full width too.
 	if int(n) < bitlen {
 		bitlen = int(n)
-	} else if int(n) >= 64-(16-int(m))*4 {
+	} else if int(n) >= max(64-(16-int(m))*4, bitlen+1) {
 		bitlen = 65
 	}
 
@@ -179,7 +181,7 @@ func NewLoadedDie(weights []int) *LoadedDie {
 
 	total := 0
 	for _, weight := range weights {
-		assert.True(weight > 0 && weight < 100)
+		assert.True(weight > 0)
 		total += weight
 	}
 
@@ -232,7 +234,7 @@ func NewRepeat(minCount, maxCount int, avgCount float64, label fmt.Stringer) *Re
 		minCount:  minCount,
 		maxCount:  maxCount,
 		avgCount:  avgCount,
-		pContinue: 1 - 1/(1+avgCount-float64(minCount)), // TODO was no -minCount intentional?
+		pContinue: 1 - 1/(1+avgCount-float64(minCount)), // past minCount, a geometric count of mean avgCount-minCount
 		group:     -1,
 		label:     label,
 	}

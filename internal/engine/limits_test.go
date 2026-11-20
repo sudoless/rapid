@@ -5,6 +5,7 @@ package engine
 
 import (
 	"log"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -91,4 +92,30 @@ func TestSearchAndShrinkTime(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Inside a testing/synctest bubble, time is fake: a property that sleeps does not use up the search or the
+// shrinking, and both run to the end.
+func TestSearchInsideSynctestBubbleIgnoresTime(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		runs := 0
+		lim := limits(t, Limits{Checks: 100, SearchTime: time.Minute}, false)
+		res := Search(t, lim, 1, "", false, func(s bitstream.Stream, _ bool, _ *log.Logger) *TestError {
+			runs++
+			time.Sleep(time.Hour)
+			if a, b := s.DrawBits(16), s.DrawBits(16); a >= 50000 && b >= 1000 {
+				return &TestError{Data: "too large", Trace: "trace"}
+			}
+			return nil
+		})
+
+		if res.Err1 == nil || res.EarlyExit {
+			t.Fatalf("after %v runs, failure %v, early exit %v; want a failure and no early exit", runs, res.Err1, res.EarlyExit)
+		}
+		if want := []uint64{50000, 1000}; !slices.Equal(res.Buf, want) {
+			t.Fatalf("failure shrunk to %v, want %v", res.Buf, want)
+		}
+	})
 }

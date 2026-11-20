@@ -94,3 +94,64 @@ func TestSyncTestRecordedFailureFailsTestCase(t *testing.T) {
 		t.Fatal("Errorf inside SyncTest did not fail the test case")
 	}
 }
+
+// Check runs inside a testing/synctest bubble, where time is fake: a property that sleeps an hour per test
+// case finishes at once, and the fake hours do not cut its checks short.
+func TestCheckInsideSynctestBubble(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		runs := 0
+		rapid.Check(t, func(*rapid.T) {
+			runs++
+			time.Sleep(time.Hour)
+		}, rapid.Checks(100))
+
+		want := 100
+		if testing.Short() {
+			want = 20
+		}
+		if runs != want {
+			t.Fatalf("the property ran %v times, want %v", runs, want)
+		}
+	})
+}
+
+// A skip inside SyncTest skips what the T running the bubble would skip: a Repeat action it marks not
+// applicable, and a Custom try it rejects, rather than discarding the whole test case.
+func TestSyncTestSkipScopedLikeItsT(t *testing.T) {
+	t.Parallel()
+
+	skip := func(bt *rapid.T) { bt.SkipNow() }
+	tests := []struct {
+		name string
+		prop func(*rapid.T)
+	}{
+		{"Repeat action", func(t *rapid.T) {
+			t.Repeat(map[string]func(*rapid.T){
+				"Skip": func(t *rapid.T) { t.SyncTest(skip) },
+				"Ok":   func(*rapid.T) {},
+			})
+		}},
+		{"Custom try", func(t *rapid.T) {
+			tries := 0
+			rapid.Custom(func(t *rapid.T) int {
+				x := rapid.IntRange(0, 9).Draw(t, "x")
+				if tries++; tries == 1 {
+					t.SyncTest(skip)
+				}
+				return x
+			}).Draw(t, "v")
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			valid, invalid, failed := rapid.CheckOutcome(t, tc.prop)
+			if failed || invalid != 0 {
+				t.Fatalf("got %d valid and %d invalid test cases, failed %v; want only valid ones", valid, invalid, failed)
+			}
+		})
+	}
+}

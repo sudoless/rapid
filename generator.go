@@ -120,8 +120,10 @@ func example[V any](g *Generator[V], s bitstream.Stream) (V, int, error) {
 
 // recoverValue draws a value from g as one test case, and returns how it failed, after its cleanups.
 func recoverValue[V any](g *Generator[V], t *T) (v V, err *engine.TestError) {
-	defer func() { err = t.settle(panicToError(recover())) }()
+	var valueErr *engine.TestError
+	defer func() { err = t.settle(firstFailure(valueErr, panicToError(recover()))) }()
 
 	defer t.cleanup()
+	defer func() { valueErr = panicToError(recover()) }() // before the cleanups, which can panic in turn
 	return g.value(t), nil
 }

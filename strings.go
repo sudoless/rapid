@@ -277,7 +277,11 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		var r rune
 		switch re.Op {
 		case syntax.OpCharClass:
-			r = drawClass(t, g.classes[re])
+			class := g.classes[re]
+			if class.Len() == 0 { // such as \P{Any}, which matches nothing as OpNoMatch does
+				panic(bitstream.InvalidData("no possible regexp match"))
+			}
+			r = drawClass(t, class)
 		case syntax.OpAnyCharNotNL:
 			r = anyRuneGenNoNL.value(t)
 		default:

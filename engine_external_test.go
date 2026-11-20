@@ -148,6 +148,21 @@ func TestCheckContext(t *testing.T) {
 	}
 }
 
+// The Context of a test case is canceled once its property has exited, even when first asked for after that,
+// as by a goroutine the property started.
+func TestCheckContextAfterExitIsCanceled(t *testing.T) {
+	t.Parallel()
+
+	var last *T
+	Check(t, func(t *T) {
+		last = t
+	})
+
+	if err := last.Context().Err(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Context after the property exited: got error %v, want context.Canceled", err)
+	}
+}
+
 func TestCheckCleanup(t *testing.T) {
 	t.Parallel()
 
@@ -258,4 +273,34 @@ func TestCheckCleanupContextCreatedInCleanup(t *testing.T) {
 			}
 		})
 	})
+}
+
+// A property that panics fails, whatever its cleanups do: a cleanup's skip does not hide the panic.
+func TestCheckPanicNotMaskedByCleanupSkip(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		prop func(*T)
+	}{
+		{"property", func(t *T) {
+			t.Cleanup(func() { t.SkipNow() })
+			panic("boom")
+		}},
+		{"SyncTest bubble", func(t *T) {
+			t.SyncTest(func(t *T) {
+				t.Cleanup(func() { t.SkipNow() })
+				panic("boom")
+			})
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if valid, invalid, failed := CheckOutcome(t, tc.prop); !failed {
+				t.Fatalf("panic not reported (valid %d, invalid %d)", valid, invalid)
+			}
+		})
+	}
 }

@@ -33,6 +33,9 @@ func limits(tb TB, lim Limits, short bool) Limits {
 
 // searchDeadline returns when to stop generating test cases, for a search started at start.
 func (lim *Limits) searchDeadline(start time.Time) time.Time {
+	if lim.Deadline.Equal(fakeClock) {
+		return fakeClock
+	}
 	if lim.SearchTime > 0 {
 		if d := start.Add(lim.SearchTime); d.Before(lim.Deadline) {
 			return d
@@ -44,6 +47,9 @@ func (lim *Limits) searchDeadline(start time.Time) time.Time {
 // shrinkDeadline returns when to stop shrinking a failure found now: after ShrinkTime, or early enough that
 // the last shrink step, checked only before it starts, ends before Deadline.
 func (lim *Limits) shrinkDeadline() time.Time {
+	if lim.Deadline.Equal(fakeClock) {
+		return fakeClock
+	}
 	d := time.Now().Add(lim.ShrinkTime)
 	if latest := lim.Deadline.Add(-shrinkStepBound); d.After(latest) {
 		d = latest

@@ -7,6 +7,7 @@
 package rapid
 
 import (
+	"math"
 	"math/bits"
 	"testing"
 
@@ -138,6 +139,60 @@ func checkUintCoverage(t *testing.T, seed uint64) {
 		if !drawsHit(t, s, Int[uint](), target.hit) {
 			t.Errorf("no uint %v in %v draws", target.name, stattest.CoverageDraws)
 		}
+	}
+}
+
+// Int draws across the whole range of its type (integers.go:29), and IntRange across [lo, hi], so values
+// in the top half of a wide range, short of its bound, are reachable.
+func TestIntWideRangeTopHalfCoverage(t *testing.T) {
+	t.Parallel()
+
+	checkIntWideRangeTopHalfCoverage(t, stattest.FixedSeed)
+}
+
+func checkIntWideRangeTopHalfCoverage(t *testing.T, seed uint64) {
+	t.Helper()
+
+	tests := []struct {
+		name string
+		gen  *Generator[uint64]
+		hit  func(uint64) bool
+	}{
+		{
+			"Int[uint64] in [1<<63, MaxUint64)",
+			Int[uint64](),
+			func(u uint64) bool { return u >= 1<<63 && u != math.MaxUint64 },
+		},
+		{
+			"Int[int64] in [1<<62, MaxInt64)",
+			Map(Int[int64](), func(i int64) uint64 { return uint64(i) }),
+			func(u uint64) bool { return int64(u) >= 1<<62 && int64(u) != math.MaxInt64 },
+		},
+		{
+			"Int[int64] in (MinInt64, -(1<<62)]",
+			Map(Int[int64](), func(i int64) uint64 { return uint64(i) }),
+			func(u uint64) bool { return int64(u) <= -(1<<62) && int64(u) != math.MinInt64 },
+		},
+		{
+			"IntRange[uint64](0, 1<<57-1) in [1<<56, 1<<57-1)",
+			IntRange[uint64](0, 1<<57-1),
+			func(u uint64) bool { return u >= 1<<56 && u != 1<<57-1 },
+		},
+		{
+			"IntRange[uint64](0, 1<<56-1) in [1<<55, 1<<56-1)",
+			IntRange[uint64](0, 1<<56-1),
+			func(u uint64) bool { return u >= 1<<55 && u != 1<<56-1 },
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if !drawsHit(t, bitstream.NewRandom(seed, false), tc.gen, tc.hit) {
+				t.Errorf("no value in %v draws", stattest.CoverageDraws)
+			}
+		})
 	}
 }
 

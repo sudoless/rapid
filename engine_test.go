@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/engine"
@@ -168,6 +169,66 @@ func TestCheckRecordedFailureBelongsToItsTestCase(t *testing.T) {
 			}
 			if !engine.SameError(res.Err1, res.Err2) {
 				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.Err1, res.Err2)
+			}
+		})
+	}
+}
+
+// The test case Search reports, which Check saves to a fail file, fails the way Search reports when replayed.
+func TestSearchReportedTestCaseReplaysItsFailure(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		deadline time.Duration // from now; under 10s leaves no time to shrink
+		prop     func(*T)
+	}{
+		{"recorded in a skipped Repeat action", time.Hour, func(t *T) {
+			t.RepeatSteps(map[string]func(*T){"act": func(t *T) {
+				if IntRange(0, 9).Draw(t, "x") == 3 {
+					t.Errorf("recorded")
+					t.SkipNow()
+				}
+			}}, 5)
+		}},
+		{"recorded in a skipped Custom try", time.Hour, func(t *T) {
+			Custom(func(t *T) int {
+				x := IntRange(0, 9).Draw(t, "x")
+				if x == 3 {
+					t.Errorf("recorded")
+					t.SkipNow()
+				}
+				return x
+			}).Draw(t, "v")
+		}},
+		{"Repeat stopped by rejected actions, not shrunk", 5 * time.Second, func(t *T) {
+			n := 0
+			actions := map[string]func(*T){"inc": func(*T) { n++ }}
+			for _, key := range []string{"rej0", "rej1", "rej2", "rej3", "rej4"} {
+				actions[key] = func(t *T) {
+					Bool().Draw(t, "b")
+					t.SkipNow()
+				}
+			}
+			t.RepeatSteps(actions, 1000)
+			if n >= 1 {
+				t.Fatalf("n = %d", n)
+			}
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			lim := engine.Limits{Checks: 100, Deadline: time.Now().Add(tc.deadline), ShrinkTime: engine.Flags.ShrinkTime}
+			res := engine.Search(t, lim, stattest.FixedSeed, "", false, runner(t, tc.prop))
+			if res.Err2 == nil {
+				t.Fatalf("no failure found")
+			}
+
+			replay := checkOnce(newT(t, bitstream.NewBuffer(res.Buf, false), false, nil), tc.prop)
+			if !engine.SameError(res.Err2, replay) {
+				t.Fatalf("reported %q on test case %v, which replays as %v", res.Err2, res.Buf, replay)
 			}
 		})
 	}
