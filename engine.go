@@ -312,10 +312,13 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 			if err2.isStopTest() {
 				tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", valid, err2, name, repr)
 			} else {
-				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:", valid, err2, name, repr, traceback(err2))
+				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
+					valid, err2, name, repr, traceback(err2))
 			}
 		} else {
-			tb.Errorf("[rapid] flaky test, can not reproduce a failure\nTo try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:", name, repr, err2, traceback(err2), err1, traceback(err1))
+			tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
+				"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
+				name, repr, err2, traceback(err2), err1, traceback(err1))
 		}
 
 		_ = checkOnce(newT(tb, newBufBitStream(buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
@@ -326,7 +329,9 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 }
 
-func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T)) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
+func doCheck(
+	tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T),
+) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
 	tb.Helper()
 
 	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")

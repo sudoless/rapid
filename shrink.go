@@ -187,7 +187,8 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 				continue
 			}
 
-			if s.accept(without(buf, g), labelRemoveGroupAndLower, "lower block %v to %v and remove group %q at %v: [%v, %v)", i, buf[i], g.label, j, g.begin, g.end) {
+			if s.accept(without(buf, g), labelRemoveGroupAndLower, "lower block %v to %v and remove group %q at %v: [%v, %v)",
+				i, buf[i], g.label, j, g.begin, g.end) {
 				i--
 				break
 			}
@@ -216,7 +217,8 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				buf = append(buf, s.rec.data[h.begin:h.end]...)
 				buf = append(buf, s.rec.data[g.end:]...)
 
-				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)", g.label, j_, g.begin, g.end, h.label, j, h.begin, h.end) {
+				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
+					g.label, j_, g.begin, g.end, h.label, j, h.begin, h.end) {
 					break
 				}
 			}
