@@ -17,11 +17,11 @@ import (
 const small = 5
 
 const (
-	biasLabel     = "bias"
-	intBitsLabel  = "intbits"
-	coinFlipLabel = "coinflip"
-	dieRollLabel  = "dieroll"
-	repeatLabel   = "@repeat"
+	biasLabel     Label = "bias"
+	intBitsLabel  Label = "intbits"
+	coinFlipLabel Label = "coinflip"
+	dieRollLabel  Label = "dieroll"
+	repeatLabel         = "@repeat"
 )
 
 func Bitmask64(n uint) uint64 {
@@ -237,6 +237,11 @@ func NewRepeat(minCount, maxCount int, avgCount float64, label string) *Repeat {
 	}
 }
 
+// String is the label of each repetition's group.
+func (r *Repeat) String() string {
+	return r.label
+}
+
 func (r *Repeat) Avg() int {
 	return int(math.Ceil(r.avgCount))
 }
@@ -246,7 +251,7 @@ func (r *Repeat) More(s Stream) bool {
 		s.EndGroup(r.group, r.rejected)
 	}
 
-	r.group = s.BeginGroup(r.label, true)
+	r.group = s.BeginGroup(r, true)
 	r.rejected = false
 
 	pCont := r.pContinue

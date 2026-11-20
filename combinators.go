@@ -16,7 +16,7 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
-const tryLabel = "try"
+const tryLabel bitstream.Label = "try"
 
 // Custom creates a generator which produces results of calling fn. In fn, values should be generated
 // by calling other generators; it is invalid to return a value from fn without using any other generator.

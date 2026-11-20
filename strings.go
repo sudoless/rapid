@@ -261,7 +261,7 @@ func (g *regexpSliceGen) value(t *T) []byte {
 }
 
 func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
-	i := t.s.BeginGroup(re.Op.String(), false)
+	i := t.s.BeginGroup(re.Op, false)
 
 	switch re.Op {
 	case syntax.OpNoMatch:
