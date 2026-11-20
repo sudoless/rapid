@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package engine
 
 import (
 	"bytes"
@@ -13,10 +13,10 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/bitstream"
-	"go.sdls.io/rapid/internal/engine"
+	"go.sdls.io/rapid/internal/stattest"
 )
 
-func TestDataVis(t *testing.T) {
+func TestWriteVisHTML(t *testing.T) {
 	t.Parallel()
 
 	data := []uint64{
@@ -45,31 +45,27 @@ func TestDataVis(t *testing.T) {
 		{Begin: 10, End: 10 + 3, Label: "64-bit"},
 	}
 
+	// A drawn recording: a repetition whose odd elements are rejected, and a group left open.
+	s := bitstream.NewRandom(stattest.Seed(t), true)
+	elems := bitstream.NewRepeat(0, 8, -1, "elems")
+	for elems.More(s) {
+		if u, _, _ := bitstream.UintN(s, 100, true); u%2 == 1 {
+			elems.Reject()
+		}
+	}
+	s.BeginGroup("unfinished", false)
+	s.DrawBits(8)
+
 	rd := []bitstream.Recorded{
 		{Data: data, Groups: groups},
-	}
-
-	g := SliceOf(SliceOf(Uint().Filter(func(i uint) bool { return i%2 == 1 }))).Filter(func(s [][]uint) bool { return len(s) > 0 })
-	// Advance the seed, so a fixed -rapid.seed cannot redraw the same invalid value forever.
-	for seed := engine.BaseSeed(); ; seed++ {
-		s := bitstream.NewRandom(seed, true)
-		_, err := recoverValue(g, newT(nil, s, false, nil))
-		if err != nil && !err.isInvalidData() {
-			t.Errorf("unexpected error %v", err)
-		}
-
-		rd = append(rd, bitstream.Recorded{Data: s.Data, Groups: s.Groups})
-
-		if err == nil {
-			break
-		}
+		{Data: s.Data, Groups: s.Groups},
 	}
 
 	var html bytes.Buffer
-	if err := visWriteHTML(&html, "vis title", rd); err != nil {
-		t.Fatalf("visWriteHTML error: %v", err)
+	if err := WriteVisHTML(&html, "vis title", rd); err != nil {
+		t.Fatalf("WriteVisHTML error: %v", err)
 	}
-	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers"} {
+	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", "discard", "endless", "elems@repeat"} {
 		if !strings.Contains(html.String(), want) {
 			t.Errorf("rendered HTML does not contain %q", want)
 		}

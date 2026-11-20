@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package engine
 
 import (
 	"bytes"
@@ -51,7 +51,9 @@ type visTmplImage struct {
 	GroupEnds   []visGroupInfo
 }
 
-func visWriteHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
+// WriteVisHTML writes the -rapid.debugvis page: each recording's words as bit images,
+// marked where its groups begin and end.
+func WriteVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
 		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet

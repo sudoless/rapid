@@ -8,10 +8,12 @@
 package stattest
 
 import (
+	"flag"
+	"hash/maphash"
 	"math"
+	"os"
+	"strconv"
 	"testing"
-
-	"go.sdls.io/rapid/internal/engine"
 )
 
 // FixedSeed seeds the statistical checks in the default suite; TestStress
@@ -46,13 +48,37 @@ func WithinSigmas(t *testing.T, ctx any, y int, p float64) {
 	}
 }
 
-// Seed returns -rapid.seed, whose default RAPID_SEED sets, when it is not 0, and a random seed otherwise.
-// It logs the seed, so a failing run replays with RAPID_SEED set to it.
+// Seed returns the first of these that is set and not 0: the -rapid.seed flag, when the test binary
+// defines it; RAPID_SEED; a random seed. It logs the seed, so a failing run replays with RAPID_SEED set to it.
+//
+// stattest reads the flag through the flag package rather than importing engine,
+// because bitstream's tests use stattest and engine imports bitstream.
 func Seed(t *testing.T) uint64 {
 	t.Helper()
 
-	seed := engine.BaseSeed()
+	var seed uint64
+	if f := flag.Lookup("rapid.seed"); f != nil {
+		seed = parseSeed(t, "-rapid.seed", f.Value.String())
+	}
+	if env := os.Getenv("RAPID_SEED"); seed == 0 && env != "" {
+		seed = parseSeed(t, "RAPID_SEED", env)
+	}
+	if seed == 0 {
+		seed = new(maphash.Hash).Sum64()
+	}
+
 	t.Logf("seed %v, replay with RAPID_SEED=%v", seed, seed)
+
+	return seed
+}
+
+func parseSeed(t *testing.T, name, value string) uint64 {
+	t.Helper()
+
+	seed, err := strconv.ParseUint(value, 0, 64)
+	if err != nil {
+		t.Fatalf("parsing %s %q: %v", name, value, err)
+	}
 
 	return seed
 }
