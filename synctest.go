@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/engine"
 )
 
@@ -15,7 +16,8 @@ import (
 //
 // prop receives a T of its own for the bubble. Its Context and Cleanup belong to the bubble, and its
 // cleanups run before the bubble ends, so inside prop use that T rather than t. A failure prop records
-// with Error, Errorf or Fail fails t's test case; Fatal, FailNow, Skip or a panic in prop stops it.
+// with Error, Errorf or Fail fails t's test case; Fatal, FailNow or a panic in prop stops it. Skip in prop
+// acts as Skip on t: inside a [*T.Repeat] action it skips the action, inside a [Custom] generator the try.
 // Values prop draws count as drawn by t. SyncTest needs a [*testing.T] behind t.
 func (t *T) SyncTest(prop func(*T)) {
 	t.Helper()
@@ -71,6 +73,9 @@ func (t *T) syncTest(parent *testing.T, prop func(*T)) {
 	err := <-resultCh
 	t.draws = draws
 	if err != nil {
+		if invalid, ok := err.Data.(bitstream.InvalidData); ok {
+			panic(invalid) // as a skip by t: a Repeat action or a Custom try catches it as its own
+		}
 		panic(err)
 	}
 }

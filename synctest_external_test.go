@@ -116,3 +116,42 @@ func TestCheckInsideSynctestBubble(t *testing.T) {
 		}
 	})
 }
+
+// A skip inside SyncTest skips what the T running the bubble would skip: a Repeat action it marks not
+// applicable, and a Custom try it rejects, rather than discarding the whole test case.
+func TestSyncTestSkipScopedLikeItsT(t *testing.T) {
+	t.Parallel()
+
+	skip := func(bt *rapid.T) { bt.SkipNow() }
+	tests := []struct {
+		name string
+		prop func(*rapid.T)
+	}{
+		{"Repeat action", func(t *rapid.T) {
+			t.Repeat(map[string]func(*rapid.T){
+				"Skip": func(t *rapid.T) { t.SyncTest(skip) },
+				"Ok":   func(*rapid.T) {},
+			})
+		}},
+		{"Custom try", func(t *rapid.T) {
+			tries := 0
+			rapid.Custom(func(t *rapid.T) int {
+				x := rapid.IntRange(0, 9).Draw(t, "x")
+				if tries++; tries == 1 {
+					t.SyncTest(skip)
+				}
+				return x
+			}).Draw(t, "v")
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			valid, invalid, failed := rapid.CheckOutcome(t, tc.prop)
+			if failed || invalid != 0 {
+				t.Fatalf("got %d valid and %d invalid test cases, failed %v; want only valid ones", valid, invalid, failed)
+			}
+		})
+	}
+}
