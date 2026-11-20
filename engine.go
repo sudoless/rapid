@@ -66,18 +66,17 @@ func MakeCheck(prop func(*T)) func(*testing.T) {
 	}
 }
 
-// MakeFuzz creates a fuzz target for [*testing.F.Fuzz]:
+// Fuzz makes prop the fuzz target of f, each fuzz input encoding one test case. Fuzz calls [*testing.F.Fuzz],
+// so seed inputs are added with [*testing.F.Add] before it:
 //
 //	func FuzzFoo(f *testing.F) {
-//	    f.Fuzz(rapid.MakeFuzz(func(t *rapid.T) {
+//	    rapid.Fuzz(f, func(t *rapid.T) {
 //	        // test code
-//	    }))
+//	    })
 //	}
-func MakeFuzz(prop func(*T)) func(*testing.T, []byte) {
-	return func(t *testing.T, input []byte) {
-		t.Helper()
-		engine.Fuzz(t, input, runner(t, prop))
-	}
+func Fuzz(f *testing.F, prop func(*T)) {
+	f.Helper()
+	engine.Fuzz(f, func(t *testing.T) engine.Run { return runner(t, prop) })
 }
 
 // runner returns prop as the engine runs it in the test tb: each run is one test case, with a T of its own.
@@ -288,7 +287,7 @@ func (t *T) settle(err *engine.TestError) *engine.TestError {
 // after the property function exits,
 // before Cleanup-registered functions are run.
 //
-// For [Check], [MakeFuzz], and similar functions,
+// For [Check], [Fuzz], and similar functions,
 // each call to the property function gets a unique context
 // that is canceled after that property function exits.
 //
@@ -332,7 +331,7 @@ func (t *T) Context() context.Context {
 // Cleanup registers a function to be called
 // when a property function finishes running.
 //
-// For [Check], [MakeFuzz], and similar functions,
+// For [Check], [Fuzz], and similar functions,
 // each call to the property function registers its cleanup functions,
 // which are called after the property function exits.
 //

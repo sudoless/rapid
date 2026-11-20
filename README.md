@@ -53,7 +53,7 @@ Rapid aims to bring to Go the power and convenience
 Compared to [testing.F.Fuzz](https://pkg.go.dev/testing#F.Fuzz), rapid shines
 in generating complex structured data, including state machine tests, but lacks
 coverage-guided feedback and mutations. Note that with
-[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
+[`Fuzz`](https://pkg.go.dev/go.sdls.io/rapid#Fuzz), any rapid test
 can be used as a fuzz target for the standard fuzzer.
 
 Compared to [gopter](https://pkg.go.dev/github.com/leanovate/gopter), rapid
@@ -169,7 +169,7 @@ generation that maximizes the coverage.
 Both approaches are useful. Property-based tests are used alongside regular
 example-based tests during development, and fuzzing is used to search for edge
 cases and security vulnerabilities. With
-[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
+[`Fuzz`](https://pkg.go.dev/go.sdls.io/rapid#Fuzz), any rapid test
 can be used as a fuzz target.
 
 ## Usage

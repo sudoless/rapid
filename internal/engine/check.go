@@ -98,11 +98,22 @@ func Check(tb TB, run Run) {
 	}
 }
 
-// Fuzz runs run on the test case input encodes, as a fuzz target: it skips tb when the test case is invalid,
-// and fails it when run fails.
-func Fuzz(tb TB, input []byte, run Run) {
+// Fuzz makes f fuzz the property newRun returns for the test of each input. A RAPID_* variable that does not
+// parse fails f before any input runs, so no input is saved as failing for it.
+func Fuzz(f *testing.F, newRun func(t *testing.T) Run) {
+	f.Helper()
+	failOnErrEnv(f)
+
+	f.Fuzz(func(t *testing.T, input []byte) {
+		t.Helper()
+		fuzzInput(t, input, newRun(t))
+	})
+}
+
+// fuzzInput runs run on the test case input encodes: it skips tb when the test case is invalid, and fails it
+// when run fails.
+func fuzzInput(tb TB, input []byte, run Run) {
 	tb.Helper()
-	failOnErrEnv(tb)
 	run = logRun(tb, run)
 
 	var buf []uint64

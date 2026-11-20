@@ -20,14 +20,14 @@ func FuzzContext(f *testing.F) {
 	type key struct{}
 
 	var ctx context.Context
-	f.Fuzz(MakeFuzz(func(t *T) {
+	Fuzz(f, func(t *T) {
 		// Assign to outer variable
 		// so we can check it after the fuzzing.
 		ctx = context.WithValue(t.Context(), key{}, "value")
 		if err := ctx.Err(); err != nil {
 			t.Fatalf("context must be valid: %v", err)
 		}
-	}))
+	})
 
 	// ctx is set only if the fuzzing function was called.
 	if ctx != nil {
@@ -46,13 +46,13 @@ func FuzzCleanup(f *testing.F) {
 	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 
 	var state []bool
-	f.Fuzz(MakeFuzz(func(t *T) {
+	Fuzz(f, func(t *T) {
 		idx := len(state)
 		state = append(state, false)
 		t.Cleanup(func() {
 			state[idx] = true
 		})
-	}))
+	})
 
 	for _, ok := range state {
 		if !ok {
