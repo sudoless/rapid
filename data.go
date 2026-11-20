@@ -7,7 +7,6 @@
 package rapid
 
 import (
-	"hash/maphash"
 	"math"
 	"math/bits"
 
@@ -18,14 +17,6 @@ type bitStream interface {
 	drawBits(n int) uint64
 	beginGroup(label string, standalone bool) int
 	endGroup(i int, discard bool)
-}
-
-func baseSeed() uint64 {
-	if flags.seed != 0 {
-		return flags.seed
-	}
-
-	return new(maphash.Hash).Sum64()
 }
 
 type randomBitStream struct {

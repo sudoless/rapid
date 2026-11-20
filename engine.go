@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"hash/maphash"
 	"io"
 	"log"
 	"os"
@@ -168,6 +169,15 @@ func assertValidRange(lo, hi int) {
 	if hi >= 0 && lo > hi {
 		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
 	}
+}
+
+// baseSeed returns -rapid.seed when set, and a random seed otherwise.
+func baseSeed() uint64 {
+	if flags.seed != 0 {
+		return flags.seed
+	}
+
+	return new(maphash.Hash).Sum64()
 }
 
 func checkDeadline(tb tb) time.Time {

@@ -275,3 +275,9 @@ func TestOutputRawLog(t *testing.T) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out)
 	}
 }
+
+func BenchmarkBaseSeed(b *testing.B) {
+	for range b.N {
+		baseSeed()
+	}
+}

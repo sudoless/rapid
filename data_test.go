@@ -80,12 +80,6 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 	}
 }
 
-func BenchmarkBaseSeed(b *testing.B) {
-	for range b.N {
-		baseSeed()
-	}
-}
-
 func BenchmarkRandomBitStream_DrawBits1(b *testing.B) {
 	s := newRandomBitStream(baseSeed(), false)
 	b.ResetTimer()
