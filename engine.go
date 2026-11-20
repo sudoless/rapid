@@ -279,54 +279,66 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	start := time.Now()
 	res := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
 	dt := time.Since(start)
-	valid, seed, failfile, buf, err1, err2 := res.valid, res.seed, res.failfile, res.buf, res.err1, res.err2
 
-	if err1 == nil && err2 == nil {
-		if valid == checks || (res.earlyExit && valid > 0) {
-			tb.Logf("[rapid] OK, passed %v tests (%v)", valid, dt)
-		} else {
-			tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", valid, valid+res.invalid, dt)
-		}
-	} else {
-		if failfile == "" && !flags.nofailfile {
-			failfile = failFileName(tb.Name())
-			out := captureTestOutput(tb, prop, buf)
-			err := saveFailFile(failfile, rapidVersion, out, seed, buf)
-			if err != nil {
-				tb.Logf("[rapid] %v", err)
-				failfile = ""
-			}
-		}
-
-		var repr string
-		switch {
-		case failfile != "" && seed != 0:
-			repr = fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failfile, seed)
-		case failfile != "":
-			repr = fmt.Sprintf("-rapid.failfile=%q", failfile)
-		case seed != 0:
-			repr = fmt.Sprintf("-rapid.seed=%d", seed)
-		}
-
-		name := regexp.QuoteMeta(tb.Name())
-		if traceback(err1) == traceback(err2) {
-			if err2.isStopTest() {
-				tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", valid, err2, name, repr)
-			} else {
-				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
-					valid, err2, name, repr, traceback(err2))
-			}
-		} else {
-			tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
-				"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
-				name, repr, err2, traceback(err2), err1, traceback(err1))
-		}
-
-		_ = checkOnce(newT(tb, newBufBitStream(buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
+	switch {
+	case res.err1 != nil || res.err2 != nil:
+		reportFailure(tb, prop, &res)
+	case res.valid == checks || (res.earlyExit && res.valid > 0):
+		tb.Logf("[rapid] OK, passed %v tests (%v)", res.valid, dt)
+	default:
+		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.valid, res.valid+res.invalid, dt)
 	}
 
 	if tb.Failed() {
 		tb.FailNow() // do not try to run any checks after the first failed one
+	}
+}
+
+// reportFailure saves a fail file for res when there is none, reports the failure with how to reproduce it,
+// and replays the failing test case so its output appears in the test log.
+func reportFailure(tb tb, prop func(*T), res *checkResult) {
+	tb.Helper()
+
+	failfile := res.failfile
+	if failfile == "" && !flags.nofailfile {
+		failfile = failFileName(tb.Name())
+		out := captureTestOutput(tb, prop, res.buf)
+		err := saveFailFile(failfile, rapidVersion, out, res.seed, res.buf)
+		if err != nil {
+			tb.Logf("[rapid] %v", err)
+			failfile = ""
+		}
+	}
+
+	repr := reproFlags(failfile, res.seed)
+	name := regexp.QuoteMeta(tb.Name())
+	err1, err2 := res.err1, res.err2
+	switch {
+	case traceback(err1) != traceback(err2):
+		tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
+			"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
+			name, repr, err2, traceback(err2), err1, traceback(err1))
+	case err2.isStopTest():
+		tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", res.valid, err2, name, repr)
+	default:
+		tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
+			res.valid, err2, name, repr, traceback(err2))
+	}
+
+	_ = checkOnce(newT(tb, newBufBitStream(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
+}
+
+// reproFlags returns the flags that replay a failure from failfile or seed; either may be unset.
+func reproFlags(failfile string, seed uint64) string {
+	switch {
+	case failfile != "" && seed != 0:
+		return fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failfile, seed)
+	case failfile != "":
+		return fmt.Sprintf("-rapid.failfile=%q", failfile)
+	case seed != 0:
+		return fmt.Sprintf("-rapid.seed=%d", seed)
+	default:
+		return ""
 	}
 }
 
