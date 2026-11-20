@@ -21,7 +21,7 @@ func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := defaultSettings()
+	want := Settings{Checks: 100, Steps: 30, ShrinkTime: 30 * time.Second}
 
 	if got != want {
 		t.Fatalf("defaults mismatch: got %+v, want %+v", got, want)
