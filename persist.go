@@ -49,11 +49,10 @@ func kindaSafeFilename(f string) string {
 	return name
 }
 
-func failFileName(testName string) (string, string) {
+func failFileName(testName string) string {
 	ts := time.Now().Format("20060102150405")
 	fileName := fmt.Sprintf("%s-%s-%d.fail", kindaSafeFilename(testName), ts, os.Getpid())
-	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
-	return dirName, filepath.Join(dirName, fileName)
+	return filepath.Join("testdata", "rapid", kindaSafeFilename(testName), fileName)
 }
 
 func failFilePattern(testName string) string {

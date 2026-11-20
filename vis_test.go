@@ -7,19 +7,14 @@
 package rapid
 
 import (
+	"bytes"
 	"math"
-	"os"
+	"strings"
 	"testing"
 )
 
 func TestDataVis(t *testing.T) {
 	t.Parallel()
-
-	f, err := os.Create("vis-test.html")
-	if err != nil {
-		t.Fatalf("failed to create vis html file: %v", err)
-	}
-	defer func() { _ = f.Close() }()
 
 	data := []uint64{
 		0,
@@ -66,8 +61,13 @@ func TestDataVis(t *testing.T) {
 		}
 	}
 
-	err = visWriteHTML(f, "test", rd)
-	if err != nil {
-		t.Errorf("visWriteHTML error: %v", err)
+	var html bytes.Buffer
+	if err := visWriteHTML(&html, "vis title", rd); err != nil {
+		t.Fatalf("visWriteHTML error: %v", err)
+	}
+	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers"} {
+		if !strings.Contains(html.String(), want) {
+			t.Errorf("rendered HTML does not contain %q", want)
+		}
 	}
 }

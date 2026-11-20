@@ -7,7 +7,6 @@
 package rapid
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -17,7 +16,7 @@ func TestFailFilePattern(t *testing.T) {
 
 	Check(t, func(t *T) {
 		testName := String().Draw(t, "testName")
-		_, fileName := failFileName(testName)
+		fileName := failFileName(testName)
 		pattern := failFilePattern(testName)
 		match, err := filepath.Match(pattern, fileName)
 		if !match || err != nil {
@@ -29,6 +28,8 @@ func TestFailFilePattern(t *testing.T) {
 func TestFailFileRoundtrip(t *testing.T) {
 	t.Parallel()
 
+	root := t.TempDir()
+
 	Check(t, func(t *T) {
 		var (
 			// OS X seems to have issues with Go 1.16 and String(), reporting "illegal byte sequence" when trying to rename the file
@@ -39,12 +40,12 @@ func TestFailFileRoundtrip(t *testing.T) {
 			buf      = SliceOf(Uint64()).Draw(t, "buf")
 		)
 
-		dirName, fileName := failFileName(testName)
+		fileName := failFileName(testName)
+		fileName = filepath.Join(root, fileName)
 		err := saveFailFile(fileName, version, output, seed, buf)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = os.RemoveAll(dirName) }()
 
 		version2, seed2, buf2, err := loadFailFile(fileName)
 		if err != nil {
