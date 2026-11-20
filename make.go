@@ -152,7 +152,7 @@ func (c *MakeConfig) genAnyPointer(typ reflect.Type) *Generator[any] {
 			val := elemGen.value(t)
 			ptr := reflect.New(elem)
 			ptr.Elem().Set(reflect.ValueOf(val))
-			return ptr.Interface()
+			return ptr.Convert(typ).Interface() // *elem is not typ when typ is a named pointer type
 		} else {
 			return reflect.Zero(typ).Interface()
 		}
