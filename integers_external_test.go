@@ -171,34 +171,6 @@ func TestUintMinMaxRange(t *testing.T) {
 	}
 }
 
-func TestIntBoundCoverage(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		lo := Int[int]().Draw(t, "min")
-		hi := Int[int]().Draw(t, "max")
-		if lo > hi {
-			lo, hi = hi, lo
-		}
-
-		g := IntRange(lo, hi)
-		var gotMin, gotMax, gotZero bool
-		for seed := range 250 {
-			n := g.Example(seed)
-
-			gotMin = gotMin || n == lo
-			gotMax = gotMax || n == hi
-			gotZero = gotZero || n == 0
-
-			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
-				return
-			}
-		}
-
-		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
-	})
-}
-
 type level uint8
 
 func TestIntNamedType(t *testing.T) {

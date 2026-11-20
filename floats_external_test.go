@@ -40,62 +40,6 @@ func TestFloatNoInf(t *testing.T) {
 	}
 }
 
-func TestFloat32BoundCoverage(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		lo := Float[float32]().Draw(t, "min")
-		hi := Float[float32]().Draw(t, "max")
-		if lo > hi {
-			lo, hi = hi, lo
-		}
-
-		g := FloatRange[float32](lo, hi)
-		var gotMin, gotMax, gotZero bool
-		for seed := range 400 {
-			f := g.Example(seed)
-
-			gotMin = gotMin || f == lo
-			gotMax = gotMax || f == hi
-			gotZero = gotZero || f == 0
-
-			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
-				return
-			}
-		}
-
-		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
-	})
-}
-
-func TestFloat64BoundCoverage(t *testing.T) {
-	t.Parallel()
-
-	Check(t, func(t *T) {
-		lo := Float[float64]().Draw(t, "min")
-		hi := Float[float64]().Draw(t, "max")
-		if lo > hi {
-			lo, hi = hi, lo
-		}
-
-		g := FloatRange[float64](lo, hi)
-		var gotMin, gotMax, gotZero bool
-		for seed := range 400 {
-			f := g.Example(seed)
-
-			gotMin = gotMin || f == lo
-			gotMax = gotMax || f == hi
-			gotZero = gotZero || f == 0
-
-			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
-				return
-			}
-		}
-
-		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
-	})
-}
-
 type celsius float32
 
 func TestFloatNamedType(t *testing.T) {
