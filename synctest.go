@@ -50,43 +50,14 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 		synctest.Test(parent, func(st *testing.T) {
 			st.Helper()
 
-			prevTB := t.tb
-			prevTBLog := t.tbLog // preserved so we keep the original logging behaviour
-			prevCtx := t.ctx
-			prevCancel := t.cancelCtx
-			prevCleanups := t.cleanups
-			prevCleaning := t.cleaning.Load()
-
-			t.tb = st
-			// Reset per-run state before the property runs in the bubble.
-			// No lock is needed because no other goroutine touches t before we hand control to prop.
-			t.ctx = nil
-			t.cancelCtx = nil
-			t.cleanups = nil
-			t.cleaning.Store(false)
-
-			var panicValue any
+			restore := t.enterBubble(st)
 			defer func() {
-				if r := recover(); r != nil {
+				panicValue := recover()
+				// Always run rapid cleanups, even if the property panicked.
+				if r := t.cleanupRecovered(); r != nil {
 					panicValue = r
 				}
-
-				func() {
-					// Always run rapid cleanups, even if the property panicked.
-					defer func() {
-						if r := recover(); r != nil {
-							panicValue = r
-						}
-					}()
-					t.cleanup()
-				}()
-
-				t.tb = prevTB
-				t.tbLog = prevTBLog
-				t.ctx = prevCtx
-				t.cancelCtx = prevCancel
-				t.cleanups = prevCleanups
-				t.cleaning.Store(prevCleaning)
+				restore()
 
 				if panicValue != nil {
 					captured = panicToError(panicValue)
@@ -103,6 +74,41 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 	if err := <-resultCh; err != nil {
 		panic(err)
 	}
+}
+
+// enterBubble points t at st, the *testing.T of a synctest bubble, with fresh per-run state,
+// and returns the function that restores the state it replaced.
+// No lock is needed because no other goroutine touches t before control passes to the property.
+func (t *T) enterBubble(st *testing.T) (restore func()) {
+	prevTB := t.tb
+	prevTBLog := t.tbLog // preserved so we keep the original logging behaviour
+	prevCtx := t.ctx
+	prevCancel := t.cancelCtx
+	prevCleanups := t.cleanups
+	prevCleaning := t.cleaning.Load()
+
+	t.tb = st
+	t.ctx = nil
+	t.cancelCtx = nil
+	t.cleanups = nil
+	t.cleaning.Store(false)
+
+	return func() {
+		t.tb = prevTB
+		t.tbLog = prevTBLog
+		t.ctx = prevCtx
+		t.cancelCtx = prevCancel
+		t.cleanups = prevCleanups
+		t.cleaning.Store(prevCleaning)
+	}
+}
+
+// cleanupRecovered runs t's cleanups and returns the value of a panic they raised, or nil.
+func (t *T) cleanupRecovered() (panicValue any) {
+	defer func() { panicValue = recover() }()
+	t.cleanup()
+
+	return nil
 }
 
 // underlyingTestingT returns the *testing.T associated with tb, if any.
