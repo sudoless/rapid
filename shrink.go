@@ -249,7 +249,7 @@ func (s *shrinker) removeGroupSpans(deadline time.Time) {
 	}
 }
 
-func (s *shrinker) accept(buf []uint64, label string, format string, args ...any) bool {
+func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool {
 	if compareData(buf, s.rec.data) >= 0 {
 		return false
 	}
@@ -390,7 +390,7 @@ func dataStr(data []uint64) string {
 	return b.String()
 }
 
-func compareData(a []uint64, b []uint64) int {
+func compareData(a, b []uint64) int {
 	if len(a) < len(b) {
 		return -1
 	}

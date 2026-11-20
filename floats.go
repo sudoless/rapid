@@ -40,7 +40,7 @@ func Float32Max(hi float32) *Generator[float32] {
 
 // Float32Range creates a generator of 32-bit floating-point numbers in range [lo, hi].
 // Both lo and hi can be infinite.
-func Float32Range(lo float32, hi float32) *Generator[float32] {
+func Float32Range(lo, hi float32) *Generator[float32] {
 	assertf(lo == lo, "lo should not be a NaN")
 	assertf(hi == hi, "hi should not be a NaN")
 	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
@@ -72,7 +72,7 @@ func Float64Max(hi float64) *Generator[float64] {
 
 // Float64Range creates a generator of 64-bit floating-point numbers in range [lo, hi].
 // Both lo and hi can be infinite.
-func Float64Range(lo float64, hi float64) *Generator[float64] {
+func Float64Range(lo, hi float64) *Generator[float64] {
 	assertf(lo == lo, "lo should not be a NaN")
 	assertf(hi == hi, "hi should not be a NaN")
 	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
@@ -156,21 +156,21 @@ func ufloat64Parts(f float64) (int32, uint64, uint64) {
 	return e, s >> n, s & bitmask64(n)
 }
 
-func ufloat32FromParts(e int32, si uint64, sf uint64) float32 {
+func ufloat32FromParts(e int32, si, sf uint64) float32 {
 	e_ := (uint32(e) + uint32(bitmask64(float32ExpBits-1))) << float32SignifBits
 	s_ := (uint32(si) << ufloatFracBits(e, float32SignifBits)) | uint32(sf)
 
 	return math.Float32frombits(e_ | s_)
 }
 
-func ufloat64FromParts(e int32, si uint64, sf uint64) float64 {
+func ufloat64FromParts(e int32, si, sf uint64) float64 {
 	e_ := (uint64(e) + bitmask64(float64ExpBits-1)) << float64SignifBits
 	s_ := (si << ufloatFracBits(e, float64SignifBits)) | sf
 
 	return math.Float64frombits(e_ | s_)
 }
 
-func float32FromParts(sign bool, e int32, si uint64, sf uint64) float32 {
+func float32FromParts(sign bool, e int32, si, sf uint64) float32 {
 	f := ufloat32FromParts(e, si, sf)
 	if sign {
 		return -f
@@ -179,7 +179,7 @@ func float32FromParts(sign bool, e int32, si uint64, sf uint64) float32 {
 	}
 }
 
-func float64FromParts(sign bool, e int32, si uint64, sf uint64) float64 {
+func float64FromParts(sign bool, e int32, si, sf uint64) float64 {
 	f := ufloat64FromParts(e, si, sf)
 	if sign {
 		return -f
@@ -188,7 +188,7 @@ func float64FromParts(sign bool, e int32, si uint64, sf uint64) float64 {
 	}
 }
 
-func genUfloatRange(s bitStream, lo float64, hi float64, signifBits uint) (int32, uint64, uint64) {
+func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64, uint64) {
 	assert(lo >= 0 && lo <= hi)
 
 	var (
@@ -257,7 +257,7 @@ func genUfloatRange(s bitStream, lo float64, hi float64, signifBits uint) (int32
 	return int32(e), si, sf
 }
 
-func genFloatRange(s bitStream, lo float64, hi float64, signifBits uint) (bool, int32, uint64, uint64) {
+func genFloatRange(s bitStream, lo, hi float64, signifBits uint) (bool, int32, uint64, uint64) {
 	var posMin, negMin, pNeg float64
 	if lo >= 0 {
 		posMin = lo

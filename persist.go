@@ -61,7 +61,7 @@ func failFilePattern(testName string) string {
 	return filepath.Join(dirName, fileName)
 }
 
-func saveFailFile(filename string, version string, output []byte, seed uint64, buf []uint64) error {
+func saveFailFile(filename, version string, output []byte, seed uint64, buf []uint64) error {
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {

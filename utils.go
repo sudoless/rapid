@@ -96,7 +96,7 @@ func genUintN(s bitStream, hi uint64, bias bool) (uint64, bool, bool) {
 	}
 }
 
-func genUintRange(s bitStream, lo uint64, hi uint64, bias bool) (uint64, bool, bool) {
+func genUintRange(s bitStream, lo, hi uint64, bias bool) (uint64, bool, bool) {
 	if lo > hi {
 		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
@@ -106,7 +106,7 @@ func genUintRange(s bitStream, lo uint64, hi uint64, bias bool) (uint64, bool, b
 	return lo + u, lOverflow, rOverflow
 }
 
-func genIntRange(s bitStream, lo int64, hi int64, bias bool) (int64, bool, bool) {
+func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
 	if lo > hi {
 		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
@@ -210,7 +210,7 @@ type repeat struct {
 	label      string
 }
 
-func newRepeat(minCount int, maxCount int, avgCount float64, label string) *repeat {
+func newRepeat(minCount, maxCount int, avgCount float64, label string) *repeat {
 	if minCount < 0 {
 		minCount = 0
 	}

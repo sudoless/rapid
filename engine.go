@@ -100,7 +100,7 @@ func loadCmdlineDefaults(lookup func(string) (string, bool)) cmdline {
 	return defaults
 }
 
-func envString(lookup func(string) (string, bool), key string, defaultValue string) string {
+func envString(lookup func(string) (string, bool), key, defaultValue string) string {
 	if v, ok := lookup(key); ok {
 		return v
 	}
@@ -171,7 +171,7 @@ func assertf(ok bool, format string, args ...any) {
 	}
 }
 
-func assertValidRange(lo int, hi int) {
+func assertValidRange(lo, hi int) {
 	if hi >= 0 && lo > hi {
 		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
 	}
@@ -533,7 +533,7 @@ func (err *testError) isStopTest() bool {
 	return ok
 }
 
-func sameError(err1 *testError, err2 *testError) bool {
+func sameError(err1, err2 *testError) bool {
 	return errorString(err1) == errorString(err2) && traceback(err1) == traceback(err2)
 }
 
