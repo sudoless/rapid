@@ -46,9 +46,9 @@ func TestSearchTimeStopsSearch(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		lim := Limits{Checks: 1_000_000, Deadline: time.Now().Add(time.Hour), SearchTime: 50 * time.Millisecond, ShrinkTime: time.Second}
-		res := Search(t, lim, 1, "", false, func(bitstream.Stream, bool, *log.Logger) *TestError {
+		res := Search(t, lim, 1, "", false, func(bitstream.Stream, bool, *log.Logger) (*TestError, []string) {
 			time.Sleep(time.Millisecond)
-			return nil
+			return nil, nil
 		})
 
 		if !res.EarlyExit || res.Valid < 1 || res.Valid >= lim.Checks {
@@ -62,11 +62,11 @@ func TestSearchAndShrinkTime(t *testing.T) {
 	t.Parallel()
 
 	failure := &TestError{Data: "at least 1000", Trace: "trace"}
-	run := func(s bitstream.Stream, _ bool, _ *log.Logger) *TestError {
+	var run Run = func(s bitstream.Stream, _ bool, _ *log.Logger) (*TestError, []string) {
 		if s.DrawBits(16) >= 1000 {
-			return failure
+			return failure, nil
 		}
-		return nil
+		return nil, nil
 	}
 	tests := []struct {
 		name       string

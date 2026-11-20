@@ -167,11 +167,13 @@ func (g *stringGen) value(t *T) string {
 	}
 
 	for repeat.More(t.s) {
+		mark := t.tc.eventMark()
 		r := g.elem.value(t)
 		n := utf8.RuneLen(r)
 
 		if n < 0 || b.Len()+n > maxLen {
 			repeat.Reject()
+			t.tc.unmarkSince(mark)
 		} else {
 			b.WriteRune(r)
 		}

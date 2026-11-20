@@ -83,11 +83,13 @@ func Fuzz(f *testing.F, prop func(*T)) {
 
 // runner returns prop as the engine runs it in the test tb: each run is one test case, with a T of its own.
 func runner(tb tb, prop func(*T)) engine.Run {
-	return func(s bitstream.Stream, tbLog bool, out *log.Logger) *engine.TestError {
+	return func(s bitstream.Stream, tbLog bool, out *log.Logger) (*engine.TestError, []string) {
 		if tbLog {
 			tb.Helper()
 		}
-		return checkOnce(newT(tb, s, tbLog, out), prop)
+		t := newT(tb, s, tbLog, out)
+		err := checkOnce(t, prop)
+		return err, t.tc.marked()
 	}
 }
 
@@ -204,7 +206,7 @@ func (nilTB) Output() io.Writer        { return io.Discard }
 // As with testing.T, a test case ends when the property returns or calls FailNow, Fatal, Fatalf,
 // SkipNow, Skip or Skipf, and those methods must be called only from the goroutine running the property
 // (or the Custom function or SyncTest bubble the T was given to). The other methods, such as the
-// variations of Log and Error, may be called from several goroutines at once.
+// variations of Log and Error, and Event, may be called from several goroutines at once.
 // *Generator.Draw from a given T may not.
 type T struct {
 	helperTB // embedded so t.Helper marks its caller; a method that called tb.Helper would mark itself
@@ -236,8 +238,10 @@ type helperTB interface {
 
 // testCase is the outcome of one test case, shared by the Ts its property and generators receive.
 type testCase struct {
-	mu     sync.Mutex
-	failed *engine.TestError // the last failure recorded with Error, Errorf, Fail, Fatal, Fatalf or FailNow
+	mu      sync.Mutex
+	failed  *engine.TestError // the last failure recorded with Error, Errorf, Fail, Fatal, Fatalf or FailNow
+	events  []string          // the events marked with Event, each once
+	nEvents atomic.Int64      // len(events), read without mu
 }
 
 func (tc *testCase) record(err *engine.TestError) {

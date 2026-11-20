@@ -163,16 +163,17 @@ func (sm *stateMachine) executeAction(t *T) bool {
 }
 
 func runAction(t *T, action func(*T)) (invalid, skipped bool) {
-	defer func(draws int) {
+	defer func(draws, mark int) {
 		if r := recover(); r != nil {
 			if _, ok := r.(bitstream.InvalidData); ok {
 				invalid = true
 				skipped = t.draws == draws
+				t.tc.unmarkSince(mark)
 			} else {
 				panic(r)
 			}
 		}
-	}(t.draws)
+	}(t.draws, t.tc.eventMark())
 
 	action(t)
 	t.failOnError()

@@ -85,10 +85,10 @@ func Check(tb TB, lim Limits, run Run) {
 	switch {
 	case res.Err1 != nil || res.Err2 != nil:
 		report(tb, logRun(tb, run), &res)
-	case res.Valid == lim.Checks || (res.EarlyExit && res.Valid > 0):
-		tb.Logf("[rapid] OK, passed %v tests (%v)", res.Valid, dt)
-	default:
+	case res.Valid < lim.Checks && (!res.EarlyExit || res.Valid == 0):
 		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.Valid, res.Valid+res.Invalid, dt)
+	default:
+		tb.Logf("[rapid] OK, passed %v tests (%v)%v", res.Valid, dt, res.Events.table(res.Valid))
 	}
 
 	if tb.Failed() {
@@ -122,7 +122,7 @@ func fuzzInput(tb TB, input []byte, run Run) {
 		input = input[n:]
 	}
 
-	err := run(bitstream.NewBuffer(buf, false), true, nil)
+	err, _ := run(bitstream.NewBuffer(buf, false), true, nil)
 
 	switch {
 	case err == nil:
@@ -153,7 +153,7 @@ func logRun(tb TB, run Run) Run {
 	}
 
 	out := newLog(os.Stdout, tb.Name())
-	return func(s bitstream.Stream, tbLog bool, runOut *log.Logger) *TestError {
+	return func(s bitstream.Stream, tbLog bool, runOut *log.Logger) (*TestError, []string) {
 		if runOut == nil {
 			runOut = out
 		}
@@ -170,7 +170,7 @@ func report(tb TB, run Run, res *Result) {
 	if failPath == "" && !Flags.NoFailFile {
 		failPath = FailFileName(tb.Name())
 		var out bytes.Buffer
-		_ = run(bitstream.NewBuffer(res.Buf, false), false, newLog(&out, tb.Name()))
+		_, _ = run(bitstream.NewBuffer(res.Buf, false), false, newLog(&out, tb.Name()))
 		err := SaveFailFile(failPath, version, out.Bytes(), res.Seed, res.Buf)
 		if err != nil {
 			tb.Logf("[rapid] %v", err)
@@ -193,7 +193,7 @@ func report(tb TB, run Run, res *Result) {
 			res.Valid, err2, name, repr, Traceback(err2))
 	}
 
-	_ = run(bitstream.NewBuffer(res.Buf, false), true, nil) // through (*testing.T).Log for its line numbers, or -rapid.log
+	_, _ = run(bitstream.NewBuffer(res.Buf, false), true, nil) // through (*testing.T).Log for its line numbers, or -rapid.log
 }
 
 // reproFlags returns the flags that replay a failure from failPath or seed; either may be unset.
@@ -214,7 +214,8 @@ func reproFlags(failPath string, seed uint64) string {
 type Result struct {
 	Valid     int
 	Invalid   int
-	EarlyExit bool     // a deadline stopped the search before Checks valid test cases ran
+	Events    Events   // the events the valid test cases marked
+	EarlyExit bool     // a deadline stopped the search before it was done
 	Seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
 	FailFile  string   // the fail file the failure was replayed from
 	Buf       []uint64 // the failing test case, shrunk when the failure reproduced
@@ -249,22 +250,24 @@ func Search(tb TB, lim Limits, seed uint64, failPath string, globFailFiles bool,
 		}
 	}
 
-	valid, invalid, earlyExit, seed, err1 := findBug(tb, v, lim.searchDeadline(time.Now()), lim.Checks, seed, run)
-	if err1 == nil {
-		return Result{Valid: valid, Invalid: invalid, EarlyExit: earlyExit}
+	res := findBug(tb, v, &lim, lim.searchDeadline(time.Now()), seed, run)
+	if res.Err1 == nil {
+		return res
 	}
 
-	s := bitstream.NewRandom(seed, true)
+	s := bitstream.NewRandom(res.Seed, true)
 	v.logf("[rapid] trying to reproduce the failure")
-	err2 := run(s, Flags.Verbose, nil)
-	if !SameError(err1, err2) {
-		return Result{Valid: valid, Invalid: invalid, Seed: seed, Buf: s.Data, Err1: err1, Err2: err2}
+	res.Err2, _ = run(s, Flags.Verbose, nil)
+	if !SameError(res.Err1, res.Err2) {
+		res.Buf = s.Data
+		return res
 	}
 
 	v.logf("[rapid] trying to minimize the failing test case")
-	buf, err3 := shrinkTestCase(tb, lim.shrinkDeadline(), s.Recorded, err2, run)
+	res.Err1 = res.Err2
+	res.Buf, res.Err2 = shrinkTestCase(tb, lim.shrinkDeadline(), s.Recorded, res.Err1, run)
 
-	return Result{Valid: valid, Invalid: invalid, Seed: seed, Buf: buf, Err1: err2, Err2: err3}
+	return res
 }
 
 func checkFailFile(tb TB, v verbose, failPath string, run Run) ([]uint64, *TestError, *TestError) {
@@ -280,7 +283,7 @@ func checkFailFile(tb TB, v verbose, failPath string, run Run) ([]uint64, *TestE
 		return nil, nil, nil
 	}
 
-	err1 := run(bitstream.NewBuffer(buf, false), Flags.Verbose, nil)
+	err1, _ := run(bitstream.NewBuffer(buf, false), Flags.Verbose, nil)
 	if err1 == nil {
 		return nil, nil, nil
 	}
@@ -290,50 +293,54 @@ func checkFailFile(tb TB, v verbose, failPath string, run Run) ([]uint64, *TestE
 	}
 
 	v.logf("[rapid] trying to reproduce the failure")
-	err2 := run(bitstream.NewBuffer(buf, false), Flags.Verbose, nil)
+	err2, _ := run(bitstream.NewBuffer(buf, false), Flags.Verbose, nil)
 
 	return buf, err1, err2
 }
 
-func findBug(tb TB, v verbose, deadline time.Time, checks int, seed uint64, run Run) (int, int, bool, uint64, *TestError) {
+// findBug runs test cases generated from seed until one fails, or lim.Checks valid ones ran, or too many were
+// invalid, or deadline is near. The result's Seed is the failing test case's, its Events those of the valid
+// test cases.
+func findBug(tb TB, v verbose, lim *Limits, deadline time.Time, seed uint64, run Run) Result {
 	tb.Helper()
 
 	var (
-		r       = bitstream.NewRandom(0, false)
-		valid   = 0
-		invalid = 0
+		r     = bitstream.NewRandom(0, false)
+		res   Result
+		total time.Duration
 	)
-
-	var total time.Duration
-	for valid < checks && invalid < checks*invalidChecksMult {
-		iter := valid + invalid
+	for res.Valid < lim.Checks && res.Invalid < lim.Checks*invalidChecksMult {
+		iter := res.Valid + res.Invalid
 		if iter > 0 && time.Until(deadline) < total/time.Duration(iter)*5 {
 			if v.logs() {
 				v.logf("[rapid] early exit after test #%v (%v)", iter, total)
 			}
-			return valid, invalid, true, 0, nil
+			res.EarlyExit = true
+			return res
 		}
 
 		seed += uint64(iter)
 		r.Init(seed)
-		dt, err := runLogged(v, run, r, iter+1, seed)
+		dt, err, events := runLogged(v, run, r, iter+1, seed)
 		total += dt
 		switch {
 		case err == nil:
-			valid++
+			res.Valid++
+			res.Events.add(events)
 		case err.IsInvalidData():
-			invalid++
+			res.Invalid++
 		default:
-			return valid, invalid, false, seed, err
+			res.Seed, res.Err1 = seed, err
+			return res
 		}
 	}
 
-	return valid, invalid, false, 0, nil
+	return res
 }
 
 // runLogged runs test case number num, generated from seed, and logs its outcome when v logs.
 // The logging is guarded so a quiet run does not build the log arguments.
-func runLogged(v verbose, run Run, s bitstream.Stream, num int, seed uint64) (time.Duration, *TestError) {
+func runLogged(v verbose, run Run, s bitstream.Stream, num int, seed uint64) (time.Duration, *TestError, []string) {
 	if v.tbLog {
 		v.tb.Helper()
 	}
@@ -343,10 +350,10 @@ func runLogged(v verbose, run Run, s bitstream.Stream, num int, seed uint64) (ti
 		v.logf("[rapid] test #%v start (seed %v)", num, seed)
 	}
 
-	err := run(s, v.tbLog, nil)
+	err, events := run(s, v.tbLog, nil)
 	dt := time.Since(start)
 	if !logs {
-		return dt, err
+		return dt, err, events
 	}
 
 	switch {
@@ -358,7 +365,7 @@ func runLogged(v verbose, run Run, s bitstream.Stream, num int, seed uint64) (ti
 		v.logf("[rapid] test #%v failed: %v", num, err)
 	}
 
-	return dt, err
+	return dt, err, events
 }
 
 // verbose is where Search reports its progress, as a property's own output goes:

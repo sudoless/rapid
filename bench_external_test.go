@@ -254,17 +254,18 @@ func fixFlags(b *testing.B) {
 	}
 }
 
-// quietTB is a rapid.TB that records a failure instead of failing the benchmark.
+// quietTB is a rapid.TB that records a failure instead of failing the test, and its log.
 type quietTB struct {
 	name   string
 	failed bool
 	msg    string
+	log    strings.Builder
 }
 
 func (tb *quietTB) Helper()                           {}
 func (tb *quietTB) Name() string                      { return tb.name }
-func (tb *quietTB) Logf(string, ...any)               {}
-func (tb *quietTB) Log(...any)                        {}
+func (tb *quietTB) Logf(format string, args ...any)   { fmt.Fprintf(&tb.log, format+"\n", args...) }
+func (tb *quietTB) Log(args ...any)                   { fmt.Fprintln(&tb.log, args...) }
 func (tb *quietTB) Skipf(string, ...any)              {}
 func (tb *quietTB) Skip(...any)                       {}
 func (tb *quietTB) SkipNow()                          {}

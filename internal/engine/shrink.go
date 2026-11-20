@@ -46,9 +46,10 @@ type Logger interface {
 	Name() string
 }
 
-// Run runs the property on the test case s draws and returns how it failed, or nil when it passed.
-// The property's own output goes to out when it is set, else to the test log when log is set.
-type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
+// Run runs the property on the test case s draws and returns how it failed, or nil when it passed, and the
+// events the test case marked. The property's own output goes to out when it is set, else to the test log
+// when log is set.
+type Run func(s bitstream.Stream, log bool, out *log.Logger) (*TestError, []string)
 
 // shrinkTestCase minimises rec, a test case that failed with err, until deadline: it keeps every smaller
 // test case that run fails on in the same way. It returns the smallest such test case and its failure,
@@ -312,7 +313,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
-	err1 := s.run(s1, Flags.Debug && Flags.Verbose, nil)
+	err1, _ := s.run(s1, Flags.Debug && Flags.Verbose, nil)
 	if Traceback(err1) != Traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
@@ -322,7 +323,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
-	err2 := s.run(s2, Flags.Debug && Flags.Verbose, nil)
+	err2, _ := s.run(s2, Flags.Debug && Flags.Verbose, nil)
 	s.best = buf // a pruned recording can leave out what made buf fail, so only buf is known to fail
 	s.rec = s2.Recorded
 	s.rec.Prune()

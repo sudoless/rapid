@@ -128,7 +128,7 @@ func TestOutputRawLog(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	_ = run(bitstream.NewBuffer(nil, false), false, log.New(&out, "", 0))
+	_, _ = run(bitstream.NewBuffer(nil, false), false, log.New(&out, "", 0))
 
 	if !bytes.Contains(out.Bytes(), msg) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out.Bytes())

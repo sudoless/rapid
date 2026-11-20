@@ -136,11 +136,13 @@ func (g *filteredGen[V]) maybeValue(t *T) (V, bool) {
 func find[V any](gen func(*T) (V, bool), t *T, tries int) V {
 	for range tries {
 		i := t.s.BeginGroup(tryLabel, false)
+		mark := t.tc.eventMark()
 		v, ok := gen(t)
 		t.s.EndGroup(i, !ok)
 		if ok {
 			return v
 		}
+		t.tc.unmarkSince(mark)
 	}
 
 	panic(bitstream.InvalidData(fmt.Sprintf("no suitable value in %d tries", tries)))

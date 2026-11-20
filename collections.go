@@ -110,6 +110,7 @@ func (g *sliceGen[E, K]) value(t *T) []E {
 
 	sl := make([]E, 0, repeat.Avg())
 	for repeat.More(t.s) {
+		mark := t.tc.eventMark()
 		e := g.elem.value(t)
 		if g.keyFn == nil {
 			sl = append(sl, e)
@@ -120,6 +121,7 @@ func (g *sliceGen[E, K]) value(t *T) []E {
 			}
 			if _, ok := seen[k]; ok {
 				repeat.Reject()
+				t.tc.unmarkSince(mark)
 			} else {
 				seen[k] = struct{}{}
 				sl = append(sl, e)
@@ -201,6 +203,7 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 
 	m := make(map[K]V, repeat.Avg())
 	for repeat.More(t.s) {
+		mark := t.tc.eventMark()
 		var k K
 		var v V
 		if g.key != nil {
@@ -216,6 +219,7 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 		}
 		if _, ok := m[k]; ok {
 			repeat.Reject()
+			t.tc.unmarkSince(mark)
 		} else {
 			m[k] = v
 		}
