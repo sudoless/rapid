@@ -52,8 +52,8 @@ type visTmplImage struct {
 func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
-		VisCSS:    template.CSS(visCSS),
-		RebootCSS: template.CSS(visRebootCSS),
+		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet
+		RebootCSS: template.CSS(visRebootCSS), //nolint:gosec // G203: constant stylesheet
 	}
 
 	labelClasses := map[string]string{}

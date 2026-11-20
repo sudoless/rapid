@@ -51,7 +51,7 @@ func shrink(tb tb, deadline time.Time, rec recordedBits, err *testError, prop fu
 
 	if flags.debugvis {
 		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
-		f, err := os.Create(name)
+		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
 		if err != nil {
 			tb.Logf("failed to create debugvis file %v: %v", name, err)
 		} else {

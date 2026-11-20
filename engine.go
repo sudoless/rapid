@@ -604,7 +604,7 @@ func (nilTB) Failed() bool          { panic("call to TB.Failed() outside a test"
 type T struct {
 	tb // unnamed to force re-export of (*T).Helper()
 
-	ctx       context.Context
+	ctx       context.Context //nolint:containedctx // backs T.Context, like testing.T
 	cancelCtx context.CancelFunc
 	cleanups  []func()
 	cleaning  atomic.Bool

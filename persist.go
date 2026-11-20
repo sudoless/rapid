@@ -102,7 +102,7 @@ func saveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 }
 
 func loadFailFile(filename string) (string, uint64, []uint64, error) {
-	f, err := os.Open(filename)
+	f, err := os.Open(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
 	}
