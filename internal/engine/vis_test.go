@@ -62,8 +62,8 @@ func TestWriteVisHTML(t *testing.T) {
 	}
 
 	var html bytes.Buffer
-	if err := WriteVisHTML(&html, "vis title", rd); err != nil {
-		t.Fatalf("WriteVisHTML error: %v", err)
+	if err := writeVisHTML(&html, "vis title", rd); err != nil {
+		t.Fatalf("writeVisHTML error: %v", err)
 	}
 	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", "discard", "endless", "elems@repeat"} {
 		if !strings.Contains(html.String(), want) {

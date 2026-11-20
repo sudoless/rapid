@@ -51,9 +51,9 @@ type visTmplImage struct {
 	GroupEnds   []visGroupInfo
 }
 
-// WriteVisHTML writes the -rapid.debugvis page: each recording's words as bit images,
+// writeVisHTML writes the -rapid.debugvis page: each recording's words as bit images,
 // marked where its groups begin and end.
-func WriteVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
+func writeVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
 		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet

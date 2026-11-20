@@ -41,8 +41,8 @@ type TB interface {
 	SkipNow()
 }
 
-// NewLog returns a logger that writes to w the way -rapid.log does, prefixed with the test's name.
-func NewLog(w io.Writer, testName string) *log.Logger {
+// newLog returns a logger that writes to w the way -rapid.log does, prefixed with the test's name.
+func newLog(w io.Writer, testName string) *log.Logger {
 	return log.New(w, fmt.Sprintf("[%v] ", testName), log.Lmsgprefix|log.Ldate|log.Ltime|log.Lmicroseconds)
 }
 
@@ -132,7 +132,7 @@ func logRun(tb TB, run Run) Run {
 		return run
 	}
 
-	out := NewLog(os.Stdout, tb.Name())
+	out := newLog(os.Stdout, tb.Name())
 	return func(s bitstream.Stream, tbLog bool, runOut *log.Logger) *TestError {
 		if runOut == nil {
 			runOut = out
@@ -150,7 +150,7 @@ func report(tb TB, run Run, res *Result) {
 	if failPath == "" && !Flags.NoFailFile {
 		failPath = FailFileName(tb.Name())
 		var out bytes.Buffer
-		_ = run(bitstream.NewBuffer(res.Buf, false), false, NewLog(&out, tb.Name()))
+		_ = run(bitstream.NewBuffer(res.Buf, false), false, newLog(&out, tb.Name()))
 		err := SaveFailFile(failPath, version, out.Bytes(), res.Seed, res.Buf)
 		if err != nil {
 			tb.Logf("[rapid] %v", err)
@@ -241,7 +241,7 @@ func Search(tb TB, deadline time.Time, checks int, seed uint64, failPath string,
 	}
 
 	v.logf("[rapid] trying to minimize the failing test case")
-	buf, err3 := Shrink(tb, shrinkDeadline(deadline), s.Recorded, err2, run)
+	buf, err3 := shrinkTestCase(tb, shrinkDeadline(deadline), s.Recorded, err2, run)
 
 	return Result{Valid: valid, Invalid: invalid, Seed: seed, Buf: buf, Err1: err2, Err2: err3}
 }
@@ -351,7 +351,7 @@ type verbose struct {
 func newVerbose(tb TB) verbose {
 	v := verbose{tb: tb, tbLog: Flags.Verbose}
 	if Flags.Log {
-		v.out = NewLog(os.Stdout, tb.Name())
+		v.out = newLog(os.Stdout, tb.Name())
 	}
 	return v
 }

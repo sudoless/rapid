@@ -40,7 +40,7 @@ const (
 	labelSortGroups          = "sort_groups"
 )
 
-// Logger is where Shrink reports its progress: the test running the property.
+// Logger is where shrinkTestCase reports its progress: the test running the property.
 type Logger interface {
 	Helper()
 	Logf(format string, args ...any)
@@ -51,11 +51,11 @@ type Logger interface {
 // The property's own output goes to out when it is set, else to the test log when log is set.
 type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
 
-// Shrink minimises rec, a test case that failed with err, until deadline: it keeps every smaller
+// shrinkTestCase minimises rec, a test case that failed with err, until deadline: it keeps every smaller
 // test case that run fails on in the same way. It returns the smallest such test case and its failure,
 // or the test case and failure of a replay that failed differently.
 // Under -rapid.debugvis it also writes every step to vis-<test name>.html.
-func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
+func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
 	rec.Prune()
 
 	s := &shrinker{
@@ -79,7 +79,7 @@ func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestErro
 		} else {
 			defer func() { _ = f.Close() }()
 
-			if err = WriteVisHTML(f, tb.Name(), s.visBits); err != nil {
+			if err = writeVisHTML(f, tb.Name(), s.visBits); err != nil {
 				tb.Logf("failed to write debugvis file %v: %v", name, err)
 			}
 		}
