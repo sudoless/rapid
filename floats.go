@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const (
@@ -41,9 +43,9 @@ func Float32Max(hi float32) *Generator[float32] {
 // Float32Range creates a generator of 32-bit floating-point numbers in range [lo, hi].
 // Both lo and hi can be infinite.
 func Float32Range(lo, hi float32) *Generator[float32] {
-	assertf(lo == lo, "lo should not be a NaN")
-	assertf(hi == hi, "hi should not be a NaN")
-	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
+	assert.Truef(lo == lo, "lo should not be a NaN")
+	assert.Truef(hi == hi, "hi should not be a NaN")
+	assert.Truef(lo <= hi, "invalid range [%v, %v]", lo, hi)
 
 	return newGenerator[float32](&float32Gen{
 		floatGen{
@@ -73,9 +75,9 @@ func Float64Max(hi float64) *Generator[float64] {
 // Float64Range creates a generator of 64-bit floating-point numbers in range [lo, hi].
 // Both lo and hi can be infinite.
 func Float64Range(lo, hi float64) *Generator[float64] {
-	assertf(lo == lo, "lo should not be a NaN")
-	assertf(hi == hi, "hi should not be a NaN")
-	assertf(lo <= hi, "invalid range [%v, %v]", lo, hi)
+	assert.Truef(lo == lo, "lo should not be a NaN")
+	assert.Truef(hi == hi, "hi should not be a NaN")
+	assert.Truef(lo <= hi, "invalid range [%v, %v]", lo, hi)
 
 	return newGenerator[float64](&float64Gen{
 		floatGen{
@@ -191,7 +193,7 @@ func float64FromParts(sign bool, e int32, si, sf uint64) float64 {
 }
 
 func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64, uint64) {
-	assert(lo >= 0 && lo <= hi)
+	assert.True(lo >= 0 && lo <= hi)
 
 	var (
 		minExp, maxExp                                 int32

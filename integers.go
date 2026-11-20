@@ -9,6 +9,8 @@ package rapid
 import (
 	"fmt"
 	"math"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const (
@@ -169,7 +171,7 @@ func newIntegerGen[I integer](kind string) *Generator[I] {
 }
 
 func newIntRangeGen[I integer](kind string, lo, hi int64) *Generator[I] {
-	assertf(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
+	assert.Truef(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
 
 	g := &integerGen[I]{
 		integerKindInfo: integerKindToInfo[kind],
@@ -206,7 +208,7 @@ func newIntMaxGen[I integer](kind string, hi int64) *Generator[I] {
 }
 
 func newUintRangeGen[I integer](kind string, lo, hi uint64) *Generator[I] {
-	assertf(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
+	assert.Truef(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
 
 	g := &integerGen[I]{
 		integerKindInfo: integerKindToInfo[kind],

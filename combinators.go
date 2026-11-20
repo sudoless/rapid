@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const tryLabel = "try"
@@ -149,7 +151,7 @@ func Just[V any](val V) *Generator[V] {
 // SampledFrom creates a generator which produces values from the given slice.
 // SampledFrom panics if slice is empty.
 func SampledFrom[S ~[]E, E any](slice S) *Generator[E] {
-	assertf(len(slice) > 0, "slice should not be empty")
+	assert.Truef(len(slice) > 0, "slice should not be empty")
 
 	return newGenerator[E](&sampledGen[E]{
 		slice: slice,
@@ -208,7 +210,7 @@ func (g *permGen[S, E]) value(t *T) S {
 // OneOf creates a generator which produces each value by selecting one of gens and producing a value from it.
 // OneOf panics if gens is empty.
 func OneOf[V any](gens ...*Generator[V]) *Generator[V] {
-	assertf(len(gens) > 0, "at least one generator should be specified")
+	assert.Truef(len(gens) > 0, "at least one generator should be specified")
 
 	return newGenerator[V](&oneOfGen[V]{
 		gens: gens,

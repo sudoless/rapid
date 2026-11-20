@@ -16,6 +16,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const (
@@ -288,7 +290,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	err2 := checkOnce(newT(s.tb, s2, flags.debug && flags.verbose, nil), s.prop)
 	s.rec = s2.recordedBits
 	s.rec.prune()
-	assert(compareData(s.rec.data, buf) <= 0)
+	assert.True(compareData(s.rec.data, buf) <= 0)
 	if flags.debugvis {
 		s.visBits = append(s.visBits, s.rec)
 	}
@@ -400,7 +402,7 @@ func without(data []uint64, groups ...groupInfo) []uint64 {
 func dataStr(data []uint64) string {
 	b := &strings.Builder{}
 	err := binary.Write(b, binary.LittleEndian, data)
-	assert(err == nil)
+	assert.True(err == nil)
 	return b.String()
 }
 

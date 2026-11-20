@@ -10,6 +10,8 @@ import (
 	"hash/maphash"
 	"math"
 	"math/bits"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 type bitStream interface {
@@ -43,7 +45,7 @@ func (s *randomBitStream) init(seed uint64) {
 }
 
 func (s *randomBitStream) drawBits(n int) uint64 {
-	assert(n >= 0)
+	assert.True(n >= 0)
 
 	var u uint64
 	if n <= 64 {
@@ -70,7 +72,7 @@ func newBufBitStream(buf []uint64, persist bool) *bufBitStream {
 }
 
 func (s *bufBitStream) drawBits(n int) uint64 {
-	assert(n >= 0)
+	assert.True(n >= 0)
 
 	if len(s.buf) == 0 {
 		panic(invalidData("overrun"))
@@ -122,7 +124,7 @@ func (rec *recordedBits) beginGroup(label string, standalone bool) int {
 }
 
 func (rec *recordedBits) endGroup(i int, discard bool) {
-	assertf(discard || (!rec.persist && rec.dataLen > i) || (rec.persist && len(rec.data) > rec.groups[i].begin),
+	assert.Truef(discard || (!rec.persist && rec.dataLen > i) || (rec.persist && len(rec.data) > rec.groups[i].begin),
 		"group did not use any data from bitstream; this is likely a result of Custom generator not calling any of the built-in generators")
 
 	if !rec.persist {
@@ -134,7 +136,7 @@ func (rec *recordedBits) endGroup(i int, discard bool) {
 }
 
 func (rec *recordedBits) prune() {
-	assert(rec.persist)
+	assert.True(rec.persist)
 
 	for idx := 0; idx < len(rec.groups); {
 		if rec.groups[idx].discard {
@@ -146,13 +148,13 @@ func (rec *recordedBits) prune() {
 
 	for idx := range rec.groups {
 		group := &rec.groups[idx]
-		assert(group.begin != group.end)
+		assert.True(group.begin != group.end)
 	}
 }
 
 func (rec *recordedBits) removeGroup(i int) {
 	g := rec.groups[i]
-	assert(g.end >= 0)
+	assert.True(g.end >= 0)
 
 	j := i + 1
 	for j < len(rec.groups) && rec.groups[j].end <= g.end {

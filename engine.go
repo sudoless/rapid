@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/failfile"
 )
 
@@ -161,18 +162,6 @@ func envDuration(lookup func(string) (string, bool), key string, defaultValue ti
 
 func panicInvalidEnv(key, value string, err error) {
 	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
-}
-
-func assert(ok bool) {
-	if !ok {
-		panic("assertion failed")
-	}
-}
-
-func assertf(ok bool, format string, args ...any) {
-	if !ok {
-		panic(fmt.Sprintf(format, args...))
-	}
 }
 
 func assertValidRange(lo, hi int) {
@@ -361,7 +350,7 @@ type checkResult struct {
 func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, prop func(*T)) checkResult {
 	tb.Helper()
 
-	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
+	assert.Truef(!tb.Failed(), "check function called with *testing.T which has already failed")
 
 	var failfiles []string
 	if failPath != "" {
@@ -550,7 +539,7 @@ func panicToError(p any) *testError {
 		skipSpecial = false
 
 		_, err := fmt.Fprintf(b, "    %s:%d in %s\n", f.File, f.Line, f.Function)
-		assert(err == nil)
+		assert.True(err == nil)
 	}
 
 	return &testError{

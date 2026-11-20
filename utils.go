@@ -9,6 +9,8 @@ package rapid
 import (
 	"math"
 	"math/bits"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const (
@@ -28,7 +30,7 @@ func genFloat01(s bitStream) float64 {
 }
 
 func genGeom(s bitStream, p float64) uint64 {
-	assert(p > 0 && p <= 1)
+	assert.True(p > 0 && p <= 1)
 
 	f := genFloat01(s)
 	n := math.Log1p(-f) / math.Log1p(-p)
@@ -98,7 +100,7 @@ func genUintN(s bitStream, hi uint64, bias bool) (uint64, bool, bool) {
 
 func genUintRange(s bitStream, lo, hi uint64, bias bool) (uint64, bool, bool) {
 	if lo > hi {
-		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
+		assert.Truef(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
 
 	u, lOverflow, rOverflow := genUintN(s, hi-lo, bias)
@@ -108,7 +110,7 @@ func genUintRange(s bitStream, lo, hi uint64, bias bool) (uint64, bool, bool) {
 
 func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
 	if lo > hi {
-		assertf(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
+		assert.Truef(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
 
 	var posMin, negMin uint64
@@ -141,7 +143,7 @@ func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
 }
 
 func genIndex(s bitStream, n int, bias bool) int {
-	assert(n > 0)
+	assert.True(n > 0)
 
 	u, _, _ := genUintN(s, uint64(n-1), bias)
 
@@ -149,7 +151,7 @@ func genIndex(s bitStream, n int, bias bool) int {
 }
 
 func flipBiasedCoin(s bitStream, p float64) bool {
-	assert(p >= 0 && p <= 1)
+	assert.True(p >= 0 && p <= 1)
 
 	i := s.beginGroup(coinFlipLabel, false)
 	f := genFloat01(s)
@@ -163,7 +165,7 @@ type loadedDie struct {
 }
 
 func newLoadedDie(weights []int) *loadedDie {
-	assert(len(weights) > 0)
+	assert.True(len(weights) > 0)
 
 	if len(weights) == 1 {
 		return &loadedDie{
@@ -173,7 +175,7 @@ func newLoadedDie(weights []int) *loadedDie {
 
 	total := 0
 	for _, weight := range weights {
-		assert(weight > 0 && weight < 100)
+		assert.True(weight > 0 && weight < 100)
 		total += weight
 	}
 
@@ -262,7 +264,7 @@ func (r *repeat) more(s bitStream) bool {
 }
 
 func (r *repeat) reject() {
-	assert(r.count > 0)
+	assert.True(r.count > 0)
 	r.count--
 	r.rejected = true
 	r.rejections++

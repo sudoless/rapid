@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 const (
@@ -107,7 +109,7 @@ func StateMachineActions(sm StateMachine) map[string]func(*T) {
 		}
 	}
 
-	assertf(len(actions) > 0, "state machine of type %v has no actions specified", t)
+	assert.Truef(len(actions) > 0, "state machine of type %v has no actions specified", t)
 	actions[""] = sm.Check
 
 	return actions

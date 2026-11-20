@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 type generatorImpl[V any] interface {
@@ -85,7 +87,7 @@ func (g *Generator[V]) Example(seed ...int) V {
 	}
 
 	v, n, err := example(g, newT(nil, newRandomBitStream(s, false), false, nil))
-	assertf(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
+	assert.Truef(err == nil, "%v failed to generate an example in %v tries: %v", g, n, err)
 
 	return v
 }

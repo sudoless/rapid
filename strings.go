@@ -16,6 +16,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"go.sdls.io/rapid/internal/assert"
 )
 
 var (
@@ -83,10 +85,10 @@ func RuneFrom(runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 
 func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 	if len(tables) == 0 {
-		assertf(len(runes) > 0, "at least one rune should be specified")
+		assert.Truef(len(runes) > 0, "at least one rune should be specified")
 	}
 	if len(runes) == 0 {
-		assertf(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
+		assert.Truef(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
 	}
 
 	var weights []int
@@ -100,7 +102,7 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 	tables_ := make([][]rune, len(tables))
 	for idx := range tables {
 		tables_[idx] = expandRangeTable(tables[idx], tables[idx])
-		assertf(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
+		assert.Truef(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
 	}
 
 	return newGenerator[rune](&runeGen{
@@ -162,7 +164,8 @@ func StringOf(elem *Generator[rune]) *Generator[string] {
 // StringOfN panics if maxLen >= 0 and maxLen < maxRunes.
 func StringOfN(elem *Generator[rune], minRunes, maxRunes, maxLen int) *Generator[string] {
 	assertValidRange(minRunes, maxRunes)
-	assertf(maxLen < 0 || maxLen >= maxRunes, "maximum length (%v) should not be less than maximum number of runes (%v)", maxLen, maxRunes)
+	assert.Truef(maxLen < 0 || maxLen >= maxRunes,
+		"maximum length (%v) should not be less than maximum number of runes (%v)", maxLen, maxRunes)
 
 	return newGenerator[string](&stringGen{
 		elem:     elem,
@@ -221,7 +224,7 @@ func (g *stringGen) value(t *T) string {
 // StringMatching creates a UTF-8 string generator matching the provided [syntax.Perl] regular expression.
 func StringMatching(expr string) *Generator[string] {
 	compiled, err := compileRegexp(expr)
-	assertf(err == nil, "%v", err)
+	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[string](&regexpStringGen{
 		regexpGen{
@@ -235,7 +238,7 @@ func StringMatching(expr string) *Generator[string] {
 // SliceOfBytesMatching creates a UTF-8 byte slice generator matching the provided [syntax.Perl] regular expression.
 func SliceOfBytesMatching(expr string) *Generator[[]byte] {
 	compiled, err := compileRegexp(expr)
-	assertf(err == nil, "%v", err)
+	assert.Truef(err == nil, "%v", err)
 
 	return newGenerator[[]byte](&regexpSliceGen{
 		regexpGen{
@@ -351,7 +354,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		ix := genIndex(t.s, len(re.Sub), true)
 		g.build(w, re.Sub[ix], t)
 	default:
-		assertf(false, "invalid regexp op %v", re.Op)
+		assert.Truef(false, "invalid regexp op %v", re.Op)
 	}
 
 	t.s.endGroup(i, false)
