@@ -28,7 +28,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
-	"go.sdls.io/rapid/internal/failfile"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const (
@@ -299,9 +299,9 @@ func reportFailure(tb tb, prop func(*T), res *checkResult) {
 
 	failPath := res.failfile
 	if failPath == "" && !flags.nofailfile {
-		failPath = failfile.Name(tb.Name())
+		failPath = engine.FailFileName(tb.Name())
 		out := captureTestOutput(tb, prop, res.buf)
-		err := failfile.Save(failPath, rapidVersion, out, res.seed, res.buf)
+		err := engine.SaveFailFile(failPath, rapidVersion, out, res.seed, res.buf)
 		if err != nil {
 			tb.Logf("[rapid] %v", err)
 			failPath = ""
@@ -362,7 +362,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 		failfiles = []string{failPath}
 	}
 	if globFailFiles {
-		matches, _ := filepath.Glob(failfile.Pattern(tb.Name()))
+		matches, _ := filepath.Glob(engine.FailFilePattern(tb.Name()))
 		failfiles = append(failfiles, matches...)
 	}
 	for _, failPath := range failfiles {
@@ -394,7 +394,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError, *testError) {
 	tb.Helper()
 
-	version, _, buf, err := failfile.Load(failPath)
+	version, _, buf, err := engine.LoadFailFile(failPath)
 	if err != nil {
 		tb.Logf("[rapid] ignoring fail file: %v", err)
 		return nil, nil, nil

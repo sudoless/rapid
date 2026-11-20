@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package failfile_test
+package engine_test
 
 import (
 	"path/filepath"
 	"testing"
 
 	. "go.sdls.io/rapid"
-	"go.sdls.io/rapid/internal/failfile"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 func TestFailFilePattern(t *testing.T) {
@@ -19,8 +19,8 @@ func TestFailFilePattern(t *testing.T) {
 
 	Check(t, func(t *T) {
 		testName := String().Draw(t, "testName")
-		fileName := failfile.Name(testName)
-		pattern := failfile.Pattern(testName)
+		fileName := engine.FailFileName(testName)
+		pattern := engine.FailFilePattern(testName)
 		match, err := filepath.Match(pattern, fileName)
 		if !match || err != nil {
 			t.Fatalf("pattern %q does not match %q; err %v", pattern, fileName, err)
@@ -43,14 +43,14 @@ func TestFailFileRoundtrip(t *testing.T) {
 			buf      = SliceOf(Uint64()).Draw(t, "buf")
 		)
 
-		fileName := failfile.Name(testName)
+		fileName := engine.FailFileName(testName)
 		fileName = filepath.Join(root, fileName)
-		err := failfile.Save(fileName, version, output, seed, buf)
+		err := engine.SaveFailFile(fileName, version, output, seed, buf)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		version2, seed2, buf2, err := failfile.Load(fileName)
+		version2, seed2, buf2, err := engine.LoadFailFile(fileName)
 		if err != nil {
 			t.Fatal(err)
 		}

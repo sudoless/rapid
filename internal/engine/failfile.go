@@ -4,8 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package failfile names, saves and loads the files that record a failing test case for replay.
-package failfile
+package engine
 
 import (
 	"bufio"
@@ -48,23 +47,23 @@ func kindaSafeFilename(f string) string {
 	return name
 }
 
-// Name returns a new fail file path for the test, unique to this second and process.
-func Name(testName string) string {
+// FailFileName returns a new fail file path for the test, unique to this second and process.
+func FailFileName(testName string) string {
 	ts := time.Now().Format("20060102150405")
 	fileName := fmt.Sprintf("%s-%s-%d.fail", kindaSafeFilename(testName), ts, os.Getpid())
 	return filepath.Join("testdata", "rapid", kindaSafeFilename(testName), fileName)
 }
 
-// Pattern returns the glob that matches every fail file Name returns for the test.
-func Pattern(testName string) string {
+// FailFilePattern returns the glob that matches every fail file FailFileName returns for the test.
+func FailFilePattern(testName string) string {
 	fileName := kindaSafeFilename(testName) + "-*.fail"
 	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
 	return filepath.Join(dirName, fileName)
 }
 
-// Save writes the failing test case buf, drawn from seed, to filename, with output as comments.
+// SaveFailFile writes the failing test case buf, drawn from seed, to filename, with output as comments.
 // version identifies the format, so a later rapid can skip files it cannot replay.
-func Save(filename, version string, output []byte, seed uint64, buf []uint64) error {
+func SaveFailFile(filename, version string, output []byte, seed uint64, buf []uint64) error {
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {
@@ -104,8 +103,8 @@ func Save(filename, version string, output []byte, seed uint64, buf []uint64) er
 	return nil
 }
 
-// Load reads back what Save wrote to filename: the version, seed and test case.
-func Load(filename string) (string, uint64, []uint64, error) {
+// LoadFailFile reads back what SaveFailFile wrote to filename: the version, seed and test case.
+func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 	f, err := os.Open(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
