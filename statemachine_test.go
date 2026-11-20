@@ -9,6 +9,8 @@ package rapid
 import (
 	"reflect"
 	"testing"
+
+	"go.sdls.io/rapid/internal/engine"
 )
 
 // https://pkg.go.dev/github.com/leanovate/gopter/commands?tab=doc#example-package-BuggyCounter
@@ -294,6 +296,6 @@ func TestStateMachineActions(t *testing.T) {
 
 func BenchmarkCheckQueue(b *testing.B) {
 	for range b.N {
-		_ = doCheck(b, checkDeadline(nil), 100, baseSeed(), "", false, queueTest)
+		_ = doCheck(b, checkDeadline(nil), 100, engine.BaseSeed(), "", false, queueTest)
 	}
 }

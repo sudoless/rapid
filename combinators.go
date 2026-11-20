@@ -13,6 +13,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const tryLabel = "try"
@@ -40,7 +41,7 @@ func (g *customGen[V]) value(t *T) V {
 }
 
 func (g *customGen[V]) maybeValue(t *T) (V, bool) {
-	t = newT(t.tb, t.s, flags.debug, nil)
+	t = newT(t.tb, t.s, engine.Flags.Debug, nil)
 	defer t.cleanup()
 
 	defer func() {

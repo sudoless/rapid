@@ -13,6 +13,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const (
@@ -46,7 +47,7 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 	}
 	sort.Strings(actionKeys)
 
-	steps := flags.steps
+	steps := engine.Flags.Steps
 	if testing.Short() {
 		steps /= 2
 	}
