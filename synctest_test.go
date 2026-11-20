@@ -14,6 +14,8 @@ import (
 )
 
 func TestSyncTest(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(rt *rapid.T) {
 		var cleaned atomic.Bool
 

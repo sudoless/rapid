@@ -20,6 +20,8 @@ func fatalf(t *T, format string, args ...any) {
 }
 
 func TestFailure_ImpossibleData(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -28,6 +30,8 @@ func TestFailure_ImpossibleData(t *testing.T) {
 }
 
 func TestFailure_Trivial(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -39,6 +43,8 @@ func TestFailure_Trivial(t *testing.T) {
 }
 
 func TestFailure_SimpleCollection(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -50,6 +56,8 @@ func TestFailure_SimpleCollection(t *testing.T) {
 }
 
 func TestFailure_CollectionElements(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -69,6 +77,8 @@ func TestFailure_CollectionElements(t *testing.T) {
 }
 
 func TestFailure_TrivialString(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -80,6 +90,8 @@ func TestFailure_TrivialString(t *testing.T) {
 }
 
 func TestFailure_Make(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -89,6 +101,8 @@ func TestFailure_Make(t *testing.T) {
 }
 
 func TestFailure_Mean(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, func(t *T) {
@@ -117,12 +131,16 @@ func TestFailure_Mean(t *testing.T) {
 }
 
 func TestFailure_ExampleParseDate(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, testParseDate)
 }
 
 func TestFailure_ExampleQueue(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure")
 
 	Check(t, testQueue)
@@ -146,6 +164,8 @@ func LastIndex(list []int, x int) int {
 // is flaky), or it can be verbose, explicitly covering important input classes --
 // however, how do we know them when writing a test?
 func TestFailure_LastIndex(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("expected failure (flaky)")
 
 	Check(t, func(t *T) {

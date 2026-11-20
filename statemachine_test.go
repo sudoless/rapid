@@ -257,36 +257,44 @@ func (sm *stateMachineTest) ActionTB(t TB) {
 }
 
 func TestStateMachineActions(t *testing.T) {
-	t.Run("Check", MakeCheck(func(t *T) {
-		sm := &stateMachineTest{}
-		actions := StateMachineActions(sm)
+	t.Parallel()
 
-		actionT, ok := actions["ActionT"]
-		if !ok {
-			t.Fatalf("ActionA missing")
-		}
-		actionTB, ok := actions["ActionTB"]
-		if !ok {
-			t.Fatalf("ActionTB missing")
-		}
+	t.Run("Check", func(t *testing.T) {
+		t.Parallel()
 
-		var want []string
-		for i := 0; i < Int().Draw(t, "ActionT count"); i++ {
-			actionT(t)
-			want = append(want, "ActionT")
-		}
+		Check(t, func(t *T) {
+			sm := &stateMachineTest{}
+			actions := StateMachineActions(sm)
 
-		for i := 0; i < Int().Draw(t, "ActionTB count"); i++ {
-			actionTB(t)
-			want = append(want, "ActionTB")
-		}
+			actionT, ok := actions["ActionT"]
+			if !ok {
+				t.Fatalf("ActionA missing")
+			}
+			actionTB, ok := actions["ActionTB"]
+			if !ok {
+				t.Fatalf("ActionTB missing")
+			}
 
-		if !reflect.DeepEqual(want, sm.run) {
-			t.Fatalf("expected state %v, got %v", want, sm.run)
-		}
-	}))
+			var want []string
+			for i := 0; i < Int().Draw(t, "ActionT count"); i++ {
+				actionT(t)
+				want = append(want, "ActionT")
+			}
+
+			for i := 0; i < Int().Draw(t, "ActionTB count"); i++ {
+				actionTB(t)
+				want = append(want, "ActionTB")
+			}
+
+			if !reflect.DeepEqual(want, sm.run) {
+				t.Fatalf("expected state %v, got %v", want, sm.run)
+			}
+		})
+	})
 
 	t.Run("directly use action with testing.T", func(t *testing.T) {
+		t.Parallel()
+
 		sm := &stateMachineTest{}
 		sm.ActionTB(t)
 		if want := []string{"ActionTB"}; !reflect.DeepEqual(want, sm.run) {

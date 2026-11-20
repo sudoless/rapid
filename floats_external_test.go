@@ -27,16 +27,22 @@ func TestFloatNoInf(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) {
-			f := g.Draw(t, "f")
-			if math.IsInf(rv(f).Float(), 0) {
-				t.Fatalf("got infinity: %v", f)
-			}
-		}))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				f := g.Draw(t, "f")
+				if math.IsInf(rv(f).Float(), 0) {
+					t.Fatalf("got infinity: %v", f)
+				}
+			})
+		})
 	}
 }
 
 func TestFloatExamples(t *testing.T) {
+	t.Parallel()
+
 	gens := []*Generator[any]{
 		Float32().AsAny(),
 		Float32Min(-0.1).AsAny(),
@@ -68,6 +74,8 @@ func TestFloatExamples(t *testing.T) {
 
 	for _, g := range gens {
 		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
 			var vals []float64
 			var vals32 bool
 			for range 100 {

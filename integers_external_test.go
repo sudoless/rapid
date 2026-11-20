@@ -23,6 +23,8 @@ var (
 )
 
 func TestIntExamples(t *testing.T) {
+	t.Parallel()
+
 	gens := []*Generator[any]{
 		Int().AsAny(),
 		IntMin(-3).AsAny(),
@@ -39,6 +41,8 @@ func TestIntExamples(t *testing.T) {
 
 	for _, g := range gens {
 		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
 			var vals []int
 			for range 100 {
 				vals = append(vals, g.Example().(int))
@@ -94,28 +98,32 @@ func TestIntMinMaxRange(t *testing.T) {
 	}
 
 	for _, d := range data {
-		t.Run(d.g.String(), MakeCheck(func(t *T) {
-			lo := d.g.Draw(t, "min")
-			hi := d.g.Draw(t, "max")
-			if rv(lo).Int() > rv(hi).Int() {
-				t.Skip("min > max")
-			}
+		t.Run(d.g.String(), func(t *testing.T) {
+			t.Parallel()
 
-			i := d.min(lo).Draw(t, "i")
-			if rv(i).Int() < rv(lo).Int() {
-				t.Fatalf("got %v which is less than min %v", i, lo)
-			}
+			Check(t, func(t *T) {
+				lo := d.g.Draw(t, "min")
+				hi := d.g.Draw(t, "max")
+				if rv(lo).Int() > rv(hi).Int() {
+					t.Skip("min > max")
+				}
 
-			j := d.max(hi).Draw(t, "j")
-			if rv(j).Int() > rv(hi).Int() {
-				t.Fatalf("got %v which is more than max %v", j, hi)
-			}
+				i := d.min(lo).Draw(t, "i")
+				if rv(i).Int() < rv(lo).Int() {
+					t.Fatalf("got %v which is less than min %v", i, lo)
+				}
 
-			k := d.range_(lo, hi).Draw(t, "k")
-			if rv(k).Int() < rv(lo).Int() || rv(k).Int() > rv(hi).Int() {
-				t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
-			}
-		}))
+				j := d.max(hi).Draw(t, "j")
+				if rv(j).Int() > rv(hi).Int() {
+					t.Fatalf("got %v which is more than max %v", j, hi)
+				}
+
+				k := d.range_(lo, hi).Draw(t, "k")
+				if rv(k).Int() < rv(lo).Int() || rv(k).Int() > rv(hi).Int() {
+					t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
+				}
+			})
+		})
 	}
 }
 
@@ -173,28 +181,32 @@ func TestUintMinMaxRange(t *testing.T) {
 	}
 
 	for _, d := range data {
-		t.Run(d.g.String(), MakeCheck(func(t *T) {
-			lo := d.g.Draw(t, "min")
-			hi := d.g.Draw(t, "max")
-			if rv(lo).Uint() > rv(hi).Uint() {
-				t.Skip("min > max")
-			}
+		t.Run(d.g.String(), func(t *testing.T) {
+			t.Parallel()
 
-			i := d.min(lo).Draw(t, "i")
-			if rv(i).Uint() < rv(lo).Uint() {
-				t.Fatalf("got %v which is less than min %v", i, lo)
-			}
+			Check(t, func(t *T) {
+				lo := d.g.Draw(t, "min")
+				hi := d.g.Draw(t, "max")
+				if rv(lo).Uint() > rv(hi).Uint() {
+					t.Skip("min > max")
+				}
 
-			j := d.max(hi).Draw(t, "j")
-			if rv(j).Uint() > rv(hi).Uint() {
-				t.Fatalf("got %v which is more than max %v", j, hi)
-			}
+				i := d.min(lo).Draw(t, "i")
+				if rv(i).Uint() < rv(lo).Uint() {
+					t.Fatalf("got %v which is less than min %v", i, lo)
+				}
 
-			k := d.range_(lo, hi).Draw(t, "k")
-			if rv(k).Uint() < rv(lo).Uint() || rv(k).Uint() > rv(hi).Uint() {
-				t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
-			}
-		}))
+				j := d.max(hi).Draw(t, "j")
+				if rv(j).Uint() > rv(hi).Uint() {
+					t.Fatalf("got %v which is more than max %v", j, hi)
+				}
+
+				k := d.range_(lo, hi).Draw(t, "k")
+				if rv(k).Uint() < rv(lo).Uint() || rv(k).Uint() > rv(hi).Uint() {
+					t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
+				}
+			})
+		})
 	}
 }
 
@@ -234,6 +246,8 @@ func TestByteCoverage(t *testing.T) {
 
 	for b := range 256 {
 		t.Run(strconv.Itoa(b), func(t *testing.T) {
+			t.Parallel()
+
 			_ = Byte().Filter(func(v byte) bool { return v == byte(b) }).Example()
 		})
 	}
@@ -264,6 +278,8 @@ func TestIntCoverage(t *testing.T) {
 
 	for i, fn := range filters {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
 			_ = Int().Filter(fn).Example()
 		})
 	}
@@ -290,6 +306,8 @@ func TestUintCoverage(t *testing.T) {
 
 	for i, fn := range filters {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
 			_ = Uint().Filter(fn).Example()
 		})
 	}

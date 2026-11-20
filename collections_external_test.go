@@ -25,15 +25,19 @@ func TestSliceOf(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) {
-			v := g.Draw(t, "v")
-			if rv(v).Kind() != reflect.Slice {
-				t.Fatalf("got not a slice")
-			}
-			if rv(v).Len() == 0 {
-				t.Skip("empty")
-			}
-		}))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				v := g.Draw(t, "v")
+				if rv(v).Kind() != reflect.Slice {
+					t.Fatalf("got not a slice")
+				}
+				if rv(v).Len() == 0 {
+					t.Skip("empty")
+				}
+			})
+		})
 	}
 }
 
@@ -81,15 +85,19 @@ func TestMapOf(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) {
-			v := g.Draw(t, "v")
-			if rv(v).Kind() != reflect.Map {
-				t.Fatalf("got not a map")
-			}
-			if rv(v).Len() == 0 {
-				t.Skip("empty")
-			}
-		}))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				v := g.Draw(t, "v")
+				if rv(v).Kind() != reflect.Map {
+					t.Fatalf("got not a map")
+				}
+				if rv(v).Len() == 0 {
+					t.Skip("empty")
+				}
+			})
+		})
 	}
 }
 
@@ -126,17 +134,21 @@ func TestCollectionLenLimits(t *testing.T) {
 	}
 
 	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), MakeCheck(func(t *T) {
-			minLen := IntRange(0, 256).Draw(t, "minLen")
-			maxLen := IntMin(minLen).Draw(t, "maxLen")
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
 
-			s := rv(gf(minLen, maxLen).Draw(t, "s"))
-			if s.Len() < minLen {
-				t.Fatalf("got collection of length %v with minLen %v", s.Len(), minLen)
-			}
-			if s.Len() > maxLen {
-				t.Fatalf("got collection of length %v with maxLen %v", s.Len(), maxLen)
-			}
-		}))
+			Check(t, func(t *T) {
+				minLen := IntRange(0, 256).Draw(t, "minLen")
+				maxLen := IntMin(minLen).Draw(t, "maxLen")
+
+				s := rv(gf(minLen, maxLen).Draw(t, "s"))
+				if s.Len() < minLen {
+					t.Fatalf("got collection of length %v with minLen %v", s.Len(), minLen)
+				}
+				if s.Len() > maxLen {
+					t.Fatalf("got collection of length %v with maxLen %v", s.Len(), maxLen)
+				}
+			})
+		})
 	}
 }
