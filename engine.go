@@ -322,9 +322,7 @@ func (t *T) Context() context.Context {
 	// Once the property has exited and cleanup has begun, the context has been canceled and cleared.
 	// Don't create a new one, for a cleanup or a goroutine the property left running: return a canceled one.
 	if t.cleaning.Load() {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		return ctx
+		return canceledContext()
 	}
 
 	// Slow path: lock and check again, create new context if needed.
@@ -336,10 +334,22 @@ func (t *T) Context() context.Context {
 		// while we were waiting for the lock.
 		return t.ctx
 	}
+	if t.cleaning.Load() {
+		// Cleanup began while we were waiting for the lock, and found no context to cancel. It sets cleaning
+		// before it takes the lock, so when cleaning is unset here, it is yet to cancel the context made below.
+		return canceledContext()
+	}
 
 	ctx, cancel := context.WithCancel(t.tb.Context())
 	t.ctx = ctx
 	t.cancelCtx = cancel
+	return ctx
+}
+
+// canceledContext returns a context that is already canceled.
+func canceledContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 	return ctx
 }
 
