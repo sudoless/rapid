@@ -214,3 +214,26 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 		})
 	}
 }
+
+// A failure whose Custom tries the generator skipped shrinks to the test case without them: the skipped
+// tries are not kept in the shrunk buffer.
+func TestShrinkDropsSkippedCustomTries(t *testing.T) {
+	t.Parallel()
+
+	gen := Custom(func(t *T) bool {
+		b := Bool().Draw(t, "b")
+		if b {
+			t.SkipNow()
+		}
+		return b
+	})
+	for seed := uint64(1); seed <= 20; seed++ {
+		res := search(t, seed, func(t *T) {
+			_ = gen.Draw(t, "v")
+			t.Fatal("fail")
+		})
+		if !slices.Equal(res.Buf, []uint64{0}) {
+			t.Fatalf("seed %v: shrunk to %v, want [0]", seed, res.Buf)
+		}
+	}
+}
