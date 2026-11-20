@@ -378,7 +378,8 @@ func (m *minimizer) binSearch() {
 func without(data []uint64, groups ...groupInfo) []uint64 {
 	buf := append([]uint64(nil), data...)
 
-	for _, group := range slices.Backward(groups) {
+	for idx := range slices.Backward(groups) {
+		group := &groups[idx]
 		buf = append(buf[:group.begin], buf[group.end:]...)
 	}
 

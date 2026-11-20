@@ -59,7 +59,8 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	labelClasses := map[string]string{}
 	lastLabelClass := 0
 
-	for _, rd := range recData {
+	for idx := range recData {
+		rd := &recData[idx]
 		var images []*visTmplImage
 
 		for _, word := range rd.data {
@@ -71,17 +72,19 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 			images = append(images, tmplImg)
 		}
 
-		for _, group := range rd.groups {
+		for jdx := range rd.groups {
+			group := &rd.groups[jdx]
 			if _, ok := labelClasses[group.label]; !ok {
 				labelClasses[group.label] = fmt.Sprintf("label-%v", lastLabelClass)
 				lastLabelClass++
 			}
 		}
 
-		for _, group := range rd.groups {
-			images[group.begin].GroupBegins = append(images[group.begin].GroupBegins, visGroupToInfo(labelClasses, group))
+		for jdx := range rd.groups {
+			group := &rd.groups[jdx]
+			images[group.begin].GroupBegins = append(images[group.begin].GroupBegins, visGroupToInfo(labelClasses, *group))
 			if group.end > 0 {
-				images[group.end-1].GroupEnds = append(images[group.end-1].GroupEnds, visGroupToInfo(labelClasses, group))
+				images[group.end-1].GroupEnds = append(images[group.end-1].GroupEnds, visGroupToInfo(labelClasses, *group))
 			}
 		}
 
