@@ -50,7 +50,7 @@ func shrink(tb tb, deadline time.Time, rec recordedBits, err *testError, prop fu
 	buf, err := s.shrink(deadline)
 
 	if flags.debugvis {
-		name := fmt.Sprintf("vis-%v.html", strings.Replace(tb.Name(), "/", "_", -1))
+		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
 		f, err := os.Create(name)
 		if err != nil {
 			tb.Logf("failed to create debugvis file %v: %v", name, err)
