@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,6 +19,12 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 	"go.sdls.io/rapid/internal/stattest"
 )
+
+// search runs prop for 100 test cases generated from seed, without fail files.
+func search(tb tb, seed uint64, prop func(*T)) engine.Result {
+	tb.Helper()
+	return engine.Search(tb, engine.Deadline(nil), 100, seed, "", false, runner(tb, prop))
+}
 
 func brokenGen(*T) int { panic("this generator is not working") }
 
@@ -86,10 +93,8 @@ func BenchmarkCheckOverhead(b *testing.B) {
 	f := func(t *T) {
 		g.Draw(t, "")
 	}
-	deadline := checkDeadline(nil)
-
 	for b.Loop() {
-		checkTB(b, deadline, f)
+		engine.Check(b, runner(b, f))
 	}
 }
 
@@ -190,11 +195,11 @@ func TestCheckCleanupPanic(t *testing.T) {
 		})
 	}
 
-	res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
-	if res.err1 == nil {
+	res := search(t, engine.BaseSeed(), prop)
+	if res.Err1 == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
-	_ = checkOnce(newT(t, bitstream.NewBuffer(res.buf, false), false, nil), prop)
+	_ = checkOnce(newT(t, bitstream.NewBuffer(res.Buf, false), false, nil), prop)
 }
 
 func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
@@ -258,14 +263,16 @@ func TestOutputRawLog(t *testing.T) {
 
 	msg := []byte("Hello World")
 
-	out := captureTestOutput(t, func(t *T) {
+	var out bytes.Buffer
+	run := runner(t, func(t *T) {
 		if _, err := t.Output().Write(msg); err != nil {
 			t.Fatal(err)
 		}
-	}, nil)
+	})
+	_ = run(bitstream.NewBuffer(nil, false), false, log.New(&out, "", 0))
 
-	if !bytes.Contains(out, msg) {
-		t.Errorf("expected output to contain %q, got: %q", msg, out)
+	if !bytes.Contains(out.Bytes(), msg) {
+		t.Errorf("expected output to contain %q, got: %q", msg, out.Bytes())
 	}
 }
 
@@ -297,12 +304,12 @@ func TestCheckRecordedFailureBelongsToItsTestCase(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := doCheck(t, checkDeadline(nil), 100, stattest.FixedSeed, "", false, tc.prop)
-			if res.err1 == nil {
-				t.Fatalf("recorded failure was not reported (valid %d, invalid %d)", res.valid, res.invalid)
+			res := search(t, stattest.FixedSeed, tc.prop)
+			if res.Err1 == nil {
+				t.Fatalf("recorded failure was not reported (valid %d, invalid %d)", res.Valid, res.Invalid)
 			}
-			if !engine.SameError(res.err1, res.err2) {
-				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.err1, res.err2)
+			if !engine.SameError(res.Err1, res.Err2) {
+				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.Err1, res.Err2)
 			}
 		})
 	}

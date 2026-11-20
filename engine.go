@@ -7,21 +7,16 @@
 package rapid
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
@@ -29,14 +24,8 @@ import (
 )
 
 const (
-	rapidVersion = "v0.4.8"
-
-	small             = 5
-	invalidChecksMult = 10
-	exampleMaxTries   = 1000
-
-	maxTestTimeout  = 24 * time.Hour
-	shrinkStepBound = 10 * time.Second // can be improved by taking average checkOnce runtime into account
+	small           = 5
+	exampleMaxTries = 1000
 
 	tracebackLen  = 32
 	tracebackStop = "go.sdls.io/rapid.checkOnce"
@@ -48,34 +37,13 @@ var tracebackBlacklist = map[string]bool{
 	"go.sdls.io/rapid.runAction.func1":                    true,
 }
 
-func checkDeadline(tb tb) time.Time {
-	t, ok := tb.(*testing.T)
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
-	}
-	d, ok := t.Deadline()
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
-	}
-	return d
-}
-
-func shrinkDeadline(deadline time.Time) time.Time {
-	d := time.Now().Add(engine.Flags.ShrinkTime)
-	latest := deadline.Add(-shrinkStepBound) // account for the fact that shrink deadline is checked before the step
-	if d.After(latest) {
-		d = latest
-	}
-	return d
-}
-
 // Check fails the current test if rapid can find a test case which falsifies prop.
 //
 // Property is falsified in case of a panic or a call to
 // [*T.Fatalf], [*T.Fatal], [*T.Errorf], [*T.Error], [*T.FailNow] or [*T.Fail].
 func Check(t TB, prop func(*T)) {
 	t.Helper()
-	checkTB(t, checkDeadline(t), prop)
+	engine.Check(t, runner(t, prop))
 }
 
 // MakeCheck is a convenience function for defining subtests suitable for
@@ -95,7 +63,7 @@ func Check(t TB, prop func(*T)) {
 func MakeCheck(prop func(*T)) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-		checkTB(t, checkDeadline(t), prop)
+		engine.Check(t, runner(t, prop))
 	}
 }
 
@@ -109,261 +77,18 @@ func MakeCheck(prop func(*T)) func(*testing.T) {
 func MakeFuzz(prop func(*T)) func(*testing.T, []byte) {
 	return func(t *testing.T, input []byte) {
 		t.Helper()
-		checkFuzz(t, prop, input)
+		engine.Fuzz(t, input, runner(t, prop))
 	}
 }
 
-func checkFuzz(tb tb, prop func(*T), input []byte) {
-	tb.Helper()
-
-	var buf []uint64
-	for len(input) > 0 {
-		var tmp [8]byte
-		n := copy(tmp[:], input)
-		buf = append(buf, binary.LittleEndian.Uint64(tmp[:]))
-		input = input[n:]
-	}
-
-	t := newT(tb, bitstream.NewBuffer(buf, false), true, nil)
-	err := checkOnce(t, prop)
-
-	switch {
-	case err == nil:
-		// do nothing
-	case err.IsInvalidData():
-		tb.SkipNow()
-	case err.IsStopTest():
-		tb.Fatalf("[rapid] failed: %v", err)
-	default:
-		tb.Fatalf("[rapid] panic: %v\nTraceback:\n%v", err, engine.Traceback(err))
-	}
-}
-
-func checkTB(tb tb, deadline time.Time, prop func(*T)) {
-	tb.Helper()
-
-	checks := engine.Flags.Checks
-	if testing.Short() {
-		checks /= 5
-	}
-
-	start := time.Now()
-	res := doCheck(tb, deadline, checks, engine.BaseSeed(), engine.Flags.FailFile, true, prop)
-	dt := time.Since(start)
-
-	switch {
-	case res.err1 != nil || res.err2 != nil:
-		reportFailure(tb, prop, &res)
-	case res.valid == checks || (res.earlyExit && res.valid > 0):
-		tb.Logf("[rapid] OK, passed %v tests (%v)", res.valid, dt)
-	default:
-		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.valid, res.valid+res.invalid, dt)
-	}
-
-	if tb.Failed() {
-		tb.FailNow() // do not try to run any checks after the first failed one
-	}
-}
-
-// reportFailure saves a fail file for res when there is none, reports the failure with how to reproduce it,
-// and replays the failing test case so its output appears in the test log.
-func reportFailure(tb tb, prop func(*T), res *checkResult) {
-	tb.Helper()
-
-	failPath := res.failfile
-	if failPath == "" && !engine.Flags.NoFailFile {
-		failPath = engine.FailFileName(tb.Name())
-		out := captureTestOutput(tb, prop, res.buf)
-		err := engine.SaveFailFile(failPath, rapidVersion, out, res.seed, res.buf)
-		if err != nil {
-			tb.Logf("[rapid] %v", err)
-			failPath = ""
+// runner returns prop as the engine runs it in the test tb: each run is one test case, with a T of its own.
+func runner(tb tb, prop func(*T)) engine.Run {
+	return func(s bitstream.Stream, tbLog bool, out *log.Logger) *engine.TestError {
+		if tbLog {
+			tb.Helper()
 		}
+		return checkOnce(newT(tb, s, tbLog, out), prop)
 	}
-
-	repr := reproFlags(failPath, res.seed)
-	name := regexp.QuoteMeta(tb.Name())
-	err1, err2 := res.err1, res.err2
-	switch {
-	case engine.Traceback(err1) != engine.Traceback(err2):
-		tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
-			"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
-			name, repr, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
-	case err2.IsStopTest():
-		tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", res.valid, err2, name, repr)
-	default:
-		tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
-			res.valid, err2, name, repr, engine.Traceback(err2))
-	}
-
-	_ = checkOnce(newT(tb, bitstream.NewBuffer(res.buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
-}
-
-// reproFlags returns the flags that replay a failure from failPath or seed; either may be unset.
-func reproFlags(failPath string, seed uint64) string {
-	switch {
-	case failPath != "" && seed != 0:
-		return fmt.Sprintf("-rapid.failfile=%q (or -rapid.seed=%d)", failPath, seed)
-	case failPath != "":
-		return fmt.Sprintf("-rapid.failfile=%q", failPath)
-	case seed != 0:
-		return fmt.Sprintf("-rapid.seed=%d", seed)
-	default:
-		return ""
-	}
-}
-
-// checkResult is what doCheck learned about a property.
-type checkResult struct {
-	valid     int
-	invalid   int
-	earlyExit bool     // the deadline stopped the search before checks valid test cases ran
-	seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
-	failfile  string   // the fail file the failure was replayed from
-	buf       []uint64 // the failing test case, shrunk when the failure reproduced
-	err1      *engine.TestError
-	err2      *engine.TestError // the failure on replay; differs from err1 when the test is flaky
-}
-
-func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, prop func(*T)) checkResult {
-	tb.Helper()
-
-	assert.Truef(!tb.Failed(), "check function called with *testing.T which has already failed")
-
-	var failfiles []string
-	if failPath != "" {
-		failfiles = []string{failPath}
-	}
-	if globFailFiles {
-		matches, _ := filepath.Glob(engine.FailFilePattern(tb.Name()))
-		failfiles = append(failfiles, matches...)
-	}
-	for _, failPath := range failfiles {
-		buf, err1, err2 := checkFailFile(tb, failPath, prop)
-		if err1 != nil || err2 != nil {
-			return checkResult{failfile: failPath, buf: buf, err1: err1, err2: err2}
-		}
-	}
-
-	valid, invalid, earlyExit, seed, err1 := findBug(tb, deadline, checks, seed, prop)
-	if err1 == nil {
-		return checkResult{valid: valid, invalid: invalid, earlyExit: earlyExit}
-	}
-
-	s := bitstream.NewRandom(seed, true)
-	t := newT(tb, s, engine.Flags.Verbose, nil)
-	t.Logf("[rapid] trying to reproduce the failure")
-	err2 := checkOnce(t, prop)
-	if !engine.SameError(err1, err2) {
-		return checkResult{valid: valid, invalid: invalid, seed: seed, buf: s.Data, err1: err1, err2: err2}
-	}
-
-	t.Logf("[rapid] trying to minimize the failing test case")
-	run := func(s bitstream.Stream, log bool, out *log.Logger) *engine.TestError {
-		return checkOnce(newT(tb, s, log, out), prop)
-	}
-	buf, err3 := engine.Shrink(tb, shrinkDeadline(deadline), s.Recorded, err2, run)
-
-	return checkResult{valid: valid, invalid: invalid, seed: seed, buf: buf, err1: err2, err2: err3}
-}
-
-func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *engine.TestError, *engine.TestError) {
-	tb.Helper()
-
-	version, _, buf, err := engine.LoadFailFile(failPath)
-	if err != nil {
-		tb.Logf("[rapid] ignoring fail file: %v", err)
-		return nil, nil, nil
-	}
-	if version != rapidVersion {
-		tb.Logf("[rapid] ignoring fail file: version %q differs from rapid version %q", version, rapidVersion)
-		return nil, nil, nil
-	}
-
-	s1 := bitstream.NewBuffer(buf, false)
-	t1 := newT(tb, s1, engine.Flags.Verbose, nil)
-	err1 := checkOnce(t1, prop)
-	if err1 == nil {
-		return nil, nil, nil
-	}
-	if err1.IsInvalidData() {
-		tb.Logf("[rapid] fail file %q is no longer valid", failPath)
-		return nil, nil, nil
-	}
-
-	s2 := bitstream.NewBuffer(buf, false)
-	t2 := newT(tb, s2, engine.Flags.Verbose, nil)
-	t2.Logf("[rapid] trying to reproduce the failure")
-	err2 := checkOnce(t2, prop)
-
-	return buf, err1, err2
-}
-
-func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) (int, int, bool, uint64, *engine.TestError) {
-	tb.Helper()
-
-	var (
-		r       = bitstream.NewRandom(0, false)
-		valid   = 0
-		invalid = 0
-	)
-
-	var total time.Duration
-	for valid < checks && invalid < checks*invalidChecksMult {
-		iter := valid + invalid
-		t := newT(tb, r, engine.Flags.Verbose, nil)
-		if iter > 0 && time.Until(deadline) < total/time.Duration(iter)*5 {
-			if t.shouldLog() {
-				t.Logf("[rapid] early exit after test #%v (%v)", iter, total)
-			}
-			return valid, invalid, true, 0, nil
-		}
-
-		seed += uint64(iter)
-		r.Init(seed)
-		dt, err := checkLogged(t, prop, iter+1, seed)
-		total += dt
-		switch {
-		case err == nil:
-			valid++
-		case err.IsInvalidData():
-			invalid++
-		default:
-			return valid, invalid, false, seed, err
-		}
-	}
-
-	return valid, invalid, false, 0, nil
-}
-
-// checkLogged runs test case number num, generated from seed, and logs its outcome when t logs.
-// The logging is guarded so a quiet run does not build the log arguments.
-func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *engine.TestError) {
-	if t.tbLog {
-		t.Helper()
-	}
-	logs := t.shouldLog()
-	start := time.Now()
-	if logs {
-		t.Logf("[rapid] test #%v start (seed %v)", num, seed)
-	}
-
-	err := checkOnce(t, prop)
-	dt := time.Since(start)
-	if !logs {
-		return dt, err
-	}
-
-	switch {
-	case err == nil:
-		t.Logf("[rapid] test #%v OK (%v)", num, dt)
-	case err.IsInvalidData():
-		t.Logf("[rapid] test #%v invalid (%v)", num, dt)
-	default:
-		t.Logf("[rapid] test #%v failed: %v", num, err)
-	}
-
-	return dt, err
 }
 
 // checkOnce runs prop as one test case, and returns how it failed, after its cleanups.
@@ -377,13 +102,6 @@ func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	prop(t)
 
 	return nil
-}
-
-func captureTestOutput(tb tb, prop func(*T), buf []uint64) []byte {
-	var b bytes.Buffer
-	l := log.New(&b, fmt.Sprintf("[%v] ", tb.Name()), log.Lmsgprefix|log.Ldate|log.Ltime|log.Lmicroseconds)
-	_ = checkOnce(newT(tb, bitstream.NewBuffer(buf, false), false, l), prop)
-	return b.Bytes()
 }
 
 func panicToError(p any) *engine.TestError {
@@ -545,7 +263,7 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 			testName = tb.Name()
 		}
 
-		t.rawLog = log.New(os.Stdout, fmt.Sprintf("[%v] ", testName), log.Lmsgprefix|log.Ldate|log.Ltime|log.Lmicroseconds)
+		t.rawLog = engine.NewLog(os.Stdout, testName)
 	}
 
 	return t
@@ -574,10 +292,6 @@ func (t *T) settle(err *engine.TestError) *engine.TestError {
 	}
 
 	return err
-}
-
-func (t *T) shouldLog() bool {
-	return t.rawLog != nil || t.tbLog
 }
 
 // Context returns a context.Context that is canceled
