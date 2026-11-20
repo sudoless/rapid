@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 
 LINT_CONFIG  := devz/golangci-lint.yaml
+GOLANGCI_LINT ?= golangci-lint
 STRESS_COUNT ?= 200
 
 .PHONY: help
@@ -13,19 +14,19 @@ check: fmt-check lint deps headers test-race ## everything a PR must pass
 
 .PHONY: fmt
 fmt: ## format the Go sources with the config's formatters (gofumpt, goimports)
-	@golangci-lint fmt --config=$(LINT_CONFIG) ./...
+	@$(GOLANGCI_LINT) fmt --config=$(LINT_CONFIG) ./...
 
 .PHONY: fmt-check
 fmt-check: ## print the diff fmt would apply, and fail if there is one
-	@golangci-lint fmt --config=$(LINT_CONFIG) --diff ./...
+	@$(GOLANGCI_LINT) fmt --config=$(LINT_CONFIG) --diff ./...
 
 .PHONY: lint
 lint: ## run golangci-lint over the module
-	@golangci-lint run --config=$(LINT_CONFIG) ./...
+	@$(GOLANGCI_LINT) run --config=$(LINT_CONFIG) ./...
 
 .PHONY: lint-src
 lint-src: ## run golangci-lint, skipping test files
-	@golangci-lint run --config=$(LINT_CONFIG) --tests=false ./...
+	@$(GOLANGCI_LINT) run --config=$(LINT_CONFIG) --tests=false ./...
 
 .PHONY: deps
 deps: ## fail if the module requires anything beyond the standard library, or go.mod is untidy
