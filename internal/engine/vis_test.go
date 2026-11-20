@@ -65,7 +65,8 @@ func TestWriteVisHTML(t *testing.T) {
 	if err := writeVisHTML(&html, "vis title", rd); err != nil {
 		t.Fatalf("writeVisHTML error: %v", err)
 	}
-	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", "discard", "endless", "elems@repeat"} {
+	// The classes are matched in the markup: the embedded stylesheet names them too.
+	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", `class="group discard `, `class="group endless `, "elems@repeat"} {
 		if !strings.Contains(html.String(), want) {
 			t.Errorf("rendered HTML does not contain %q", want)
 		}
