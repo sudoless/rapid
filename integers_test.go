@@ -9,15 +9,14 @@ package rapid
 import (
 	"math/bits"
 	"testing"
-)
 
-// coverageDraws bounds how many values a coverage check draws before it gives up.
-const coverageDraws = 100000
+	"go.sdls.io/rapid/internal/stattest"
+)
 
 func TestByteCoverage(t *testing.T) {
 	t.Parallel()
 
-	checkByteCoverage(t, fixedStatSeed)
+	checkByteCoverage(t, stattest.FixedSeed)
 }
 
 func checkByteCoverage(t *testing.T, seed uint64) {
@@ -25,19 +24,19 @@ func checkByteCoverage(t *testing.T, seed uint64) {
 
 	s := newRandomBitStream(seed, false)
 	seen := map[byte]bool{}
-	for range coverageDraws {
+	for range stattest.CoverageDraws {
 		seen[drawFrom(t, s, Byte())] = true
 		if len(seen) == 256 {
 			return
 		}
 	}
-	t.Fatalf("got %v of 256 byte values in %v draws", len(seen), coverageDraws)
+	t.Fatalf("got %v of 256 byte values in %v draws", len(seen), stattest.CoverageDraws)
 }
 
 func TestIntCoverage(t *testing.T) {
 	t.Parallel()
 
-	checkIntCoverage(t, fixedStatSeed)
+	checkIntCoverage(t, stattest.FixedSeed)
 }
 
 func checkIntCoverage(t *testing.T, seed uint64) {
@@ -62,7 +61,7 @@ func checkIntCoverage(t *testing.T, seed uint64) {
 	s := newRandomBitStream(seed, false)
 	for _, target := range targets {
 		if !drawsHit(t, s, Int(), target.hit) {
-			t.Errorf("no int %v in %v draws", target.name, coverageDraws)
+			t.Errorf("no int %v in %v draws", target.name, stattest.CoverageDraws)
 		}
 	}
 }
@@ -70,7 +69,7 @@ func checkIntCoverage(t *testing.T, seed uint64) {
 func TestUintCoverage(t *testing.T) {
 	t.Parallel()
 
-	checkUintCoverage(t, fixedStatSeed)
+	checkUintCoverage(t, stattest.FixedSeed)
 }
 
 func checkUintCoverage(t *testing.T, seed uint64) {
@@ -91,7 +90,7 @@ func checkUintCoverage(t *testing.T, seed uint64) {
 	s := newRandomBitStream(seed, false)
 	for _, target := range targets {
 		if !drawsHit(t, s, Uint(), target.hit) {
-			t.Errorf("no uint %v in %v draws", target.name, coverageDraws)
+			t.Errorf("no uint %v in %v draws", target.name, stattest.CoverageDraws)
 		}
 	}
 }
@@ -101,11 +100,11 @@ type coverageTarget[V any] struct {
 	hit  func(V) bool
 }
 
-// drawsHit reports whether one of up to coverageDraws values drawn from g satisfies hit.
+// drawsHit reports whether one of up to stattest.CoverageDraws values drawn from g satisfies hit.
 func drawsHit[V any](t *testing.T, s bitStream, g *Generator[V], hit func(V) bool) bool {
 	t.Helper()
 
-	for range coverageDraws {
+	for range stattest.CoverageDraws {
 		if hit(drawFrom(t, s, g)) {
 			return true
 		}

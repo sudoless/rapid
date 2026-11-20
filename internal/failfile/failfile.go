@@ -4,7 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+// Package failfile names, saves and loads the files that record a failing test case for replay.
+package failfile
 
 import (
 	"bufio"
@@ -19,8 +20,6 @@ import (
 )
 
 const (
-	rapidVersion = "v0.4.8"
-
 	persistDirMode     = 0o775
 	failfileTmpPattern = ".rapid-failfile-tmp-*"
 )
@@ -49,19 +48,23 @@ func kindaSafeFilename(f string) string {
 	return name
 }
 
-func failFileName(testName string) string {
+// Name returns a new fail file path for the test, unique to this second and process.
+func Name(testName string) string {
 	ts := time.Now().Format("20060102150405")
 	fileName := fmt.Sprintf("%s-%s-%d.fail", kindaSafeFilename(testName), ts, os.Getpid())
 	return filepath.Join("testdata", "rapid", kindaSafeFilename(testName), fileName)
 }
 
-func failFilePattern(testName string) string {
+// Pattern returns the glob that matches every fail file Name returns for the test.
+func Pattern(testName string) string {
 	fileName := kindaSafeFilename(testName) + "-*.fail"
 	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
 	return filepath.Join(dirName, fileName)
 }
 
-func saveFailFile(filename, version string, output []byte, seed uint64, buf []uint64) error {
+// Save writes the failing test case buf, drawn from seed, to filename, with output as comments.
+// version identifies the format, so a later rapid can skip files it cannot replay.
+func Save(filename, version string, output []byte, seed uint64, buf []uint64) error {
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {
@@ -101,7 +104,8 @@ func saveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	return nil
 }
 
-func loadFailFile(filename string) (string, uint64, []uint64, error) {
+// Load reads back what Save wrote to filename: the version, seed and test case.
+func Load(filename string) (string, uint64, []uint64, error) {
 	f, err := os.Open(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
