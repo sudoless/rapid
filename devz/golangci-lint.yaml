@@ -1,0 +1,144 @@
+# Copyright (c) 2026 SUDOLESS SRL
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+
+version: "2"
+run:
+  allow-parallel-runners: true
+  concurrency: 16
+  timeout: 5m
+  relative-path-mode: gomod
+linters:
+  enable:
+    # CORRECTNESS
+    - govet
+    - staticcheck
+    - exhaustive                  # exhaustive enum
+    - gocheckcompilerdirectives   # valid //go: directives
+    - gosmopolitan                # i18n/l10n anti-patterns
+    - iface                       # interface pollution
+    - mirror                      # using wrong bytes/strings package
+    - misspell                    # english spell check
+    - wastedassign                # wasted assignment
+    # ASCII CODE
+    - asciicheck                  # all code must be ascii
+    - bidichk                     # find hidden Unicode
+    # PERFORMANCE
+    - gocritic                    # the goat
+    - copyloopvar                 # variable copied in loop
+    - gocognit                    # cognitive load
+    - perfsprint                  # replaceable fmt.Sprintf
+    - prealloc                    # can pre-allocate slice
+    # SECURITY
+    - gosec                       # classic security checks
+    - reassign                    # ensure package var is not reassigned
+    # CLEANUP
+    - forbidigo                   # forbid go patterns (find debug code)
+    - goprintffuncname            # format functions end in `f`
+    - inamedparam                 # interface unnamed params
+    - intrange                    # new int range
+    - lll                         # long lines
+    - maintidx                    # maintainability index
+    - errname                     # var Err... = | type ...Error
+    - nestif                      # deeply nested if
+    - nolintlint                  # unneeded nolint comment
+    - predeclared                 # shadows go predeclared identifier
+    - unconvert                   # unnecessary type conversion
+    - unparam                     # unused param
+    - whitespace                  # unnecessary newlines
+    # RETURNS
+    - nilnil                      # nil, nil
+    - nilnesserr                  # returns nil when err was not nil
+    # TESTS
+    - paralleltest                # missing t.Parallel
+    - usetesting                  # use stdpkg functions in tests
+    # DUMB STUFF
+    - asasalint                   # using []any as ...any
+    - ineffassign                 # unused assignments to existing var
+    - unused                      # unused const, var, func, types
+    - containedctx                # context stored in struct
+    - durationcheck               # duration multiplication
+    - dogsled                     # blank assignments/declarations
+    - exptostd                    # /x/exp -> stdpkg
+    # ERRORS
+    - errcheck                    # check for unchecked errors
+    - errorlint                   # error wrapping problems
+    # COMMENTS
+    - godot                       # end comments in dot .
+    - modernize
+
+  # SETTINGS
+  settings:
+    lll:
+      line-length: 140
+    gocognit:
+      min-complexity: 15
+    exhaustive:
+      explicit-exhaustive-switch: true
+    copyloopvar:
+      check-alias: true
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - unnamedResult
+        - whyNoLint
+        - sloppyReassign
+      settings:
+        rangeValCopy:
+          sizeThreshold: 32
+    godot:
+      capital: false
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow                   # idiomatic `if err := …; err != nil` triggers it
+    staticcheck:
+      checks: ["all", "-S1008", "-ST1000", "-ST1003", "-SA5008"]
+
+  # EXCLUDE
+  exclusions:
+    rules:
+      # ignore rules for tests
+      - path: '_test.go'
+        linters:
+          - maintidx
+          - gocritic
+          - durationcheck
+          - lll
+          - gosmopolitan
+          - gocognit
+          - intrange
+          - ineffassign
+          - wastedassign
+          - perfsprint
+          - nilnil               # test stubs satisfy interfaces with nil,nil
+          - prealloc             # static slice literals trip prealloc
+      # ignore certain static checks in tests
+      - path: '_test.go'
+        text: 'SA1029'
+        linters:
+          - staticcheck
+      # ignore certain gosec in tests
+      - path: '_test.go'
+        text: 'G(304|115|104)'
+        linters:
+          - gosec
+      # generators work on the bitstream, converting between integer widths on purpose
+      - text: 'G115'
+        linters:
+          - gosec
+issues:
+  fix: false
+  new: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - go.sdls.io
+        - github.com/sudoless
