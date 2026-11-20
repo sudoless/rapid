@@ -194,8 +194,8 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 
 			res := search(t, engine.BaseSeed(), prop)
 			seed, err1, err2 := res.Seed, res.Err1, res.Err2
-			if seed != 0 && err1 == nil && err2 == nil {
-				t.Fatalf("shrink test did not fail (seed %v)", seed)
+			if err1 == nil {
+				t.Fatalf("shrink test did not fail")
 			}
 			if engine.Traceback(err1) != engine.Traceback(err2) {
 				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
