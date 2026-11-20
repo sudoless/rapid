@@ -66,6 +66,8 @@ func TestPanicTraceback(t *testing.T) {
 
 	for _, td := range testData {
 		t.Run(td.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := createRandomBitStream(t)
 			nt := newT(t, s, false, nil)
 
@@ -269,8 +271,8 @@ func TestOutputRawLog(t *testing.T) {
 // ignoreErrorsTB is a TB that ignores all errors posted to it.
 type ignoreErrorsTB struct{ TB }
 
-func (ignoreErrorsTB) Error(...interface{})          {}
-func (ignoreErrorsTB) Errorf(string, ...interface{}) {}
-func (ignoreErrorsTB) Fatal(...interface{})          {}
-func (ignoreErrorsTB) Fatalf(string, ...interface{}) {}
-func (ignoreErrorsTB) Fail()                         {}
+func (ignoreErrorsTB) Error(...any)          {}
+func (ignoreErrorsTB) Errorf(string, ...any) {}
+func (ignoreErrorsTB) Fatal(...any)          {}
+func (ignoreErrorsTB) Fatalf(string, ...any) {}
+func (ignoreErrorsTB) Fail()                 {}

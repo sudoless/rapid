@@ -68,7 +68,7 @@ func TestGenGeomMean(t *testing.T) {
 
 	s := newRandomBitStream(baseSeed(), false)
 
-	for i := range 100 {
+	for i := range 100 { //nolint:paralleltest // subtests draw from one shared bitstream, in order
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			p := genFloat01(s)
 
@@ -92,9 +92,11 @@ func TestGenGeomMean(t *testing.T) {
 }
 
 func TestUintsExamplesHist(t *testing.T) {
+	t.Parallel()
+
 	s := newRandomBitStream(baseSeed(), false)
 
-	for _, n := range []int{2, 3, 4, 5, 6, 8, 16, 32, 64} {
+	for _, n := range []int{2, 3, 4, 5, 6, 8, 16, 32, 64} { //nolint:paralleltest // subtests draw from one shared bitstream, in order
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			var lines []string
 			for range 50 {

@@ -10,6 +10,8 @@ import (
 )
 
 func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
+	t.Parallel()
+
 	got := loadCmdlineDefaults(func(string) (string, bool) {
 		return "", false
 	})
@@ -21,6 +23,8 @@ func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 }
 
 func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
+	t.Parallel()
+
 	env := map[string]string{
 		"RAPID_CHECKS":     "0xc8",
 		"RAPID_STEPS":      "40_000",
@@ -63,6 +67,8 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 }
 
 func TestLoadCmdlineDefaultsInvalidEnvPanics(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic for invalid env value")

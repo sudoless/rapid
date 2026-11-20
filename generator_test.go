@@ -38,6 +38,8 @@ func BenchmarkGenerator_Value(b *testing.B) {
 }
 
 func TestExampleHelper(t *testing.T) {
+	t.Parallel()
+
 	g := Custom(func(t *T) int {
 		t.Helper()
 		return Int().Draw(t, t.Name())
@@ -47,6 +49,8 @@ func TestExampleHelper(t *testing.T) {
 }
 
 func TestCustomExampleContext(t *testing.T) {
+	t.Parallel()
+
 	type key struct{}
 
 	g := Custom(func(t *T) context.Context {
@@ -69,6 +73,8 @@ func TestCustomExampleContext(t *testing.T) {
 }
 
 func TestCustomExampleCleanup(t *testing.T) {
+	t.Parallel()
+
 	var state bool
 	g := Custom(func(t *T) int {
 		t.Cleanup(func() { state = false })

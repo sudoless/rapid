@@ -193,10 +193,7 @@ func (g *permGen[S, E]) String() string {
 func (g *permGen[S, E]) value(t *T) S {
 	s := append(S(nil), g.slice...)
 	n := len(s)
-	m := n - 1
-	if m < 0 {
-		m = 0
-	}
+	m := max(n-1, 0)
 
 	// shrink-friendly variant of Fisher–Yates shuffle: shrinks to lower number of smaller distance swaps
 	repeat := newRepeat(0, m, math.MaxInt, "permute")

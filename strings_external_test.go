@@ -16,6 +16,8 @@ import (
 )
 
 func TestStringExamples(t *testing.T) {
+	t.Parallel()
+
 	g := StringN(10, -1, -1)
 
 	for range 100 {
@@ -25,6 +27,8 @@ func TestStringExamples(t *testing.T) {
 }
 
 func TestRegexpExamples(t *testing.T) {
+	t.Parallel()
+
 	g := StringMatching("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	for range 100 {
@@ -46,12 +50,16 @@ func TestStringOfRunesIsUTF8(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) {
-			s := g.Draw(t, "s")
-			if !utf8.ValidString(s) {
-				t.Fatalf("invalid UTF-8 string: %q", s)
-			}
-		}))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				s := g.Draw(t, "s")
+				if !utf8.ValidString(s) {
+					t.Fatalf("invalid UTF-8 string: %q", s)
+				}
+			})
+		})
 	}
 }
 
@@ -64,19 +72,23 @@ func TestStringRuneCountLimits(t *testing.T) {
 	}
 
 	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), MakeCheck(func(t *T) {
-			minRunes := IntRange(0, 256).Draw(t, "minRunes")
-			maxRunes := IntMin(minRunes).Draw(t, "maxRunes")
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
 
-			s := gf(minRunes, maxRunes).Draw(t, "s")
-			n := utf8.RuneCountInString(s)
-			if n < minRunes {
-				t.Fatalf("got string with %v runes with lower limit %v", n, minRunes)
-			}
-			if n > maxRunes {
-				t.Fatalf("got string with %v runes with upper limit %v", n, maxRunes)
-			}
-		}))
+			Check(t, func(t *T) {
+				minRunes := IntRange(0, 256).Draw(t, "minRunes")
+				maxRunes := IntMin(minRunes).Draw(t, "maxRunes")
+
+				s := gf(minRunes, maxRunes).Draw(t, "s")
+				n := utf8.RuneCountInString(s)
+				if n < minRunes {
+					t.Fatalf("got string with %v runes with lower limit %v", n, minRunes)
+				}
+				if n > maxRunes {
+					t.Fatalf("got string with %v runes with upper limit %v", n, maxRunes)
+				}
+			})
+		})
 	}
 }
 
@@ -89,12 +101,16 @@ func TestStringNMaxLen(t *testing.T) {
 	}
 
 	for i, gf := range genFuncs {
-		t.Run(strconv.Itoa(i), MakeCheck(func(t *T) {
-			maxLen := IntMin(0).Draw(t, "maxLen")
-			s := gf(maxLen).Draw(t, "s")
-			if len(s) > maxLen {
-				t.Fatalf("got string of length %v with maxLen %v", len(s), maxLen)
-			}
-		}))
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				maxLen := IntMin(0).Draw(t, "maxLen")
+				s := gf(maxLen).Draw(t, "s")
+				if len(s) > maxLen {
+					t.Fatalf("got string of length %v with maxLen %v", len(s), maxLen)
+				}
+			})
+		})
 	}
 }

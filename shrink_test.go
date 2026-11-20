@@ -36,6 +36,8 @@ func TestShrink_IntCmp(t *testing.T) {
 
 	for _, r := range ref {
 		t.Run(fmt.Sprintf("%v", r), func(t *testing.T) {
+			t.Parallel()
+
 			checkShrink(t, func(t *T) {
 				i := Int().Draw(t, "i")
 				if ((r.gt && i > r.a) || (!r.gt && i < r.a)) || (r.eq && i == r.a) {
@@ -70,6 +72,8 @@ func TestShrink_FloatCmp(t *testing.T) {
 
 	for _, r := range ref {
 		t.Run(fmt.Sprintf("%v", r), func(t *testing.T) {
+			t.Parallel()
+
 			checkShrink(t, func(t *T) {
 				f := Float64().Draw(t, "f")
 				if ((r.gt && f > r.a) || (!r.gt && f < r.a)) || (r.eq && f == r.a) {
@@ -209,6 +213,7 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 	for i := range shrinkTestRuns {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Helper()
+			t.Parallel()
 
 			_, _, _, seed, _, buf, err1, err2 := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
 			if seed != 0 && err1 == nil && err2 == nil {

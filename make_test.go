@@ -30,14 +30,18 @@ type kindOverride struct {
 }
 
 func TestMakeIgnoresPrivateFields(t *testing.T) {
+	t.Parallel()
+
 	// Private fields are ignored (and don't panic).
 	rapid.Make[privateFields]().Example()
 }
 
 func TestMakeCustomTypeOverride(t *testing.T) {
+	t.Parallel()
+
 	ex := rapid.MakeCustom[privateFields](rapid.MakeConfig{
 		Types: map[reflect.Type]*rapid.Generator[any]{
-			reflect.TypeOf(privateFields{}): rapid.Just(privateFields{private: true}).AsAny(),
+			reflect.TypeFor[privateFields](): rapid.Just(privateFields{private: true}).AsAny(),
 		},
 	}).Example()
 
@@ -47,11 +51,13 @@ func TestMakeCustomTypeOverride(t *testing.T) {
 }
 
 func TestMakeCustomFieldOverride(t *testing.T) {
+	t.Parallel()
+
 	const customName = "custom-name"
 
 	v := rapid.MakeCustom[fieldOverride](rapid.MakeConfig{
 		Fields: map[reflect.Type]map[string]*rapid.Generator[any]{
-			reflect.TypeOf(fieldOverride{}): {
+			reflect.TypeFor[fieldOverride](): {
 				"Name": rapid.Just(customName).AsAny(),
 			},
 		},
@@ -63,6 +69,8 @@ func TestMakeCustomFieldOverride(t *testing.T) {
 }
 
 func TestMakeCustomKindOverride(t *testing.T) {
+	t.Parallel()
+
 	const customValue = "kind-override"
 
 	v := rapid.MakeCustom[kindOverride](rapid.MakeConfig{

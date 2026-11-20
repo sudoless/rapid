@@ -1060,6 +1060,8 @@ func TestStringMatching(t *testing.T) {
 
 	for _, expr := range crateRegexps {
 		t.Run(expr, func(t *testing.T) {
+			t.Parallel()
+
 			re, err := regexp.Compile(expr)
 			if err != nil {
 				t.Fatalf("failed to compile %q: %v", expr, err)
@@ -1080,6 +1082,8 @@ func TestSliceOfBytesMatching(t *testing.T) {
 
 	for _, expr := range crateRegexps {
 		t.Run(expr, func(t *testing.T) {
+			t.Parallel()
+
 			re, err := regexp.Compile(expr)
 			if err != nil {
 				t.Fatalf("failed to compile %q: %v", expr, err)

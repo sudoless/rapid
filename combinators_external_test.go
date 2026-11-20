@@ -58,7 +58,11 @@ func TestCustom(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) { g.Draw(t, "") }))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) { g.Draw(t, "") })
+		})
 	}
 }
 
@@ -153,12 +157,16 @@ func TestSampledFrom(t *testing.T) {
 	}
 
 	for _, g := range gens {
-		t.Run(g.String(), MakeCheck(func(t *T) {
-			n := g.Draw(t, "n")
-			if n != 3 && n != 5 && n != 7 {
-				t.Fatalf("got impossible %v", n)
-			}
-		}))
+		t.Run(g.String(), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				n := g.Draw(t, "n")
+				if n != 3 && n != 5 && n != 7 {
+					t.Fatalf("got impossible %v", n)
+				}
+			})
+		})
 	}
 }
 
@@ -192,11 +200,15 @@ func TestPtr(t *testing.T) {
 	t.Parallel()
 
 	for _, allowNil := range []bool{false, true} {
-		t.Run(fmt.Sprintf("allowNil=%v", allowNil), MakeCheck(func(t *T) {
-			i := Ptr(Int(), allowNil).Draw(t, "i")
-			if i == nil && !allowNil {
-				t.Fatalf("got nil pointer")
-			}
-		}))
+		t.Run(fmt.Sprintf("allowNil=%v", allowNil), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				i := Ptr(Int(), allowNil).Draw(t, "i")
+				if i == nil && !allowNil {
+					t.Fatalf("got nil pointer")
+				}
+			})
+		})
 	}
 }

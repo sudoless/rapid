@@ -10,6 +10,8 @@ import (
 )
 
 func TestSyncTest_FailureIsCapturedForShrinking(t *testing.T) {
+	t.Parallel()
+
 	rt := newT(tb(t), newRandomBitStream(1, true), false, nil)
 
 	err := checkOnce(rt, func(t *T) {
