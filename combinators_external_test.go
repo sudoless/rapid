@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	. "go.sdls.io/rapid"
@@ -254,4 +255,40 @@ func TestCustomRecordedFailureFailsExample(t *testing.T) {
 		}
 	}()
 	gen.Example(0)
+}
+
+type deferredNode struct {
+	Value int
+	Next  *deferredNode
+}
+
+var (
+	sharedDeferredCalls atomic.Int32
+	sharedDeferred      = Deferred(func() *Generator[int] {
+		sharedDeferredCalls.Add(1)
+		return Int[int]()
+	})
+	sharedMake = Make[deferredNode]() // a pointer field is generated through Deferred
+)
+
+// A generator built once and drawn from by parallel tests resolves its deferred part once; run under -race.
+func TestDeferredSharedBetweenParallelTests(t *testing.T) {
+	t.Parallel()
+
+	t.Cleanup(func() { // after the parallel subtests
+		if calls := sharedDeferredCalls.Load(); calls != 1 {
+			t.Errorf("Deferred called fn %v times, want 1", calls)
+		}
+	})
+
+	for idx := range 4 {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			Check(t, func(t *T) {
+				_ = sharedDeferred.Draw(t, "v")
+				_ = sharedMake.Draw(t, "node")
+			})
+		})
+	}
 }

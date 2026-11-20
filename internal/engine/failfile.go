@@ -7,15 +7,16 @@
 package engine
 
 import (
-	"bufio"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -23,42 +24,44 @@ const (
 	failfileTmpPattern = ".rapid-failfile-tmp-*"
 )
 
-// https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
-var windowsReservedNames = []string{
-	"CON", "PRN", "AUX", "NUL",
-	"COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM¹", "COM²", "COM³",
-	"LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³",
-}
+// testFileName returns the name the files of the test testName go by. Runes other than letters, digits,
+// '-' and '_' become '_', and the result is cut to a length every file system takes. A hash of the full name
+// follows, so names that sanitise alike, such as TestCalc/1+2 and TestCalc/1*2, stay apart.
+func testFileName(testName string) string {
+	const maxSafeBytes = 100
 
-func kindaSafeFilename(f string) string {
-	var s strings.Builder
-	for _, char := range f {
-		if unicode.IsLetter(char) || unicode.IsDigit(char) || char == '-' || char == '_' {
-			s.WriteRune(char)
-		} else {
-			s.WriteRune('_')
+	var safe strings.Builder
+	for _, char := range testName {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '-' {
+			char = '_'
 		}
+		if safe.Len()+utf8.RuneLen(char) > maxSafeBytes {
+			break
+		}
+		safe.WriteRune(char)
 	}
-	name := s.String()
-	nameUpper := strings.ToUpper(name)
-	if slices.Contains(windowsReservedNames, nameUpper) {
-		return name + "_"
-	}
-	return name
+
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(testName)) // a hash.Hash never returns an error
+	return fmt.Sprintf("%s-%016x", safe.String(), h.Sum64())
 }
 
-// FailFileName returns a new fail file path for the test, unique to this second and process.
+// failFileSeq numbers the fail file names this process hands out.
+var failFileSeq atomic.Uint64
+
+// FailFileName returns a new fail file path for the test: the time, process ID and a number this process
+// never hands out twice make it unique.
 func FailFileName(testName string) string {
+	name := testFileName(testName)
 	ts := time.Now().Format("20060102150405")
-	fileName := fmt.Sprintf("%s-%s-%d.fail", kindaSafeFilename(testName), ts, os.Getpid())
-	return filepath.Join("testdata", "rapid", kindaSafeFilename(testName), fileName)
+	fileName := fmt.Sprintf("%s-%s-%d-%d.fail", name, ts, os.Getpid(), failFileSeq.Add(1))
+	return filepath.Join("testdata", "rapid", name, fileName)
 }
 
 // FailFilePattern returns the glob that matches every fail file FailFileName returns for the test.
 func FailFilePattern(testName string) string {
-	fileName := kindaSafeFilename(testName) + "-*.fail"
-	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
-	return filepath.Join(dirName, fileName)
+	name := testFileName(testName)
+	return filepath.Join("testdata", "rapid", name, name+"-*.fail")
 }
 
 // SaveFailFile writes the failing test case buf, drawn from seed, to filename, with output as comments.
@@ -67,12 +70,12 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {
-		return fmt.Errorf("failed to create directory for fail file %q: %w", filename, err)
+		return fmt.Errorf("creating the directory of fail file %q: %w", filename, err)
 	}
 
 	f, err := os.CreateTemp(dir, failfileTmpPattern)
 	if err != nil {
-		return fmt.Errorf("failed to create temporary file for fail file %q: %w", filename, err)
+		return fmt.Errorf("creating a temporary file for fail file %q: %w", filename, err)
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 	defer func() { _ = f.Close() }()
@@ -80,7 +83,7 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 	for line := range strings.SplitSeq(string(output), "\n") {
 		_, err := f.WriteString("# " + line + "\n")
 		if err != nil {
-			return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
+			return fmt.Errorf("writing fail file %q: %w", filename, err)
 		}
 	}
 
@@ -91,13 +94,16 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 
 	_, err = f.WriteString(strings.Join(bs, "\n"))
 	if err != nil {
-		return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
+		return fmt.Errorf("writing fail file %q: %w", filename, err)
 	}
 
-	_ = f.Close() // early close, otherwise os.Rename will fail on Windows
+	// Close before the rename, which fails on Windows for an open file; a failed Close may mean a truncated file.
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("closing fail file %q: %w", filename, err)
+	}
 	err = os.Rename(f.Name(), filename)
 	if err != nil {
-		return fmt.Errorf("failed to save fail file %q: %w", filename, err)
+		return fmt.Errorf("moving fail file %q into place: %w", filename, err)
 	}
 
 	return nil
@@ -105,23 +111,18 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 
 // LoadFailFile reads back what SaveFailFile wrote to filename: the version, seed and test case.
 func LoadFailFile(filename string) (string, uint64, []uint64, error) {
-	f, err := os.Open(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
+	content, err := os.ReadFile(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
+		return "", 0, nil, fmt.Errorf("reading fail file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
 
 	var data []string
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		s := strings.TrimSpace(scanner.Text())
+	for line := range strings.Lines(string(content)) {
+		s := strings.TrimSpace(line)
 		if strings.HasPrefix(s, "#") || s == "" {
 			continue
 		}
 		data = append(data, s)
-	}
-	if err := scanner.Err(); err != nil {
-		return "", 0, nil, fmt.Errorf("failed to load fail file %q: %w", filename, err)
 	}
 
 	if len(data) == 0 {
@@ -130,18 +131,18 @@ func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 
 	version, seedField, ok := strings.Cut(data[0], "#")
 	if !ok {
-		return "", 0, nil, fmt.Errorf("invalid version/seed field %q in %q", data[0], filename)
+		return "", 0, nil, fmt.Errorf("fail file %q has no version#seed line, found %q", filename, data[0])
 	}
 	seed, err := strconv.ParseUint(seedField, 10, 64)
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("invalid seed %q in %q", seedField, filename)
+		return "", 0, nil, fmt.Errorf("parsing the seed of fail file %q: %w", filename, err)
 	}
 
 	var buf []uint64
 	for _, field := range data[1:] {
 		u, err := strconv.ParseUint(field, 0, 64)
 		if err != nil {
-			return "", 0, nil, fmt.Errorf("failed to load fail file %q: %w", filename, err)
+			return "", 0, nil, fmt.Errorf("parsing the test case of fail file %q: %w", filename, err)
 		}
 		buf = append(buf, u)
 	}

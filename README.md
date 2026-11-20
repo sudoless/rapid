@@ -42,8 +42,8 @@ func TestSortStrings(t *testing.T) {
 
 More complete examples:
 
-- [`ParseDate` function test](./example_function_test.go)
-- [`Queue` state machine test](./example_statemachine_test.go)
+- [`ParseDate` function test](./engine_example_test.go)
+- [`Queue` state machine test](./statemachine_example_test.go)
 
 ## Comparison
 
@@ -53,11 +53,11 @@ Rapid aims to bring to Go the power and convenience
 Compared to [testing.F.Fuzz](https://pkg.go.dev/testing#F.Fuzz), rapid shines
 in generating complex structured data, including state machine tests, but lacks
 coverage-guided feedback and mutations. Note that with
-[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
+[`Fuzz`](https://pkg.go.dev/go.sdls.io/rapid#Fuzz), any rapid test
 can be used as a fuzz target for the standard fuzzer.
 
 Compared to [gopter](https://pkg.go.dev/github.com/leanovate/gopter), rapid
-provides a much simpler API (queue test in [rapid](./example_statemachine_test.go) vs
+provides a much simpler API (queue test in [rapid](./statemachine_example_test.go) vs
 [gopter](https://github.com/leanovate/gopter/blob/90cc76d7f1b21637b4b912a7c19dea3efe145bb2/commands/example_circularqueue_test.go)),
 is much smarter about data generation and is able to minimize failing test cases
 fully automatically, without any user code.
@@ -169,7 +169,7 @@ generation that maximizes the coverage.
 Both approaches are useful. Property-based tests are used alongside regular
 example-based tests during development, and fuzzing is used to search for edge
 cases and security vulnerabilities. With
-[`MakeFuzz`](https://pkg.go.dev/go.sdls.io/rapid#MakeFuzz), any rapid test
+[`Fuzz`](https://pkg.go.dev/go.sdls.io/rapid#Fuzz), any rapid test
 can be used as a fuzz target.
 
 ## Usage

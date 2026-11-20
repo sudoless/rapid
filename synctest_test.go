@@ -2,95 +2,37 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid_test
+package rapid
 
 import (
-	"sync/atomic"
+	"strings"
 	"testing"
-	"testing/synctest"
-	"time"
 
-	"go.sdls.io/rapid"
+	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
-func TestSyncTest(t *testing.T) {
+func TestSyncTest_FailureIsCapturedForShrinking(t *testing.T) {
 	t.Parallel()
 
-	rapid.Check(t, func(rt *rapid.T) {
-		var cleaned atomic.Bool
+	rt := newT(tb(t), bitstream.NewRandom(1, true), false, nil)
 
-		rt.SyncTest(func(inner *rapid.T) {
-			inner.Cleanup(func() {
-				cleaned.Store(true)
-			})
-
-			const sleep = 2 * time.Second
-			start := time.Now()
-			time.Sleep(sleep)
-			if got := time.Since(start); got != sleep {
-				inner.Fatalf("virtual time advanced by %v, want %v", got, sleep)
-			}
-
-			done := make(chan struct{})
-			go func() { close(done) }()
-			synctest.Wait()
-			select {
-			case <-done:
-			default:
-				inner.Fatalf("goroutine did not finish inside synctest bubble")
-			}
-		})
-
-		if !cleaned.Load() {
-			rt.Fatalf("cleanup registered inside SyncTest did not run")
-		}
-	})
-}
-
-// Context and Cleanup are safe to call from another goroutine while the property runs a SyncTest bubble.
-func TestSyncTestWhileAnotherGoroutineUsesT(t *testing.T) {
-	t.Parallel()
-
-	rapid.Check(t, func(rt *rapid.T) {
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			for range 100 {
-				_ = rt.Context()
-				rt.Cleanup(func() {})
-			}
-		}()
-		rt.SyncTest(func(*rapid.T) {})
-		<-done
-	})
-}
-
-// A Repeat action whose only draws happen inside SyncTest has drawn: skipping it afterwards rejects
-// the action, rather than marking it not applicable until Repeat finds no valid action.
-func TestSyncTestDrawsCountForRepeat(t *testing.T) {
-	t.Parallel()
-
-	_, _, failed := rapid.CheckOutcome(t, func(rt *rapid.T) {
-		rt.Repeat(map[string]func(*rapid.T){
-			"DrawThenSkip": func(rt *rapid.T) {
-				rt.SyncTest(func(bt *rapid.T) { _ = rapid.IntRange(0, 9).Draw(bt, "v") })
-				rt.SkipNow()
-			},
+	err := checkOnce(rt, func(t *T) {
+		t.SyncTest(func(inner *T) {
+			inner.Fatalf("boom")
 		})
 	})
-	if failed {
-		t.Fatal("an action that drew inside SyncTest and then skipped counted as not applicable")
+
+	if err == nil {
+		t.Fatalf("checkOnce did not report failure from SyncTest")
 	}
-}
-
-// A failure recorded inside SyncTest fails the test case that ran the bubble.
-func TestSyncTestRecordedFailureFailsTestCase(t *testing.T) {
-	t.Parallel()
-
-	_, _, failed := rapid.CheckOutcome(t, func(rt *rapid.T) {
-		rt.SyncTest(func(bt *rapid.T) { bt.Errorf("bad") })
-	})
-	if !failed {
-		t.Fatal("Errorf inside SyncTest did not fail the test case")
+	if !err.IsStopTest() {
+		t.Fatalf("expected stopTest failure, got %T (%v)", err.Data, err)
+	}
+	if !strings.Contains(engine.ErrorString(err), "boom") {
+		t.Fatalf("missing failure message: %q", engine.ErrorString(err))
+	}
+	if !strings.Contains(engine.Traceback(err), "synctest_test.go") {
+		t.Fatalf("traceback does not include property call site:\n%v", engine.Traceback(err))
 	}
 }

@@ -47,7 +47,7 @@ func TestWriteVisHTML(t *testing.T) {
 
 	// A drawn recording: a repetition whose odd elements are rejected, and a group left open.
 	s := bitstream.NewRandom(stattest.Seed(t), true)
-	elems := bitstream.NewRepeat(0, 8, -1, "elems")
+	elems := bitstream.NewRepeat(0, 8, -1, bitstream.Label("elems"))
 	for elems.More(s) {
 		if u, _, _ := bitstream.UintN(s, 100, true); u%2 == 1 {
 			elems.Reject()
@@ -62,12 +62,27 @@ func TestWriteVisHTML(t *testing.T) {
 	}
 
 	var html bytes.Buffer
-	if err := WriteVisHTML(&html, "vis title", rd); err != nil {
-		t.Fatalf("WriteVisHTML error: %v", err)
+	if err := writeVisHTML(&html, "vis title", rd); err != nil {
+		t.Fatalf("writeVisHTML error: %v", err)
 	}
-	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", "discard", "endless", "elems@repeat"} {
+	// The classes are matched in the markup: the embedded stylesheet names them too.
+	for _, want := range []string{"<h1>vis title (", "8-bit", "big integers", `class="group discard `, `class="group endless `, "elems@repeat"} {
 		if !strings.Contains(html.String(), want) {
 			t.Errorf("rendered HTML does not contain %q", want)
 		}
+	}
+}
+
+// A generator that fails before its first draw leaves its group open past the last word.
+func TestWriteVisHTMLGroupOpenedAfterLastDraw(t *testing.T) {
+	t.Parallel()
+
+	s := bitstream.NewRandom(stattest.FixedSeed, true)
+	_ = s.DrawBits(8)
+	s.BeginGroup(bitstream.Label("Custom(int)"), false)
+
+	var html bytes.Buffer
+	if err := writeVisHTML(&html, "vis title", []bitstream.Recorded{s.Recorded}); err != nil {
+		t.Fatalf("writeVisHTML error: %v", err)
 	}
 }

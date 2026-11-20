@@ -17,7 +17,7 @@ var CheckShrink = checkShrink
 func CheckOutcome(t *testing.T, prop func(*T)) (valid int, invalid int, failed bool) {
 	t.Helper()
 
-	res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
+	res := search(t, engine.BaseSeed(), prop)
 
-	return res.valid, res.invalid, res.err1 != nil
+	return res.Valid, res.Invalid, res.Err1 != nil
 }

@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/maphash"
-	"math"
+	"log"
 	"math/bits"
 	"os"
 	"slices"
@@ -39,22 +39,22 @@ const (
 	labelSortGroups          = "sort_groups"
 )
 
-// Logger is where Shrink reports its progress: the test running the property.
+// Logger is where shrinkTestCase reports its progress: the test running the property.
 type Logger interface {
 	Helper()
 	Logf(format string, args ...any)
 	Name() string
 }
 
-// Run runs the property on the test case s draws and returns how it failed, or nil when it passed;
-// log says whether the property's own output goes to the test log.
-type Run func(s bitstream.Stream, log bool) *TestError
+// Run runs the property on the test case s draws and returns how it failed, or nil when it passed.
+// The property's own output goes to out when it is set, else to the test log when log is set.
+type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
 
-// Shrink minimises rec, a test case that failed with err, until deadline: it keeps every smaller
+// shrinkTestCase minimises rec, a test case that failed with err, until deadline: it keeps every smaller
 // test case that run fails on in the same way. It returns the smallest such test case and its failure,
 // or the test case and failure of a replay that failed differently.
-// Under -rapid.debugvis it also writes every step to vis-<test name>.html.
-func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
+// Under -rapid.debugvis it also writes every step to vis-<test name>.html, the name made safe as for fail files.
+func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestError, run Run) ([]uint64, *TestError) {
 	rec.Prune()
 
 	s := &shrinker{
@@ -71,20 +71,31 @@ func Shrink(tb Logger, deadline time.Time, rec bitstream.Recorded, err *TestErro
 	buf, err := s.shrink(deadline)
 
 	if Flags.DebugVis {
-		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
-		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
-		if err != nil {
-			tb.Logf("failed to create debugvis file %v: %v", name, err)
-		} else {
-			defer func() { _ = f.Close() }()
-
-			if err = WriteVisHTML(f, tb.Name(), s.visBits); err != nil {
-				tb.Logf("failed to write debugvis file %v: %v", name, err)
-			}
+		if err := writeVisFile(tb.Name(), s.visBits); err != nil {
+			tb.Logf("[rapid] %v", err)
 		}
 	}
 
 	return buf, err
+}
+
+// writeVisFile writes the -rapid.debugvis page of the shrink steps of the test testName.
+func writeVisFile(testName string, steps []bitstream.Recorded) error {
+	name := "vis-" + testFileName(testName) + ".html"
+	f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
+	if err != nil {
+		return fmt.Errorf("creating debugvis file: %w", err)
+	}
+
+	if err := writeVisHTML(f, testName, steps); err != nil {
+		_ = f.Close() // the write error is the one to report
+		return fmt.Errorf("writing debugvis file %q: %w", name, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("closing debugvis file %q: %w", name, err)
+	}
+
+	return nil
 }
 
 type shrinker struct {
@@ -165,30 +176,17 @@ func (s *shrinker) minimizeBlocks(deadline time.Time) {
 }
 
 func (s *shrinker) lowerFloatHack(deadline time.Time) {
+	steps := [bitstream.FloatLowerSteps]string{labelLowerFloatExp, labelLowerFloatSignif, labelLowerFloatFrac}
 	for idx := 0; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
-		g := s.rec.Groups[idx]
-		if !g.Standalone || g.End != g.Begin+7 {
+		if !bitstream.IsFloat(s.rec.Groups, idx) {
 			continue
 		}
 
-		buf := slices.Clone(s.rec.Data)
-		buf[g.Begin+3] -= 1
-		buf[g.Begin+4] = math.MaxUint64
-		buf[g.Begin+5] = math.MaxUint64
-		buf[g.Begin+6] = math.MaxUint64
-
-		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.Label, idx, buf[g.Begin+3]) {
-			buf := slices.Clone(s.rec.Data)
-			buf[g.Begin+4] -= 1
-			buf[g.Begin+5] = math.MaxUint64
-			buf[g.Begin+6] = math.MaxUint64
-
-			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.Label, idx, buf[g.Begin+4]) {
-				buf := slices.Clone(s.rec.Data)
-				buf[g.Begin+5] -= 1
-				buf[g.Begin+6] = math.MaxUint64
-
-				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.Label, idx, buf[g.Begin+5])
+		g := s.rec.Groups[idx]
+		for step, label := range steps {
+			buf := bitstream.LowerFloat(s.rec.Data, g, step)
+			if s.accept(buf, label, "%v of group %q at %v", label, g.Label, idx) {
+				break
 			}
 		}
 	}
@@ -311,7 +309,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
-	err1 := s.run(s1, Flags.Debug && Flags.Verbose)
+	err1 := s.run(s1, Flags.Debug && Flags.Verbose, nil)
 	if Traceback(err1) != Traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
@@ -321,7 +319,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
-	err2 := s.run(s2, Flags.Debug && Flags.Verbose)
+	err2 := s.run(s2, Flags.Debug && Flags.Verbose, nil)
 	s.rec = s2.Recorded
 	s.rec.Prune()
 	s.labels = nil

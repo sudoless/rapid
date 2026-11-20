@@ -7,11 +7,13 @@
 package engine
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"hash/maphash"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,8 +35,12 @@ type Settings struct {
 // the matching RAPID_* environment variables set their defaults.
 var Flags Settings
 
+// envErrs are the RAPID_* variables that could not be parsed, and so kept their default; EnvErr reports them.
+var envErrs []envError
+
 func init() {
-	defaults := loadDefaults(os.LookupEnv)
+	var defaults Settings
+	defaults, envErrs = loadDefaults(os.LookupEnv)
 	flag.IntVar(&Flags.Checks, "rapid.checks", defaults.Checks, "rapid: number of checks to perform")
 	flag.IntVar(&Flags.Steps, "rapid.steps", defaults.Steps, "rapid: average number of Repeat actions to execute")
 	flag.StringVar(&Flags.FailFile, "rapid.failfile", defaults.FailFile, "rapid: fail file to use to reproduce test failure")
@@ -45,6 +51,25 @@ func init() {
 	flag.BoolVar(&Flags.Debug, "rapid.debug", defaults.Debug, "rapid: debugging output")
 	flag.BoolVar(&Flags.DebugVis, "rapid.debugvis", defaults.DebugVis, "rapid: debugging visualization")
 	flag.DurationVar(&Flags.ShrinkTime, "rapid.shrinktime", defaults.ShrinkTime, "rapid: maximum time to spend on test case minimization")
+}
+
+// EnvErr says which RAPID_* variables could not be parsed, and so left the default of their flag. A variable
+// whose -rapid.* flag is set is left out: the flag overrides it.
+func EnvErr() error {
+	if len(envErrs) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+
+	var errs []error
+	for i := range envErrs {
+		if !set[envErrs[i].flag] {
+			errs = append(errs, envErrs[i].err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // BaseSeed returns -rapid.seed when set, and a random seed otherwise.
@@ -64,78 +89,55 @@ func defaultSettings() Settings {
 	}
 }
 
-func loadDefaults(lookup func(string) (string, bool)) Settings {
+// loadDefaults returns the settings the RAPID_* variables lookup finds give. A variable that does not parse
+// keeps its default, and is returned with why.
+func loadDefaults(lookup func(string) (string, bool)) (Settings, []envError) {
 	defaults := defaultSettings()
+	env := envReader{lookup: lookup}
 
-	defaults.Checks = envInt(lookup, "RAPID_CHECKS", defaults.Checks)
-	defaults.Steps = envInt(lookup, "RAPID_STEPS", defaults.Steps)
-	defaults.FailFile = envString(lookup, "RAPID_FAILFILE", defaults.FailFile)
-	defaults.NoFailFile = envBool(lookup, "RAPID_NOFAILFILE", defaults.NoFailFile)
-	defaults.Seed = envUint64(lookup, "RAPID_SEED", defaults.Seed)
-	defaults.Log = envBool(lookup, "RAPID_LOG", defaults.Log)
-	defaults.Verbose = envBool(lookup, "RAPID_V", defaults.Verbose)
-	defaults.Debug = envBool(lookup, "RAPID_DEBUG", defaults.Debug)
-	defaults.DebugVis = envBool(lookup, "RAPID_DEBUGVIS", defaults.DebugVis)
-	defaults.ShrinkTime = envDuration(lookup, "RAPID_SHRINKTIME", defaults.ShrinkTime)
+	defaults.Checks = envValue(&env, "rapid.checks", defaults.Checks, parseInt)
+	defaults.Steps = envValue(&env, "rapid.steps", defaults.Steps, parseInt)
+	defaults.FailFile = envValue(&env, "rapid.failfile", defaults.FailFile, func(s string) (string, error) { return s, nil })
+	defaults.NoFailFile = envValue(&env, "rapid.nofailfile", defaults.NoFailFile, strconv.ParseBool)
+	defaults.Seed = envValue(&env, "rapid.seed", defaults.Seed, func(s string) (uint64, error) { return strconv.ParseUint(s, 0, 64) })
+	defaults.Log = envValue(&env, "rapid.log", defaults.Log, strconv.ParseBool)
+	defaults.Verbose = envValue(&env, "rapid.v", defaults.Verbose, strconv.ParseBool)
+	defaults.Debug = envValue(&env, "rapid.debug", defaults.Debug, strconv.ParseBool)
+	defaults.DebugVis = envValue(&env, "rapid.debugvis", defaults.DebugVis, strconv.ParseBool)
+	defaults.ShrinkTime = envValue(&env, "rapid.shrinktime", defaults.ShrinkTime, time.ParseDuration)
 
-	return defaults
+	return defaults, env.errs
 }
 
-func envString(lookup func(string) (string, bool), key, defaultValue string) string {
-	if v, ok := lookup(key); ok {
-		return v
-	}
-	return defaultValue
+// envError is a RAPID_* variable that does not parse.
+type envError struct {
+	flag string // the -rapid.* flag the variable sets the default of
+	err  error
 }
 
-func envInt(lookup func(string) (string, bool), key string, defaultValue int) int {
-	v, ok := lookup(key)
+// envReader reads RAPID_* variables through lookup, and collects those that do not parse.
+type envReader struct {
+	lookup func(string) (string, bool)
+	errs   []envError
+}
+
+// envValue returns the variable of the flag name, parsed by parse, or defaultValue when the variable is unset
+// or does not parse. The variable of rapid.checks is RAPID_CHECKS.
+func envValue[V any](env *envReader, name string, defaultValue V, parse func(string) (V, error)) V {
+	key := strings.ToUpper(strings.ReplaceAll(name, ".", "_"))
+	s, ok := env.lookup(key)
 	if !ok {
 		return defaultValue
 	}
-	n, err := strconv.ParseInt(v, 0, strconv.IntSize)
+	v, err := parse(s)
 	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return int(n)
-}
-
-func envBool(lookup func(string) (string, bool), key string, defaultValue bool) bool {
-	v, ok := lookup(key)
-	if !ok {
+		env.errs = append(env.errs, envError{flag: name, err: fmt.Errorf("parsing %s=%q: %w", key, s, err)})
 		return defaultValue
 	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return b
+	return v
 }
 
-func envUint64(lookup func(string) (string, bool), key string, defaultValue uint64) uint64 {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	n, err := strconv.ParseUint(v, 0, 64)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return n
-}
-
-func envDuration(lookup func(string) (string, bool), key string, defaultValue time.Duration) time.Duration {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return d
-}
-
-func panicInvalidEnv(key, value string, err error) {
-	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
+func parseInt(s string) (int, error) {
+	n, err := strconv.ParseInt(s, 0, strconv.IntSize)
+	return int(n), err
 }

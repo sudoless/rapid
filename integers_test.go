@@ -67,6 +67,51 @@ func checkIntCoverage(t *testing.T, seed uint64) {
 	}
 }
 
+// IntRange produces both bounds of a range, and zero when the range holds it, on ranges drawn from the
+// fixed seed.
+func TestIntBoundCoverage(t *testing.T) {
+	t.Parallel()
+	checkIntBoundCoverage(t, stattest.FixedSeed)
+}
+
+func checkIntBoundCoverage(t *testing.T, seed uint64) {
+	t.Helper()
+	checkBoundCoverage(t, seed, Int[int](), IntRange[int], 250)
+}
+
+// checkBoundCoverage checks, on 100 ranges drawn with bound from seed, that within examples Example calls
+// the generator inRange builds for each range produces both bounds, and zero when the range holds it.
+func checkBoundCoverage[N Integer | Floating](t *testing.T, seed uint64, bound *Generator[N], inRange func(lo, hi N) *Generator[N], examples int) {
+	t.Helper()
+
+	res := search(t, seed, func(t *T) {
+		lo := bound.Draw(t, "min")
+		hi := bound.Draw(t, "max")
+		if lo > hi {
+			lo, hi = hi, lo
+		}
+
+		g := inRange(lo, hi)
+		var gotMin, gotMax, gotZero bool
+		for seed := range examples {
+			n := g.Example(seed)
+
+			gotMin = gotMin || n == lo
+			gotMax = gotMax || n == hi
+			gotZero = gotZero || n == 0
+
+			if gotMin && gotMax && (lo > 0 || hi < 0 || gotZero) {
+				return
+			}
+		}
+
+		t.Fatalf("[%v, %v]: got min %v, got max %v, got zero %v", lo, hi, gotMin, gotMax, gotZero)
+	})
+	if res.Err1 != nil {
+		t.Fatalf("%v (seed %v)", res.Err2, seed)
+	}
+}
+
 func TestUintCoverage(t *testing.T) {
 	t.Parallel()
 

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/engine"
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 // https://pkg.go.dev/github.com/leanovate/gopter/commands?tab=doc#example-package-BuggyCounter
@@ -231,7 +232,9 @@ type stateMachineTest struct {
 	run []string
 }
 
-func (sm *stateMachineTest) Check(t *T) {}
+func (sm *stateMachineTest) Check(t *T) {
+	sm.run = append(sm.run, "Check")
+}
 
 func (sm *stateMachineTest) ActionT(t *T) {
 	sm.run = append(sm.run, "ActionT")
@@ -283,6 +286,33 @@ func TestStateMachineActions(t *testing.T) {
 		})
 	})
 
+	// An action that skips is not followed by Check: Repeat tries another action instead. The seed and the
+	// number of steps are the test's own, so that some action skips whatever the -rapid.* flags.
+	t.Run("no Check after a skipped action", func(t *testing.T) {
+		t.Parallel()
+
+		skips := 0
+		res := search(t, stattest.FixedSeed, func(t *T) {
+			sm := &stateMachineTest{}
+			t.repeat(StateMachineActions(sm), 30)
+			for idx, step := range sm.run {
+				if step != "Post-Skip" {
+					continue
+				}
+				skips++
+				if idx+1 < len(sm.run) && sm.run[idx+1] == "Check" {
+					t.Fatalf("Check ran after a skipped action: %v", sm.run)
+				}
+			}
+		})
+		if res.Err1 != nil {
+			t.Fatalf("%v", res.Err1)
+		}
+		if skips == 0 {
+			t.Fatalf("no action skipped, so nothing was checked")
+		}
+	})
+
 	t.Run("directly use action with testing.T", func(t *testing.T) {
 		t.Parallel()
 
@@ -296,6 +326,6 @@ func TestStateMachineActions(t *testing.T) {
 
 func BenchmarkCheckQueue(b *testing.B) {
 	for b.Loop() {
-		_ = doCheck(b, checkDeadline(nil), 100, engine.BaseSeed(), "", false, queueTest)
+		_ = search(b, engine.BaseSeed(), queueTest)
 	}
 }

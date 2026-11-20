@@ -5,6 +5,9 @@
 package engine
 
 import (
+	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -12,10 +15,13 @@ import (
 func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 	t.Parallel()
 
-	got := loadDefaults(func(string) (string, bool) {
+	got, errs := loadDefaults(func(string) (string, bool) {
 		return "", false
 	})
-	want := defaultSettings()
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	want := Settings{Checks: 100, Steps: 30, ShrinkTime: 30 * time.Second}
 
 	if got != want {
 		t.Fatalf("defaults mismatch: got %+v, want %+v", got, want)
@@ -38,10 +44,13 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 		"RAPID_SHRINKTIME": "45s",
 	}
 
-	got := loadDefaults(func(key string) (string, bool) {
+	got, errs := loadDefaults(func(key string) (string, bool) {
 		value, ok := env[key]
 		return value, ok
 	})
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
 
 	if got.Checks != 200 {
 		t.Fatalf("checks: got %d, want %d", got.Checks, 200)
@@ -66,18 +75,29 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 	}
 }
 
-func TestLoadCmdlineDefaultsInvalidEnvPanics(t *testing.T) {
+// A variable that does not parse keeps its default, and its error names it and its flag; the others still apply.
+func TestLoadCmdlineDefaultsInvalidEnv(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic for invalid env value")
-		}
-	}()
-
-	loadDefaults(func(string) (string, bool) {
-		return "not-an-int", true
+	env := map[string]string{"RAPID_CHECKS": "abc", "RAPID_V": "maybe", "RAPID_STEPS": "40"}
+	got, errs := loadDefaults(func(key string) (string, bool) {
+		value, ok := env[key]
+		return value, ok
 	})
+
+	if got.Checks != 100 || got.Verbose || got.Steps != 40 {
+		t.Fatalf("got checks %v, verbose %v, steps %v; want 100, false, 40", got.Checks, got.Verbose, got.Steps)
+	}
+	want := map[string]string{"rapid.checks": "RAPID_CHECKS", "rapid.v": "RAPID_V"}
+	if len(errs) != len(want) {
+		t.Fatalf("errors %v, want one for each of %v", errs, want)
+	}
+	for _, e := range errs {
+		key, ok := want[e.flag]
+		if !ok || !strings.Contains(e.err.Error(), key) || !errors.Is(e.err, strconv.ErrSyntax) {
+			t.Errorf("error %v of flag %v; want flags %v, each error naming its variable and wrapping %v", e.err, e.flag, want, strconv.ErrSyntax)
+		}
+	}
 }
 
 func BenchmarkBaseSeed(b *testing.B) {

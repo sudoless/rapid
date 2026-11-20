@@ -10,13 +10,18 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/engine"
 )
 
-const tryLabel bitstream.Label = "try"
+const (
+	tryLabel     bitstream.Label = "try"
+	permuteLabel bitstream.Label = "permute"
+)
 
 // Custom creates a generator which produces results of calling fn. In fn, values should be generated
 // by calling other generators; it is invalid to return a value from fn without using any other generator.
@@ -59,7 +64,8 @@ func (g *customGen[V]) maybeValue(t *T) (V, bool) {
 }
 
 // Deferred creates a generator which defers calling fn until attempting to produce a value. This allows
-// to define recursive generators.
+// to define recursive generators. fn is called once, however many goroutines draw from the generator;
+// a fn that panics is called again on the next draw, so the failure reproduces.
 func Deferred[V any](fn func() *Generator[V]) *Generator[V] {
 	return newGenerator[V](&deferredGen[V]{
 		fn: fn,
@@ -67,8 +73,9 @@ func Deferred[V any](fn func() *Generator[V]) *Generator[V] {
 }
 
 type deferredGen[V any] struct {
-	g  *Generator[V]
-	fn func() *Generator[V]
+	fn  func() *Generator[V]
+	mu  sync.Mutex                   // serializes calls of fn
+	gen atomic.Pointer[Generator[V]] // what fn returned, once it has returned
 }
 
 func (g *deferredGen[V]) String() string {
@@ -77,10 +84,23 @@ func (g *deferredGen[V]) String() string {
 }
 
 func (g *deferredGen[V]) value(t *T) V {
-	if g.g == nil {
-		g.g = g.fn()
+	return g.resolve().value(t)
+}
+
+func (g *deferredGen[V]) resolve() *Generator[V] {
+	if gen := g.gen.Load(); gen != nil {
+		return gen
 	}
-	return g.g.value(t)
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if gen := g.gen.Load(); gen != nil {
+		return gen
+	}
+	gen := g.fn()
+	g.gen.Store(gen)
+	return gen
 }
 
 func filter[V any](g *Generator[V], fn func(V) bool) *Generator[V] {
@@ -123,7 +143,7 @@ func find[V any](gen func(*T) (V, bool), t *T, tries int) V {
 		}
 	}
 
-	panic(bitstream.InvalidData(fmt.Sprintf("failed to find suitable value in %d tries", tries)))
+	panic(bitstream.InvalidData(fmt.Sprintf("no suitable value in %d tries", tries)))
 }
 
 // Map creates a generator producing fn(u) for each u produced by g.
@@ -203,7 +223,7 @@ func (g *permGen[S, E]) value(t *T) S {
 	m := max(n-1, 0)
 
 	// shrink-friendly variant of Fisher–Yates shuffle: shrinks to lower number of smaller distance swaps
-	repeat := bitstream.NewRepeat(0, m, math.MaxInt, "permute")
+	repeat := bitstream.NewRepeat(0, m, math.MaxInt, permuteLabel)
 	for idx := 0; repeat.More(t.s); idx++ {
 		j, _, _ := bitstream.UintRange(t.s, uint64(idx), uint64(n-1), false)
 		s[idx], s[j] = s[j], s[idx]

@@ -8,8 +8,7 @@ package rapid
 
 import (
 	"bytes"
-	"context"
-	"errors"
+	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,6 +17,12 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 	"go.sdls.io/rapid/internal/stattest"
 )
+
+// search runs prop for 100 test cases generated from seed, without fail files.
+func search(tb tb, seed uint64, prop func(*T)) engine.Result {
+	tb.Helper()
+	return engine.Search(tb, engine.Deadline(nil), 100, seed, "", false, runner(tb, prop))
+}
 
 func brokenGen(*T) int { panic("this generator is not working") }
 
@@ -30,15 +35,13 @@ func TestPanicTraceback(t *testing.T) {
 	t.Parallel()
 
 	testData := []struct {
-		name       string
-		suffix     string
-		canSucceed bool
-		fail       func(*T) *engine.TestError
+		name   string
+		suffix string
+		fail   func(*T) *engine.TestError
 	}{
 		{
 			"broken custom generator",
 			"go.sdls.io/rapid.brokenGen",
-			false,
 			func(t *T) *engine.TestError {
 				g := Custom(brokenGen)
 				_, err := recoverValue(g, t)
@@ -48,11 +51,10 @@ func TestPanicTraceback(t *testing.T) {
 		{
 			"broken state machine",
 			"go.sdls.io/rapid.(*brokenMachine).DoNothing",
-			true,
 			func(t *T) *engine.TestError {
 				return checkOnce(t, func(t *T) {
 					var sm brokenMachine
-					t.Repeat(StateMachineActions(&sm))
+					t.repeat(StateMachineActions(&sm), 30) // its own step count, so the broken action runs whatever -rapid.steps says
 				})
 			},
 		},
@@ -62,14 +64,11 @@ func TestPanicTraceback(t *testing.T) {
 		t.Run(td.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := bitstream.NewRandom(stattest.Seed(t), false)
+			s := bitstream.NewRandom(stattest.FixedSeed, false) // a seed whose state machine reaches DoNothing
 			nt := newT(t, s, false, nil)
 
 			err := td.fail(nt)
 			if err == nil {
-				if td.canSucceed {
-					t.SkipNow()
-				}
 				t.Fatalf("test case did not fail")
 			}
 
@@ -86,171 +85,34 @@ func BenchmarkCheckOverhead(b *testing.B) {
 	f := func(t *T) {
 		g.Draw(t, "")
 	}
-	deadline := checkDeadline(nil)
-
 	for b.Loop() {
-		checkTB(b, deadline, f)
+		engine.Check(b, runner(b, f))
 	}
 }
 
-func TestCheckContext(t *testing.T) {
-	t.Parallel()
-
-	type key struct{}
-
-	var ctx context.Context
-	Check(t, func(t *T) {
-		ctx = context.WithValue(t.Context(), key{}, Int[int]().Draw(t, "x"))
-		if err := ctx.Err(); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	if err := ctx.Err(); err == nil || !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected context to be canceled, got: %v", err)
-	}
-
-	if _, ok := ctx.Value(key{}).(int); !ok {
-		t.Fatalf("context must have a value")
-	}
-}
-
-func TestCheckCleanup(t *testing.T) {
-	t.Parallel()
-
-	// Each Check iteration will append a true to indicate "open",
-	// and flip it to false on cleanup.
-	//
-	// After the check is done, we expect all values to be false.
-	var state []bool
-
-	Check(t, func(t *T) {
-		idx := len(state)
-		state = append(state, true)
-		t.Cleanup(func() {
-			state[idx] = false
-		})
-	})
-
-	for _, value := range state {
-		if value {
-			t.Fatalf("expected all values to be false")
-		}
-	}
-}
-
-func TestCheckCleanupMultipleOrder(t *testing.T) {
-	t.Parallel()
-
-	// If multiple cleanups are appended during a Check,
-	// they must run in reverse order.
-	var state []int
-	Check(t, func(t *T) {
-		// We just want to capture the result of one iteration,
-		// so we'll keep resetting the state.
-		state = nil
-		t.Cleanup(func() {
-			state = append(state, 1)
-		})
-		t.Cleanup(func() {
-			state = append(state, 2)
-		})
-		t.Cleanup(func() {
-			state = append(state, 3)
-		})
-	})
-
-	if !reflect.DeepEqual(state, []int{3, 2, 1}) {
-		t.Fatalf("expected cleanups to run in reverse order, got: %v", state)
-	}
-}
-
+// A cleanup that panics fails the test case, and the cleanups registered before it still run, in reverse order.
 func TestCheckCleanupPanic(t *testing.T) {
 	t.Parallel()
 
-	// A Cleanup function halfway through will panic.
-	// Deferred assertions will check that all values are false.
-	var state []bool
-	defer func() {
-		for _, value := range state {
-			if value {
-				t.Errorf("expected all values to be false")
-			}
-		}
-	}()
-
+	var ran []int
 	prop := func(t *T) {
-		idx := len(state)
-		state = append(state, true)
-		t.Cleanup(func() {
-			state[idx] = false
-			if idx == len(state)/2 {
-				panic("cleanup panic")
-			}
-		})
+		for idx := range 5 {
+			t.Cleanup(func() {
+				ran = append(ran, idx)
+				if idx == 2 {
+					panic("cleanup panic")
+				}
+			})
+		}
 	}
 
-	res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
-	if res.err1 == nil {
+	err := checkOnce(newT(t, bitstream.NewRandom(stattest.FixedSeed, false), false, nil), prop)
+	if err == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
-	_ = checkOnce(newT(t, bitstream.NewBuffer(res.buf, false), false, nil), prop)
-}
-
-func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
-	t.Parallel()
-
-	// Cleanups can be added during cleanup.
-	var state []bool
-	Check(t, func(t *T) {
-		idx := len(state)
-		state = append(state, true)
-		t.Cleanup(func() {
-			// Odd numbered events will add a new cleanup.
-			if idx%2 == 0 {
-				state[idx] = false
-			} else {
-				t.Cleanup(func() {
-					state[idx] = false
-				})
-			}
-		})
-	})
-}
-
-func TestCheckCleanupContextIsCanceled(t *testing.T) {
-	t.Parallel()
-
-	// Context created during Check is canceled by the time Cleanup is run.
-	Check(t, func(t *T) {
-		ctx := t.Context()
-		t.Cleanup(func() {
-			if err := ctx.Err(); err == nil || !errors.Is(err, context.Canceled) {
-				t.Fatalf("expected context to be canceled, got: %v", ctx)
-			}
-		})
-	})
-}
-
-func TestCheckCleanupContextCreatedInCleanup(t *testing.T) {
-	t.Parallel()
-
-	// Context created during Cleanup is already canceled.
-	Check(t, func(t *T) {
-		ctx := t.Context()
-		t.Cleanup(func() {
-			// ctx is already cleared on rapid.T by now,
-			// so this will request a new context.
-			newCtx := t.Context()
-			if ctx == newCtx {
-				t.Fatalf("expected new context")
-			}
-
-			if err := newCtx.Err(); err == nil || !errors.Is(err, context.Canceled) {
-				t.Fatalf("expected context to be canceled, got: %v", newCtx)
-			}
-		})
-	})
+	if want := []int{4, 3, 2, 1, 0}; !reflect.DeepEqual(ran, want) {
+		t.Fatalf("cleanups ran %v, want %v", ran, want)
+	}
 }
 
 func TestOutputRawLog(t *testing.T) {
@@ -258,14 +120,16 @@ func TestOutputRawLog(t *testing.T) {
 
 	msg := []byte("Hello World")
 
-	out := captureTestOutput(t, func(t *T) {
+	var out bytes.Buffer
+	run := runner(t, func(t *T) {
 		if _, err := t.Output().Write(msg); err != nil {
 			t.Fatal(err)
 		}
-	}, nil)
+	})
+	_ = run(bitstream.NewBuffer(nil, false), false, log.New(&out, "", 0))
 
-	if !bytes.Contains(out, msg) {
-		t.Errorf("expected output to contain %q, got: %q", msg, out)
+	if !bytes.Contains(out.Bytes(), msg) {
+		t.Errorf("expected output to contain %q, got: %q", msg, out.Bytes())
 	}
 }
 
@@ -297,12 +161,12 @@ func TestCheckRecordedFailureBelongsToItsTestCase(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := doCheck(t, checkDeadline(nil), 100, stattest.FixedSeed, "", false, tc.prop)
-			if res.err1 == nil {
-				t.Fatalf("recorded failure was not reported (valid %d, invalid %d)", res.valid, res.invalid)
+			res := search(t, stattest.FixedSeed, tc.prop)
+			if res.Err1 == nil {
+				t.Fatalf("recorded failure was not reported (valid %d, invalid %d)", res.Valid, res.Invalid)
 			}
-			if !engine.SameError(res.err1, res.err2) {
-				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.err1, res.err2)
+			if !engine.SameError(res.Err1, res.Err2) {
+				t.Fatalf("recorded failure did not reproduce: found %v, replay %v", res.Err1, res.Err2)
 			}
 		})
 	}

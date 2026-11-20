@@ -20,9 +20,12 @@ func TestStress(t *testing.T) {
 	seed := stattest.Seed(t)
 
 	checks := map[string]func(*testing.T, uint64){
-		"ByteCoverage": checkByteCoverage,
-		"IntCoverage":  checkIntCoverage,
-		"UintCoverage": checkUintCoverage,
+		"ByteCoverage":         checkByteCoverage,
+		"IntCoverage":          checkIntCoverage,
+		"UintCoverage":         checkUintCoverage,
+		"IntBoundCoverage":     checkIntBoundCoverage,
+		"Float32BoundCoverage": checkFloat32BoundCoverage,
+		"Float64BoundCoverage": checkFloat64BoundCoverage,
 	}
 	for name, check := range checks {
 		t.Run(name, func(t *testing.T) {

@@ -16,7 +16,10 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
-const actionLabel bitstream.Label = "action"
+const (
+	actionLabel        bitstream.Label = "action"
+	repeatActionsLabel bitstream.Label = "Repeat"
+)
 
 const (
 	validActionTries  = 100 // hack, but probably good enough for now
@@ -34,6 +37,17 @@ const (
 func (t *T) Repeat(actions map[string]func(*T)) {
 	t.Helper()
 
+	steps := engine.Flags.Steps
+	if testing.Short() {
+		steps /= 2
+	}
+	t.repeat(actions, steps)
+}
+
+// repeat is Repeat with an average of steps actions.
+func (t *T) repeat(actions map[string]func(*T), steps int) {
+	t.Helper()
+
 	check := func(*T) {}
 	actionKeys := make([]string, 0, len(actions))
 	for key, action := range actions {
@@ -48,12 +62,7 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 	}
 	slices.Sort(actionKeys)
 
-	steps := engine.Flags.Steps
-	if testing.Short() {
-		steps /= 2
-	}
-
-	repeat := bitstream.NewRepeat(-1, -1, float64(steps), "Repeat")
+	repeat := bitstream.NewRepeat(-1, -1, float64(steps), repeatActionsLabel)
 	sm := stateMachine{
 		check:      check,
 		actionKeys: SampledFrom(actionKeys),

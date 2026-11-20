@@ -51,9 +51,9 @@ type visTmplImage struct {
 	GroupEnds   []visGroupInfo
 }
 
-// WriteVisHTML writes the -rapid.debugvis page: each recording's words as bit images,
+// writeVisHTML writes the -rapid.debugvis page: each recording's words as bit images,
 // marked where its groups begin and end.
-func WriteVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
+func writeVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
 		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet
@@ -78,18 +78,25 @@ func WriteVisHTML(w io.Writer, title string, recData []bitstream.Recorded) error
 			}
 		}
 
-		for jdx := range rd.Groups {
-			group := &rd.Groups[jdx]
-			images[group.Begin].GroupBegins = append(images[group.Begin].GroupBegins, visGroupToInfo(labelClasses, *group))
-			if group.End > 0 {
-				images[group.End-1].GroupEnds = append(images[group.End-1].GroupEnds, visGroupToInfo(labelClasses, *group))
-			}
-		}
-
+		visMarkGroups(images, rd.Groups, labelClasses)
 		d.Images = append(d.Images, images)
 	}
 
 	return visTmpl.Execute(w, d)
+}
+
+// visMarkGroups marks on images, the words of one recording, where each of its groups begins and ends.
+func visMarkGroups(images []*visTmplImage, groups []bitstream.Group, labelClasses map[string]string) {
+	for idx := range groups {
+		group := &groups[idx]
+		if group.Begin >= len(images) {
+			continue // opened after the last word, as by a generator that failed before drawing: nothing to show
+		}
+		images[group.Begin].GroupBegins = append(images[group.Begin].GroupBegins, visGroupToInfo(labelClasses, *group))
+		if group.End > 0 {
+			images[group.End-1].GroupEnds = append(images[group.End-1].GroupEnds, visGroupToInfo(labelClasses, *group))
+		}
+	}
 }
 
 // visWordImages renders each word of data as an image.

@@ -10,7 +10,6 @@ package textgen
 
 import (
 	"regexp/syntax"
-	"sync"
 	"unicode"
 
 	"go.sdls.io/rapid/internal/bitstream"
@@ -56,55 +55,40 @@ var (
 		unicode.Co, // Other, private use     (137468)
 	}
 
-	expandedTables = sync.Map{} // *unicode.RangeTable or regexp name -> []rune
+	// DefaultSets are the RuneSets of DefaultTables, built once for every Rune generator to share. They hold
+	// their runes expanded, as most draws are from them: indexing a rune is faster than searching its range.
+	DefaultSets = expandedSets(DefaultTables)
 )
 
-// TableRunes returns the runes t holds, in table order. It caches them under key,
-// so a later call with the same key returns them without reading t.
-func TableRunes(t *unicode.RangeTable, key any) []rune {
-	cached, ok := expandedTables.Load(key)
-	if ok {
-		return cached.([]rune)
+func expandedSets(tables []*unicode.RangeTable) []*RuneSet {
+	sets := make([]*RuneSet, len(tables))
+	for idx, t := range tables {
+		sets[idx] = TableSet(t)
+		sets[idx].expand()
 	}
-
-	n := 0
-	for _, span := range t.R16 {
-		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
-	}
-	for _, span := range t.R32 {
-		n += int(span.Hi-span.Lo)/int(span.Stride) + 1
-	}
-
-	ret := make([]rune, 0, n)
-	for _, span := range t.R16 {
-		for code := uint32(span.Lo); code <= uint32(span.Hi); code += uint32(span.Stride) {
-			ret = append(ret, rune(code))
-		}
-	}
-	for _, span := range t.R32 {
-		for code := uint64(span.Lo); code <= uint64(span.Hi); code += uint64(span.Stride) {
-			ret = append(ret, rune(code))
-		}
-	}
-	expandedTables.Store(key, ret)
-
-	return ret
+	return sets
 }
 
-// ClassRunes returns the runes of the character class re, cached by its name.
-func ClassRunes(re *syntax.Regexp) []rune {
-	t := &unicode.RangeTable{R32: make([]unicode.Range32, 0, len(re.Rune)/2)}
-	for idx := 0; idx < len(re.Rune); idx += 2 {
-		// not a valid unicode.Range32, since it requires that Lo and Hi must always be >= 1<<16
-		// however, we don't really care, since the only use of these ranges is as input to TableRunes
-		t.R32 = append(t.R32, unicode.Range32{
-			Lo:     uint32(re.Rune[idx]),
-			Hi:     uint32(re.Rune[idx+1]),
-			Stride: 1,
-		})
+// TableSet returns the runes t holds, in table order.
+func TableSet(t *unicode.RangeTable) *RuneSet {
+	n := len(t.R16) + len(t.R32)
+	set := &RuneSet{lo: make([]rune, 0, n), stride: make([]rune, 0, n), ends: make([]int, 0, n)}
+	for _, span := range t.R16 {
+		set.add(rune(span.Lo), rune(span.Hi), rune(span.Stride))
 	}
+	for _, span := range t.R32 {
+		set.add(rune(span.Lo), rune(span.Hi), rune(span.Stride))
+	}
+	return set
+}
 
-	return TableRunes(t, RegexpName(re))
+// ClassRunes returns the runes of the character class re, in the order of its ranges.
+func ClassRunes(re *syntax.Regexp) *RuneSet {
+	set := &RuneSet{}
+	for idx := 0; idx < len(re.Rune); idx += 2 {
+		set.add(re.Rune[idx], re.Rune[idx+1], 1)
+	}
+	return set
 }
 
 // FoldCase draws how many times to case-fold r when flags ask for case folding, and folds it.

@@ -28,6 +28,6 @@ Statistical and coverage checks run once on a fixed seed in the default suite. `
 
 ## Conventions
 
-The root package holds the public API and the code that runs a property through `*T`. Everything else lives in `internal/`, one package per domain: `bitstream` (where values come from), `engine` (what happens around a failure), `textgen` (what string generation draws from); `assert` and the test-only `stattest` support them. New code joins the package whose domain it serves, in a file of its own, rather than starting a package.
+The root package holds the public API and the code that runs a property through `*T`. Everything else lives in `internal/`, one package per domain: `bitstream` (where values come from), `engine` (how a property is checked: search, shrinking, fail files, reports), `textgen` (what string generation draws from); `assert` and the test-only `stattest` support them. New code joins the package whose domain it serves, in a file of its own, rather than starting a package.
 
 Tests sit beside their subject: `foo_test.go` (package `rapid`, internals), `foo_external_test.go` (package `rapid_test`, public API), `foo_example_test.go` (godoc examples).

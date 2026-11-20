@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"regexp/syntax"
 	"strings"
-	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -23,24 +22,18 @@ import (
 )
 
 var (
-	charClassGens = sync.Map{} // regexp name -> *Generator
-
 	anyRuneGen     = Rune()
 	anyRuneGenNoNL = Rune().Filter(func(r rune) bool { return r != '\n' })
 )
 
 // Rune creates a rune generator. Rune is equivalent to [RuneFrom] with default set of runes and tables.
 func Rune() *Generator[rune] {
-	return runesFrom(true, textgen.DefaultRunes, textgen.DefaultTables...)
+	return newGenerator[rune](newRuneGen(true, textgen.DefaultRunes, textgen.DefaultSets))
 }
 
 // RuneFrom creates a rune generator from provided runes and tables.
 // RuneFrom panics if both runes and tables are empty. RuneFrom panics if tables contain an empty table.
 func RuneFrom(runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
-	return runesFrom(false, runes, tables...)
-}
-
-func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Generator[rune] {
 	if len(tables) == 0 {
 		assert.Truef(len(runes) > 0, "at least one rune should be specified")
 	}
@@ -48,6 +41,16 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 		assert.Truef(len(tables) > 0, "at least one *unicode.RangeTable should be specified")
 	}
 
+	sets := make([]*textgen.RuneSet, len(tables))
+	for idx := range tables {
+		sets[idx] = textgen.TableSet(tables[idx])
+		assert.Truef(sets[idx].Len() > 0, "empty *unicode.RangeTable %v", idx)
+	}
+
+	return newGenerator[rune](newRuneGen(false, runes, sets))
+}
+
+func newRuneGen(default_ bool, runes []rune, tables []*textgen.RuneSet) *runeGen {
 	var weights []int
 	if len(runes) > 0 {
 		weights = append(weights, len(tables))
@@ -56,24 +59,18 @@ func runesFrom(default_ bool, runes []rune, tables ...*unicode.RangeTable) *Gene
 		weights = append(weights, 1)
 	}
 
-	tables_ := make([][]rune, len(tables))
-	for idx := range tables {
-		tables_[idx] = textgen.TableRunes(tables[idx], tables[idx])
-		assert.Truef(len(tables_[idx]) > 0, "empty *unicode.RangeTable %v", idx)
-	}
-
-	return newGenerator[rune](&runeGen{
+	return &runeGen{
 		die:      bitstream.NewLoadedDie(weights),
 		runes:    runes,
-		tables:   tables_,
+		tables:   tables,
 		default_: default_,
-	})
+	}
 }
 
 type runeGen struct {
 	die      *bitstream.LoadedDie
 	runes    []rune
-	tables   [][]rune
+	tables   []*textgen.RuneSet
 	default_ bool
 }
 
@@ -86,16 +83,21 @@ func (g *runeGen) String() string {
 }
 
 func (g *runeGen) value(t *T) rune {
-	n := g.die.Roll(t.s)
+	return g.draw(t.s, g.tables)
+}
 
-	runes := g.runes
-	if len(g.runes) == 0 {
-		runes = g.tables[n]
-	} else if n > 0 {
-		runes = g.tables[n-1]
+// draw rolls g's die for its runes or one of tables, which stand in for g's own, and draws a rune from it.
+func (g *runeGen) draw(s bitstream.Stream, tables []*textgen.RuneSet) rune {
+	n := g.die.Roll(s)
+	if len(g.runes) > 0 {
+		if n == 0 {
+			return g.runes[bitstream.Index(s, len(g.runes), true)]
+		}
+		n--
 	}
 
-	return runes[bitstream.Index(t.s, len(runes), true)]
+	set := tables[n]
+	return set.At(bitstream.Index(s, set.Len(), true))
 }
 
 // String is a shorthand for [StringOf]([Rune]()).
@@ -154,7 +156,7 @@ func (g *stringGen) String() string {
 }
 
 func (g *stringGen) value(t *T) string {
-	repeat := bitstream.NewRepeat(g.minRunes, g.maxRunes, -1, g.elem.String())
+	repeat := bitstream.NewRepeat(g.minRunes, g.maxRunes, -1, g.elem)
 
 	var b strings.Builder
 	b.Grow(repeat.Avg())
@@ -180,30 +182,12 @@ func (g *stringGen) value(t *T) string {
 
 // StringMatching creates a UTF-8 string generator matching the provided [syntax.Perl] regular expression.
 func StringMatching(expr string) *Generator[string] {
-	compiled, err := textgen.CompileRegexp(expr)
-	assert.Truef(err == nil, "%v", err)
-
-	return newGenerator[string](&regexpStringGen{
-		regexpGen{
-			expr: expr,
-			syn:  compiled.Syntax,
-			re:   compiled.Matcher,
-		},
-	})
+	return newGenerator[string](&regexpStringGen{newRegexpGen(expr)})
 }
 
 // SliceOfBytesMatching creates a UTF-8 byte slice generator matching the provided [syntax.Perl] regular expression.
 func SliceOfBytesMatching(expr string) *Generator[[]byte] {
-	compiled, err := textgen.CompileRegexp(expr)
-	assert.Truef(err == nil, "%v", err)
-
-	return newGenerator[[]byte](&regexpSliceGen{
-		regexpGen{
-			expr: expr,
-			syn:  compiled.Syntax,
-			re:   compiled.Matcher,
-		},
-	})
+	return newGenerator[[]byte](&regexpSliceGen{newRegexpGen(expr)})
 }
 
 type runeWriter interface {
@@ -211,10 +195,26 @@ type runeWriter interface {
 }
 
 type regexpGen struct {
-	expr string
-	syn  *syntax.Regexp
-	re   *regexp.Regexp
+	expr    string
+	syn     *syntax.Regexp
+	re      *regexp.Regexp
+	labels  map[*syntax.Regexp]fmt.Stringer
+	classes map[*syntax.Regexp]*textgen.RuneSet
 }
+
+func newRegexpGen(expr string) regexpGen {
+	compiled, err := textgen.CompileRegexp(expr)
+	assert.Truef(err == nil, "%v", err)
+
+	return regexpGen{
+		expr:    expr,
+		syn:     compiled.Syntax,
+		re:      compiled.Matcher,
+		labels:  compiled.Labels,
+		classes: compiled.Classes,
+	}
+}
+
 type (
 	regexpStringGen struct{ regexpGen }
 	regexpSliceGen  struct{ regexpGen }
@@ -274,14 +274,15 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 			_, _ = w.WriteRune(textgen.FoldCase(t.s, char, re.Flags))
 		}
 	case syntax.OpCharClass, syntax.OpAnyCharNotNL, syntax.OpAnyChar:
-		sub := anyRuneGen
+		var r rune
 		switch re.Op {
 		case syntax.OpCharClass:
-			sub = charClassGen(re)
+			r = drawClass(t, g.classes[re])
 		case syntax.OpAnyCharNotNL:
-			sub = anyRuneGenNoNL
+			r = anyRuneGenNoNL.value(t)
+		default:
+			r = anyRuneGen.value(t)
 		}
-		r := sub.value(t)
 		_, _ = w.WriteRune(textgen.FoldCase(t.s, r, re.Flags))
 	case syntax.OpBeginLine, syntax.OpEndLine,
 		syntax.OpBeginText, syntax.OpEndText,
@@ -299,7 +300,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		case syntax.OpQuest:
 			lo, hi = 0, 1
 		}
-		repeat := bitstream.NewRepeat(lo, hi, -1, textgen.RegexpName(re.Sub[0]))
+		repeat := bitstream.NewRepeat(lo, hi, -1, g.labels[re.Sub[0]])
 		for repeat.More(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
@@ -317,17 +318,13 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 	t.s.EndGroup(i, false)
 }
 
-func charClassGen(re *syntax.Regexp) *Generator[rune] {
-	cached, ok := charClassGens.Load(textgen.RegexpName(re))
-	if ok {
-		return cached.(*Generator[rune])
-	}
+// classRunes is RuneFrom of one table, as a character class draws: in a standalone group labelled by
+// classRunes, through its die. Classes so shrink as RuneFrom groups do.
+var classRunes = newRuneGen(false, nil, make([]*textgen.RuneSet, 1))
 
-	g := newGenerator[rune](&runeGen{
-		die:    bitstream.NewLoadedDie([]int{1}),
-		tables: [][]rune{textgen.ClassRunes(re)},
-	})
-	charClassGens.Store(textgen.RegexpName(re), g)
-
-	return g
+func drawClass(t *T, runes *textgen.RuneSet) rune {
+	i := t.s.BeginGroup(classRunes, true)
+	r := classRunes.draw(t.s, []*textgen.RuneSet{runes})
+	t.s.EndGroup(i, false)
+	return r
 }
