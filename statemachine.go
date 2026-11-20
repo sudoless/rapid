@@ -34,6 +34,17 @@ const (
 func (t *T) Repeat(actions map[string]func(*T)) {
 	t.Helper()
 
+	steps := engine.Flags.Steps
+	if testing.Short() {
+		steps /= 2
+	}
+	t.repeat(actions, steps)
+}
+
+// repeat is Repeat with an average of steps actions.
+func (t *T) repeat(actions map[string]func(*T), steps int) {
+	t.Helper()
+
 	check := func(*T) {}
 	actionKeys := make([]string, 0, len(actions))
 	for key, action := range actions {
@@ -47,11 +58,6 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 		return
 	}
 	slices.Sort(actionKeys)
-
-	steps := engine.Flags.Steps
-	if testing.Short() {
-		steps /= 2
-	}
 
 	repeat := bitstream.NewRepeat(-1, -1, float64(steps), "Repeat")
 	sm := stateMachine{
