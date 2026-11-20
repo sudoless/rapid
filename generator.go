@@ -13,6 +13,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 type generatorImpl[V any] interface {
@@ -82,7 +83,7 @@ func (g *Generator[V]) value(t *T) V {
 // Example produces an example value from the generator. If seed is provided, value is produced deterministically
 // based on seed. Example should only be used for examples; always use *Generator.Draw in property-based tests.
 func (g *Generator[V]) Example(seed ...int) V {
-	s := baseSeed()
+	s := engine.BaseSeed()
 	if len(seed) > 0 {
 		s = uint64(seed[0])
 	}

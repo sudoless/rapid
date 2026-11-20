@@ -8,11 +8,10 @@
 package stattest
 
 import (
-	"hash/maphash"
 	"math"
-	"os"
-	"strconv"
 	"testing"
+
+	"go.sdls.io/rapid/internal/engine"
 )
 
 // FixedSeed seeds the statistical checks in the default suite; TestStress
@@ -47,22 +46,12 @@ func WithinSigmas(t *testing.T, ctx any, y int, p float64) {
 	}
 }
 
-// Seed returns RAPID_SEED when it is set and not 0, and a random seed otherwise.
+// Seed returns -rapid.seed, whose default RAPID_SEED sets, when it is not 0, and a random seed otherwise.
 // It logs the seed, so a failing run replays with RAPID_SEED set to it.
 func Seed(t *testing.T) uint64 {
 	t.Helper()
 
-	seed := new(maphash.Hash).Sum64()
-	if env := os.Getenv("RAPID_SEED"); env != "" {
-		parsed, err := strconv.ParseUint(env, 0, 64)
-		if err != nil {
-			t.Fatalf("parsing RAPID_SEED %q: %v", env, err)
-		}
-		if parsed != 0 {
-			seed = parsed
-		}
-	}
-
+	seed := engine.BaseSeed()
 	t.Logf("seed %v, replay with RAPID_SEED=%v", seed, seed)
 
 	return seed

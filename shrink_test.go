@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const shrinkTestRuns = 10
@@ -214,7 +215,7 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 			t.Helper()
 			t.Parallel()
 
-			res := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+			res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
 			seed, err1, err2 := res.seed, res.err1, res.err2
 			if seed != 0 && err1 == nil && err2 == nil {
 				t.Fatalf("shrink test did not fail (seed %v)", seed)

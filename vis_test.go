@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 func TestDataVis(t *testing.T) {
@@ -50,7 +51,7 @@ func TestDataVis(t *testing.T) {
 
 	g := SliceOf(SliceOf(Uint().Filter(func(i uint) bool { return i%2 == 1 }))).Filter(func(s [][]uint) bool { return len(s) > 0 })
 	// Advance the seed, so a fixed -rapid.seed cannot redraw the same invalid value forever.
-	for seed := baseSeed(); ; seed++ {
+	for seed := engine.BaseSeed(); ; seed++ {
 		s := bitstream.NewRandom(seed, true)
 		_, err := recoverValue(g, newT(nil, s, false, nil))
 		if err != nil && !err.isInvalidData() {

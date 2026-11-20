@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 	"go.sdls.io/rapid/internal/stattest"
 )
 
@@ -200,7 +201,7 @@ func TestCheckCleanupPanic(t *testing.T) {
 		})
 	}
 
-	res := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+	res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
 	if res.err1 == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
@@ -276,11 +277,5 @@ func TestOutputRawLog(t *testing.T) {
 
 	if !bytes.Contains(out, msg) {
 		t.Errorf("expected output to contain %q, got: %q", msg, out)
-	}
-}
-
-func BenchmarkBaseSeed(b *testing.B) {
-	for range b.N {
-		baseSeed()
 	}
 }

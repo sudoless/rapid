@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package engine
 
 import (
 	"testing"
@@ -12,10 +12,10 @@ import (
 func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 	t.Parallel()
 
-	got := loadCmdlineDefaults(func(string) (string, bool) {
+	got := loadDefaults(func(string) (string, bool) {
 		return "", false
 	})
-	want := defaultCmdline()
+	want := defaultSettings()
 
 	if got != want {
 		t.Fatalf("defaults mismatch: got %+v, want %+v", got, want)
@@ -38,31 +38,31 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 		"RAPID_SHRINKTIME": "45s",
 	}
 
-	got := loadCmdlineDefaults(func(key string) (string, bool) {
+	got := loadDefaults(func(key string) (string, bool) {
 		value, ok := env[key]
 		return value, ok
 	})
 
-	if got.checks != 200 {
-		t.Fatalf("checks: got %d, want %d", got.checks, 200)
+	if got.Checks != 200 {
+		t.Fatalf("checks: got %d, want %d", got.Checks, 200)
 	}
-	if got.steps != 40000 {
-		t.Fatalf("steps: got %d, want %d", got.steps, 40000)
+	if got.Steps != 40000 {
+		t.Fatalf("steps: got %d, want %d", got.Steps, 40000)
 	}
-	if got.failfile != "/tmp/failfile" {
-		t.Fatalf("failfile: got %q, want %q", got.failfile, "/tmp/failfile")
+	if got.FailFile != "/tmp/failfile" {
+		t.Fatalf("failfile: got %q, want %q", got.FailFile, "/tmp/failfile")
 	}
-	if !got.nofailfile {
+	if !got.NoFailFile {
 		t.Fatalf("nofailfile: expected true")
 	}
-	if got.seed != 0x1234 {
-		t.Fatalf("seed: got %d, want %d", got.seed, 0x1234)
+	if got.Seed != 0x1234 {
+		t.Fatalf("seed: got %d, want %d", got.Seed, 0x1234)
 	}
-	if !got.log || !got.verbose || !got.debug || !got.debugvis {
+	if !got.Log || !got.Verbose || !got.Debug || !got.DebugVis {
 		t.Fatalf("expected all bool flags true, got %+v", got)
 	}
-	if got.shrinkTime != 45*time.Second {
-		t.Fatalf("shrinkTime: got %v, want %v", got.shrinkTime, 45*time.Second)
+	if got.ShrinkTime != 45*time.Second {
+		t.Fatalf("shrinkTime: got %v, want %v", got.ShrinkTime, 45*time.Second)
 	}
 }
 
@@ -75,7 +75,13 @@ func TestLoadCmdlineDefaultsInvalidEnvPanics(t *testing.T) {
 		}
 	}()
 
-	loadCmdlineDefaults(func(string) (string, bool) {
+	loadDefaults(func(string) (string, bool) {
 		return "not-an-int", true
 	})
+}
+
+func BenchmarkBaseSeed(b *testing.B) {
+	for range b.N {
+		BaseSeed()
+	}
 }

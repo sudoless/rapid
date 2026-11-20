@@ -3,7 +3,11 @@
 
 package rapid
 
-import "testing"
+import (
+	"testing"
+
+	"go.sdls.io/rapid/internal/engine"
+)
 
 // CheckShrink exposes checkShrink to package rapid_test.
 var CheckShrink = checkShrink
@@ -13,7 +17,7 @@ var CheckShrink = checkShrink
 func CheckOutcome(t *testing.T, prop func(*T)) (valid int, invalid int, failed bool) {
 	t.Helper()
 
-	res := doCheck(t, checkDeadline(nil), 100, baseSeed(), "", false, prop)
+	res := doCheck(t, checkDeadline(nil), 100, engine.BaseSeed(), "", false, prop)
 
 	return res.valid, res.invalid, res.err1 != nil
 }

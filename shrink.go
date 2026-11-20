@@ -19,6 +19,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const (
@@ -52,7 +53,7 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 
 	buf, err := s.shrink(deadline)
 
-	if flags.debugvis {
+	if engine.Flags.DebugVis {
 		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
 		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
 		if err != nil {
@@ -83,7 +84,7 @@ type shrinker struct {
 }
 
 func (s *shrinker) debugf(verbose_ bool, format string, args ...any) {
-	if flags.debug && (!verbose_ || flags.verbose) {
+	if engine.Flags.Debug && (!verbose_ || engine.Flags.Verbose) {
 		s.tb.Helper()
 		s.tb.Logf("[shrink] "+format, args...)
 	}
@@ -278,7 +279,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
-	err1 := checkOnce(newT(s.tb, s1, flags.debug && flags.verbose, nil), s.prop)
+	err1 := checkOnce(newT(s.tb, s1, engine.Flags.Debug && engine.Flags.Verbose, nil), s.prop)
 	if traceback(err1) != traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
@@ -288,11 +289,11 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
-	err2 := checkOnce(newT(s.tb, s2, flags.debug && flags.verbose, nil), s.prop)
+	err2 := checkOnce(newT(s.tb, s2, engine.Flags.Debug && engine.Flags.Verbose, nil), s.prop)
 	s.rec = s2.Recorded
 	s.rec.Prune()
 	assert.True(compareData(s.rec.Data, buf) <= 0)
-	if flags.debugvis {
+	if engine.Flags.DebugVis {
 		s.visBits = append(s.visBits, s.rec)
 	}
 	if !sameError(err1, err2) {

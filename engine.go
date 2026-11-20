@@ -10,16 +10,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"flag"
 	"fmt"
-	"hash/maphash"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,7 +25,7 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
-	"go.sdls.io/rapid/internal/failfile"
+	"go.sdls.io/rapid/internal/engine"
 )
 
 const (
@@ -46,139 +43,9 @@ const (
 	runtimePrefix = "runtime."
 )
 
-var (
-	flags cmdline
-
-	tracebackBlacklist = map[string]bool{
-		"go.sdls.io/rapid.(*customGen[...]).maybeValue.func1": true,
-		"go.sdls.io/rapid.runAction.func1":                    true,
-	}
-)
-
-type cmdline struct {
-	checks     int
-	steps      int
-	failfile   string
-	nofailfile bool
-	seed       uint64
-	log        bool
-	verbose    bool
-	debug      bool
-	debugvis   bool
-	shrinkTime time.Duration
-}
-
-func init() {
-	defaults := loadCmdlineDefaults(os.LookupEnv)
-	flag.IntVar(&flags.checks, "rapid.checks", defaults.checks, "rapid: number of checks to perform")
-	flag.IntVar(&flags.steps, "rapid.steps", defaults.steps, "rapid: average number of Repeat actions to execute")
-	flag.StringVar(&flags.failfile, "rapid.failfile", defaults.failfile, "rapid: fail file to use to reproduce test failure")
-	flag.BoolVar(&flags.nofailfile, "rapid.nofailfile", defaults.nofailfile, "rapid: do not write fail files on test failures")
-	flag.Uint64Var(&flags.seed, "rapid.seed", defaults.seed, "rapid: PRNG seed to start with (0 to use a random one)")
-	flag.BoolVar(&flags.log, "rapid.log", defaults.log, "rapid: eager verbose output to stdout (to aid with unrecoverable test failures)")
-	flag.BoolVar(&flags.verbose, "rapid.v", defaults.verbose, "rapid: verbose output")
-	flag.BoolVar(&flags.debug, "rapid.debug", defaults.debug, "rapid: debugging output")
-	flag.BoolVar(&flags.debugvis, "rapid.debugvis", defaults.debugvis, "rapid: debugging visualization")
-	flag.DurationVar(&flags.shrinkTime, "rapid.shrinktime", defaults.shrinkTime, "rapid: maximum time to spend on test case minimization")
-}
-
-func defaultCmdline() cmdline {
-	return cmdline{
-		checks:     100,
-		steps:      30,
-		shrinkTime: 30 * time.Second,
-	}
-}
-
-func loadCmdlineDefaults(lookup func(string) (string, bool)) cmdline {
-	defaults := defaultCmdline()
-
-	defaults.checks = envInt(lookup, "RAPID_CHECKS", defaults.checks)
-	defaults.steps = envInt(lookup, "RAPID_STEPS", defaults.steps)
-	defaults.failfile = envString(lookup, "RAPID_FAILFILE", defaults.failfile)
-	defaults.nofailfile = envBool(lookup, "RAPID_NOFAILFILE", defaults.nofailfile)
-	defaults.seed = envUint64(lookup, "RAPID_SEED", defaults.seed)
-	defaults.log = envBool(lookup, "RAPID_LOG", defaults.log)
-	defaults.verbose = envBool(lookup, "RAPID_V", defaults.verbose)
-	defaults.debug = envBool(lookup, "RAPID_DEBUG", defaults.debug)
-	defaults.debugvis = envBool(lookup, "RAPID_DEBUGVIS", defaults.debugvis)
-	defaults.shrinkTime = envDuration(lookup, "RAPID_SHRINKTIME", defaults.shrinkTime)
-
-	return defaults
-}
-
-func envString(lookup func(string) (string, bool), key, defaultValue string) string {
-	if v, ok := lookup(key); ok {
-		return v
-	}
-	return defaultValue
-}
-
-func envInt(lookup func(string) (string, bool), key string, defaultValue int) int {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	n, err := strconv.ParseInt(v, 0, strconv.IntSize)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return int(n)
-}
-
-func envBool(lookup func(string) (string, bool), key string, defaultValue bool) bool {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return b
-}
-
-func envUint64(lookup func(string) (string, bool), key string, defaultValue uint64) uint64 {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	n, err := strconv.ParseUint(v, 0, 64)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return n
-}
-
-func envDuration(lookup func(string) (string, bool), key string, defaultValue time.Duration) time.Duration {
-	v, ok := lookup(key)
-	if !ok {
-		return defaultValue
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		panicInvalidEnv(key, v, err)
-	}
-	return d
-}
-
-func panicInvalidEnv(key, value string, err error) {
-	panic(fmt.Sprintf("[rapid] invalid value for %s=%q: %v", key, value, err))
-}
-
-func assertValidRange(lo, hi int) {
-	if hi >= 0 && lo > hi {
-		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
-	}
-}
-
-// baseSeed returns -rapid.seed when set, and a random seed otherwise.
-func baseSeed() uint64 {
-	if flags.seed != 0 {
-		return flags.seed
-	}
-
-	return new(maphash.Hash).Sum64()
+var tracebackBlacklist = map[string]bool{
+	"go.sdls.io/rapid.(*customGen[...]).maybeValue.func1": true,
+	"go.sdls.io/rapid.runAction.func1":                    true,
 }
 
 func checkDeadline(tb tb) time.Time {
@@ -194,7 +61,7 @@ func checkDeadline(tb tb) time.Time {
 }
 
 func shrinkDeadline(deadline time.Time) time.Time {
-	d := time.Now().Add(flags.shrinkTime)
+	d := time.Now().Add(engine.Flags.ShrinkTime)
 	latest := deadline.Add(-shrinkStepBound) // account for the fact that shrink deadline is checked before the step
 	if d.After(latest) {
 		d = latest
@@ -275,13 +142,13 @@ func checkFuzz(tb tb, prop func(*T), input []byte) {
 func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	tb.Helper()
 
-	checks := flags.checks
+	checks := engine.Flags.Checks
 	if testing.Short() {
 		checks /= 5
 	}
 
 	start := time.Now()
-	res := doCheck(tb, deadline, checks, baseSeed(), flags.failfile, true, prop)
+	res := doCheck(tb, deadline, checks, engine.BaseSeed(), engine.Flags.FailFile, true, prop)
 	dt := time.Since(start)
 
 	switch {
@@ -304,10 +171,10 @@ func reportFailure(tb tb, prop func(*T), res *checkResult) {
 	tb.Helper()
 
 	failPath := res.failfile
-	if failPath == "" && !flags.nofailfile {
-		failPath = failfile.Name(tb.Name())
+	if failPath == "" && !engine.Flags.NoFailFile {
+		failPath = engine.FailFileName(tb.Name())
 		out := captureTestOutput(tb, prop, res.buf)
-		err := failfile.Save(failPath, rapidVersion, out, res.seed, res.buf)
+		err := engine.SaveFailFile(failPath, rapidVersion, out, res.seed, res.buf)
 		if err != nil {
 			tb.Logf("[rapid] %v", err)
 			failPath = ""
@@ -368,7 +235,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 		failfiles = []string{failPath}
 	}
 	if globFailFiles {
-		matches, _ := filepath.Glob(failfile.Pattern(tb.Name()))
+		matches, _ := filepath.Glob(engine.FailFilePattern(tb.Name()))
 		failfiles = append(failfiles, matches...)
 	}
 	for _, failPath := range failfiles {
@@ -384,7 +251,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 	}
 
 	s := bitstream.NewRandom(seed, true)
-	t := newT(tb, s, flags.verbose, nil)
+	t := newT(tb, s, engine.Flags.Verbose, nil)
 	t.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t, prop)
 	if !sameError(err1, err2) {
@@ -400,7 +267,7 @@ func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failPath string
 func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError, *testError) {
 	tb.Helper()
 
-	version, _, buf, err := failfile.Load(failPath)
+	version, _, buf, err := engine.LoadFailFile(failPath)
 	if err != nil {
 		tb.Logf("[rapid] ignoring fail file: %v", err)
 		return nil, nil, nil
@@ -411,7 +278,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 	}
 
 	s1 := bitstream.NewBuffer(buf, false)
-	t1 := newT(tb, s1, flags.verbose, nil)
+	t1 := newT(tb, s1, engine.Flags.Verbose, nil)
 	err1 := checkOnce(t1, prop)
 	if err1 == nil {
 		return nil, nil, nil
@@ -422,7 +289,7 @@ func checkFailFile(tb tb, failPath string, prop func(*T)) ([]uint64, *testError,
 	}
 
 	s2 := bitstream.NewBuffer(buf, false)
-	t2 := newT(tb, s2, flags.verbose, nil)
+	t2 := newT(tb, s2, engine.Flags.Verbose, nil)
 	t2.Logf("[rapid] trying to reproduce the failure")
 	err2 := checkOnce(t2, prop)
 
@@ -434,7 +301,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 	var (
 		r       = bitstream.NewRandom(0, false)
-		t       = newT(tb, r, flags.verbose, nil)
+		t       = newT(tb, r, engine.Flags.Verbose, nil)
 		valid   = 0
 		invalid = 0
 	)
@@ -670,7 +537,7 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ..
 		refDraws: refDraws,
 	}
 
-	if rawLog == nil && flags.log {
+	if rawLog == nil && engine.Flags.Log {
 		testName := "rapid test"
 		if tb != nil {
 			testName = tb.Name()

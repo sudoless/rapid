@@ -9,6 +9,7 @@ package rapid
 import (
 	"fmt"
 
+	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
 )
 
@@ -26,7 +27,7 @@ func SliceOf[E any](elem *Generator[E]) *Generator[[]E] {
 // If maxLen >= 0, generated slices have maximum length of maxLen. SliceOfN panics if maxLen >= 0
 // and minLen > maxLen.
 func SliceOfN[E any](elem *Generator[E], minLen, maxLen int) *Generator[[]E] {
-	assertValidRange(minLen, maxLen)
+	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[[]E](&sliceGen[E, struct{}]{
 		minLen: minLen,
@@ -45,7 +46,7 @@ func SliceOfDistinct[E any, K comparable](elem *Generator[E], keyFn func(E) K) *
 // have maximum length of maxLen. SliceOfNDistinct panics if maxLen >= 0 and minLen > maxLen.
 // [ID] helper can be used as keyFn to generate slices of distinct comparable elements.
 func SliceOfNDistinct[E any, K comparable](elem *Generator[E], minLen, maxLen int, keyFn func(E) K) *Generator[[]E] {
-	assertValidRange(minLen, maxLen)
+	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[[]E](&sliceGen[E, K]{
 		minLen: minLen,
@@ -112,7 +113,7 @@ func MapOf[K comparable, V any](key *Generator[K], val *Generator[V]) *Generator
 // If maxLen >= 0, generated maps have maximum length of maxLen. MapOfN panics if maxLen >= 0
 // and minLen > maxLen.
 func MapOfN[K comparable, V any](key *Generator[K], val *Generator[V], minLen, maxLen int) *Generator[map[K]V] {
-	assertValidRange(minLen, maxLen)
+	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[map[K]V](&mapGen[K, V]{
 		minLen: minLen,
@@ -131,7 +132,7 @@ func MapOfValues[K comparable, V any](val *Generator[V], keyFn func(V) K) *Gener
 // If minLen >= 0, generated maps have minimum length of minLen. If maxLen >= 0, generated maps
 // have maximum length of maxLen. MapOfNValues panics if maxLen >= 0 and minLen > maxLen.
 func MapOfNValues[K comparable, V any](val *Generator[V], minLen, maxLen int, keyFn func(V) K) *Generator[map[K]V] {
-	assertValidRange(minLen, maxLen)
+	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[map[K]V](&mapGen[K, V]{
 		minLen: minLen,

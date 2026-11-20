@@ -22,3 +22,10 @@ func Truef(ok bool, format string, args ...any) {
 		panic(fmt.Sprintf(format, args...))
 	}
 }
+
+// ValidRange panics when lo exceeds hi; a negative hi means no upper bound.
+func ValidRange(lo, hi int) {
+	if hi >= 0 && lo > hi {
+		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
+	}
+}
