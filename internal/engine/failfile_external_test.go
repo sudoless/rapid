@@ -7,6 +7,7 @@
 package engine_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -70,4 +71,37 @@ func TestFailFileRoundtrip(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestLoadFailFileHeader(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		header  string
+		wantErr bool
+	}{
+		{"version and seed", "v1#42", false},
+		{"no separator", "v1-42", true},
+		{"seed not a number", "v1#x", true},
+		{"two separators", "v1#4#2", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			fileName := filepath.Join(t.TempDir(), "fail")
+			if err := os.WriteFile(fileName, []byte(tc.header+"\n0x1\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			version, seed, buf, err := engine.LoadFailFile(fileName)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, want error %v", err, tc.wantErr)
+			}
+			if err == nil && (version != "v1" || seed != 42 || len(buf) != 1 || buf[0] != 1) {
+				t.Fatalf("got %q, %v, %v; want \"v1\", 42, [1]", version, seed, buf)
+			}
+		})
+	}
 }

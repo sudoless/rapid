@@ -128,13 +128,13 @@ func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 		return "", 0, nil, fmt.Errorf("no data in fail file %q", filename)
 	}
 
-	split := strings.Split(data[0], "#")
-	if len(split) != 2 {
+	version, seedField, ok := strings.Cut(data[0], "#")
+	if !ok {
 		return "", 0, nil, fmt.Errorf("invalid version/seed field %q in %q", data[0], filename)
 	}
-	seed, err := strconv.ParseUint(split[1], 10, 64)
+	seed, err := strconv.ParseUint(seedField, 10, 64)
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("invalid seed %q in %q", split[1], filename)
+		return "", 0, nil, fmt.Errorf("invalid seed %q in %q", seedField, filename)
 	}
 
 	var buf []uint64
@@ -146,5 +146,5 @@ func LoadFailFile(filename string) (string, uint64, []uint64, error) {
 		buf = append(buf, u)
 	}
 
-	return split[0], seed, buf, nil
+	return version, seed, buf, nil
 }
