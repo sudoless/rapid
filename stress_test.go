@@ -24,6 +24,7 @@ func TestStress(t *testing.T) {
 		"IntCoverage":          checkIntCoverage,
 		"UintCoverage":         checkUintCoverage,
 		"IntBoundCoverage":     checkIntBoundCoverage,
+		"IntWideRangeCoverage": checkIntWideRangeTopHalfCoverage,
 		"Float32BoundCoverage": checkFloat32BoundCoverage,
 		"Float64BoundCoverage": checkFloat64BoundCoverage,
 	}

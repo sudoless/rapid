@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	version = "v0.4.8" // written to fail files; a fail file of another version is ignored
+	version = "v0.4.9" // written to fail files; a fail file of another version is ignored
 
 	invalidChecksMult = 10
 
