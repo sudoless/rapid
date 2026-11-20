@@ -37,15 +37,13 @@ func TestPanicTraceback(t *testing.T) {
 	t.Parallel()
 
 	testData := []struct {
-		name       string
-		suffix     string
-		canSucceed bool
-		fail       func(*T) *engine.TestError
+		name   string
+		suffix string
+		fail   func(*T) *engine.TestError
 	}{
 		{
 			"broken custom generator",
 			"go.sdls.io/rapid.brokenGen",
-			false,
 			func(t *T) *engine.TestError {
 				g := Custom(brokenGen)
 				_, err := recoverValue(g, t)
@@ -55,11 +53,10 @@ func TestPanicTraceback(t *testing.T) {
 		{
 			"broken state machine",
 			"go.sdls.io/rapid.(*brokenMachine).DoNothing",
-			true,
 			func(t *T) *engine.TestError {
 				return checkOnce(t, func(t *T) {
 					var sm brokenMachine
-					t.Repeat(StateMachineActions(&sm))
+					t.repeat(StateMachineActions(&sm), 30) // its own step count, so the broken action runs whatever -rapid.steps says
 				})
 			},
 		},
@@ -69,14 +66,11 @@ func TestPanicTraceback(t *testing.T) {
 		t.Run(td.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := bitstream.NewRandom(stattest.Seed(t), false)
+			s := bitstream.NewRandom(stattest.FixedSeed, false) // a seed whose state machine reaches DoNothing
 			nt := newT(t, s, false, nil)
 
 			err := td.fail(nt)
 			if err == nil {
-				if td.canSucceed {
-					t.SkipNow()
-				}
 				t.Fatalf("test case did not fail")
 			}
 
