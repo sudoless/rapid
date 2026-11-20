@@ -204,9 +204,9 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				break
 			}
 
-			j_ := jdx
-			for jdx--; jdx >= 0; jdx-- {
-				h := s.rec.groups[jdx]
+			kdx := jdx - 1
+			for ; kdx >= 0; kdx-- {
+				h := s.rec.groups[kdx]
 				if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
 					continue
 				}
@@ -218,10 +218,11 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				buf = append(buf, s.rec.data[g.end:]...)
 
 				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
-					g.label, j_, g.begin, g.end, h.label, jdx, h.begin, h.end) {
+					g.label, jdx, g.begin, g.end, h.label, kdx, h.begin, h.end) {
 					break
 				}
 			}
+			jdx = kdx
 		}
 	}
 }
