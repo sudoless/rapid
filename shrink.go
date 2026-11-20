@@ -61,7 +61,7 @@ func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, p
 		} else {
 			defer func() { _ = f.Close() }()
 
-			if err = visWriteHTML(f, tb.Name(), s.visBits); err != nil {
+			if err = engine.WriteVisHTML(f, tb.Name(), s.visBits); err != nil {
 				tb.Logf("failed to write debugvis file %v: %v", name, err)
 			}
 		}
