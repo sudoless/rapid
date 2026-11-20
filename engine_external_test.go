@@ -148,6 +148,21 @@ func TestCheckContext(t *testing.T) {
 	}
 }
 
+// The Context of a test case is canceled once its property has exited, even when first asked for after that,
+// as by a goroutine the property started.
+func TestCheckContextAfterExitIsCanceled(t *testing.T) {
+	t.Parallel()
+
+	var last *T
+	Check(t, func(t *T) {
+		last = t
+	})
+
+	if err := last.Context().Err(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Context after the property exited: got error %v, want context.Canceled", err)
+	}
+}
+
 func TestCheckCleanup(t *testing.T) {
 	t.Parallel()
 

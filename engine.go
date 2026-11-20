@@ -319,9 +319,8 @@ func (t *T) Context() context.Context {
 		return ctx
 	}
 
-	// If we're in the middle of cleaning up
-	// and the context has already been canceled and cleared,
-	// don't create a new one. Return a canceled context instead.
+	// Once the property has exited and cleanup has begun, the context has been canceled and cleared.
+	// Don't create a new one, for a cleanup or a goroutine the property left running: return a canceled one.
 	if t.cleaning.Load() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -369,8 +368,7 @@ func (t *T) Cleanup(f func()) {
 // cleanup runs any cleanup tasks associated with the property check.
 // It is safe to call multiple times.
 func (t *T) cleanup() {
-	t.cleaning.Store(true)
-	defer t.cleaning.Store(false)
+	t.cleaning.Store(true) // for good: the test case is over, and so is its context
 
 	// If a cleanup function panics,
 	// we still want to run the remaining cleanup functions.
