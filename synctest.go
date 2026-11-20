@@ -55,16 +55,11 @@ func (t *T) syncTest(parent *testing.T, prop func(*T)) {
 			bubble.draws = draws
 			bubble.onDraw = t.onDraw
 			defer func() {
-				panicValue := recover()
+				propErr := panicToError(recover())
 				// Always run the bubble's cleanups, even if the property panicked.
-				if r := bubble.cleanupRecovered(); r != nil {
-					panicValue = r
-				}
+				cleanupErr := panicToError(bubble.cleanupRecovered())
 				draws = bubble.draws
-
-				if panicValue != nil {
-					captured = panicToError(panicValue)
-				}
+				captured = firstFailure(propErr, cleanupErr)
 			}()
 
 			prop(bubble)

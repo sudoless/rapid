@@ -233,3 +233,48 @@ func TestSearchReportedTestCaseReplaysItsFailure(t *testing.T) {
 		})
 	}
 }
+
+// A property that panics fails, whatever its cleanups do.
+func TestCheckPanicNotMaskedByCleanupSkip(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		prop func(*T)
+	}{
+		{"property", func(t *T) {
+			x := IntRange(0, 9).Draw(t, "x")
+			t.Cleanup(func() {
+				if x == 3 {
+					t.SkipNow()
+				}
+			})
+			if x == 3 {
+				panic("boom")
+			}
+		}},
+		{"SyncTest bubble", func(t *T) {
+			x := IntRange(0, 9).Draw(t, "x")
+			t.SyncTest(func(t *T) {
+				t.Cleanup(func() {
+					if x == 3 {
+						t.SkipNow()
+					}
+				})
+				if x == 3 {
+					panic("boom")
+				}
+			})
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := search(t, stattest.FixedSeed, tc.prop)
+			if res.Err1 == nil {
+				t.Fatalf("panic not reported (valid %d, invalid %d)", res.Valid, res.Invalid)
+			}
+		})
+	}
+}

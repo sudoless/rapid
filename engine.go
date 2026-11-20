@@ -96,12 +96,23 @@ func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() { err = t.settle(panicToError(recover())) }()
+	var propErr *engine.TestError
+	defer func() { err = t.settle(firstFailure(propErr, panicToError(recover()))) }()
 
 	defer t.cleanup()
+	defer func() { propErr = panicToError(recover()) }() // before the cleanups, which can panic in turn
 	prop(t)
 
 	return nil
+}
+
+// firstFailure returns the property's outcome, unless only its cleanups failed: a skip in a cleanup does not
+// hide a failure of the property.
+func firstFailure(propErr, cleanupErr *engine.TestError) *engine.TestError {
+	if propErr != nil && !propErr.IsInvalidData() || cleanupErr == nil {
+		return propErr
+	}
+	return cleanupErr
 }
 
 func panicToError(p any) *engine.TestError {
