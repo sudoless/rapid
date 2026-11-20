@@ -53,6 +53,7 @@ func (t *T) syncTest(parent *testing.T, prop func(*T)) {
 
 			bubble := t.child(st, t.tbLog, t.rawLog)
 			bubble.draws = draws
+			bubble.onDraw = t.onDraw
 			defer func() {
 				panicValue := recover()
 				// Always run the bubble's cleanups, even if the property panicked.
