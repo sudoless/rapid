@@ -8,7 +8,6 @@ package rapid
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	"go.sdls.io/rapid/internal/assert"
@@ -50,11 +49,8 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 
 	v := g.value(t)
 
-	if len(t.refDraws) > 0 {
-		ref := t.refDraws[t.draws]
-		if !reflect.DeepEqual(v, ref) {
-			t.tb.Fatalf("draw %v differs: %#v vs expected %#v", t.draws, v, ref)
-		}
+	if t.onDraw != nil {
+		t.onDraw(t.draws, v)
 	}
 
 	if t.tbLog || t.rawLog != nil {

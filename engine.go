@@ -476,12 +476,12 @@ type T struct {
 	cleanups  []func()
 	cleaning  atomic.Bool
 
-	tbLog    bool
-	rawLog   *log.Logger
-	s        bitstream.Stream
-	draws    int
-	refDraws []any
-	mu       sync.RWMutex
+	tbLog  bool
+	rawLog *log.Logger
+	s      bitstream.Stream
+	draws  int
+	onDraw func(idx int, v any) // called with every value drawn through t; set by tests
+	mu     sync.RWMutex
 
 	tc  *testCase // the test case this T belongs to: own, or its parent's for a Custom value or SyncTest bubble
 	own testCase
@@ -507,17 +507,16 @@ func (tc *testCase) recorded() *engine.TestError {
 	return tc.failed
 }
 
-func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ...any) *T {
+func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger) *T {
 	if tb == nil {
 		tb = nilTB{}
 	}
 
 	t := &T{
-		tb:       tb,
-		tbLog:    tbLog,
-		rawLog:   rawLog,
-		s:        s,
-		refDraws: refDraws,
+		tb:     tb,
+		tbLog:  tbLog,
+		rawLog: rawLog,
+		s:      s,
 	}
 	t.tc = &t.own
 

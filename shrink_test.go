@@ -9,6 +9,7 @@ package rapid
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"slices"
 	"strconv"
 	"testing"
@@ -182,7 +183,12 @@ func checkShrink(t *testing.T, prop func(*T), draws ...any) {
 				t.Fatalf("flaky shrink test (seed %v)\nTraceback (%v):\n%vOriginal traceback (%v):\n%v", seed, err2, engine.Traceback(err2), err1, engine.Traceback(err1))
 			}
 
-			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil, draws...)
+			nt := newT(t, bitstream.NewBuffer(res.buf, false), false, nil)
+			nt.onDraw = func(idx int, v any) {
+				if idx >= len(draws) || !reflect.DeepEqual(v, draws[idx]) {
+					t.Fatalf("draw %v is %#v, want %#v", idx, v, draws)
+				}
+			}
 			_ = checkOnce(nt, prop)
 			if nt.draws != len(draws) {
 				t.Fatalf("different number of draws: %v vs expected %v", nt.draws, len(draws))
