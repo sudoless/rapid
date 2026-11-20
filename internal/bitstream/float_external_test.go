@@ -18,8 +18,8 @@ func TestFloat32Range(t *testing.T) {
 	t.Parallel()
 
 	bounds := map[string]*rapid.Generator[float32]{
-		"non-negative": rapid.Float32Min(0),
-		"any":          rapid.Float32(),
+		"non-negative": rapid.FloatMin[float32](0),
+		"any":          rapid.Float[float32](),
 	}
 	for name, bound := range bounds {
 		t.Run(name, func(t *testing.T) {
@@ -31,7 +31,7 @@ func TestFloat32Range(t *testing.T) {
 					lo, hi = hi, lo
 				}
 
-				s := bitstream.NewRandom(rapid.Uint64().Draw(t, "seed"), false)
+				s := bitstream.NewRandom(rapid.Int[uint64]().Draw(t, "seed"), false)
 				f := bitstream.Float32Range(s, float64(lo), float64(hi))
 				if f < lo || f > hi {
 					t.Fatalf("%v (0x%x) outside of [%v, %v] ([0x%x, 0x%x])",
@@ -46,8 +46,8 @@ func TestFloat64Range(t *testing.T) {
 	t.Parallel()
 
 	bounds := map[string]*rapid.Generator[float64]{
-		"non-negative": rapid.Float64Min(0),
-		"any":          rapid.Float64(),
+		"non-negative": rapid.FloatMin[float64](0),
+		"any":          rapid.Float[float64](),
 	}
 	for name, bound := range bounds {
 		t.Run(name, func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestFloat64Range(t *testing.T) {
 					lo, hi = hi, lo
 				}
 
-				s := bitstream.NewRandom(rapid.Uint64().Draw(t, "seed"), false)
+				s := bitstream.NewRandom(rapid.Int[uint64]().Draw(t, "seed"), false)
 				f := bitstream.Float64Range(s, lo, hi)
 				if f < lo || f > hi {
 					t.Fatalf("%v (0x%x) outside of [%v, %v] ([0x%x, 0x%x])",

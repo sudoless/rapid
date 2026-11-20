@@ -19,9 +19,9 @@ func TestSliceOf(t *testing.T) {
 
 	gens := []*Generator[any]{
 		SliceOf(Bool()).AsAny(),
-		SliceOf(Byte()).AsAny(),
-		SliceOf(Int()).AsAny(),
-		SliceOf(Uint()).AsAny(),
+		SliceOf(Int[byte]()).AsAny(),
+		SliceOf(Int[int]()).AsAny(),
+		SliceOf(Int[uint]()).AsAny(),
 	}
 
 	for _, gen := range gens {
@@ -44,7 +44,7 @@ func TestSliceOf(t *testing.T) {
 func TestSliceOfDistinct(t *testing.T) {
 	t.Parallel()
 
-	g := SliceOfDistinct(Int(), ID[int])
+	g := SliceOfDistinct(Int[int](), ID[int])
 
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
@@ -61,7 +61,7 @@ func TestSliceOfDistinct(t *testing.T) {
 func TestSliceOfDistinctBy(t *testing.T) {
 	t.Parallel()
 
-	g := SliceOfDistinct(Int(), func(i int) string { return strconv.Itoa(i % 5) })
+	g := SliceOfDistinct(Int[int](), func(i int) string { return strconv.Itoa(i % 5) })
 
 	Check(t, func(t *T) {
 		s := g.Draw(t, "s")
@@ -79,9 +79,9 @@ func TestMapOf(t *testing.T) {
 	t.Parallel()
 
 	gens := []*Generator[any]{
-		MapOf(Bool(), Int()).AsAny(),
-		MapOf(Int(), Uint()).AsAny(),
-		MapOf(Uint(), SliceOf(Bool())).AsAny(),
+		MapOf(Bool(), Int[int]()).AsAny(),
+		MapOf(Int[int](), Int[uint]()).AsAny(),
+		MapOf(Int[uint](), SliceOf(Bool())).AsAny(),
 	}
 
 	for _, gen := range gens {
@@ -120,16 +120,16 @@ func TestCollectionLenLimits(t *testing.T) {
 	t.Parallel()
 
 	genFuncs := []func(i, j int) *Generator[any]{
-		func(i, j int) *Generator[any] { return StringOfN(Int32Range('A', 'Z'), i, j, -1).AsAny() },
-		func(i, j int) *Generator[any] { return SliceOfN(Byte(), i, j).AsAny() },
-		func(i, j int) *Generator[any] { return SliceOfNDistinct(Byte(), i, j, ID[byte]).AsAny() },
+		func(i, j int) *Generator[any] { return StringOfN(IntRange[int32]('A', 'Z'), i, j, -1).AsAny() },
+		func(i, j int) *Generator[any] { return SliceOfN(Int[byte](), i, j).AsAny() },
+		func(i, j int) *Generator[any] { return SliceOfNDistinct(Int[byte](), i, j, ID[byte]).AsAny() },
 		func(i, j int) *Generator[any] {
-			return SliceOfNDistinct(Int(), i, j, func(n int) int { return n % j }).AsAny()
+			return SliceOfNDistinct(Int[int](), i, j, func(n int) int { return n % j }).AsAny()
 		},
-		func(i, j int) *Generator[any] { return MapOfN(Int(), Int(), i, j).AsAny() },
-		func(i, j int) *Generator[any] { return MapOfNValues(Int(), i, j, ID[int]).AsAny() },
+		func(i, j int) *Generator[any] { return MapOfN(Int[int](), Int[int](), i, j).AsAny() },
+		func(i, j int) *Generator[any] { return MapOfNValues(Int[int](), i, j, ID[int]).AsAny() },
 		func(i, j int) *Generator[any] {
-			return MapOfNValues(Int(), i, j, func(n int) int { return n % j }).AsAny()
+			return MapOfNValues(Int[int](), i, j, func(n int) int { return n % j }).AsAny()
 		},
 	}
 

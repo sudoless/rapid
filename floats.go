@@ -9,111 +9,91 @@ package rapid
 import (
 	"fmt"
 	"math"
+	"reflect"
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
 )
 
-// Float32 is a shorthand for [Float32Range](-[math.MaxFloat32], [math.MaxFloat32]).
-func Float32() *Generator[float32] {
-	return Float32Range(-math.MaxFloat32, math.MaxFloat32)
+// Floating is the constraint of the floating-point generators: float32, float64 and the types built on them.
+type Floating interface {
+	~float32 | ~float64
 }
 
-// Float32Min is a shorthand for [Float32Range](lo, [math.MaxFloat32]).
-func Float32Min(lo float32) *Generator[float32] {
-	return Float32Range(lo, math.MaxFloat32)
+// Float creates a generator of finite floating-point numbers of type F:
+// Float[float64](), Float[float32]().
+func Float[F Floating]() *Generator[F] {
+	return newGenerator[F](newFloatGen[F](false, 0, false, 0))
 }
 
-// Float32Max is a shorthand for [Float32Range](-[math.MaxFloat32], hi).
-func Float32Max(hi float32) *Generator[float32] {
-	return Float32Range(-math.MaxFloat32, hi)
+// FloatMin creates a generator of floating-point numbers of type F that are at least lo.
+// lo can be -Inf.
+func FloatMin[F Floating](lo F) *Generator[F] {
+	return newGenerator[F](newFloatGen(true, lo, false, 0))
 }
 
-// Float32Range creates a generator of 32-bit floating-point numbers in range [lo, hi].
-// Both lo and hi can be infinite.
-func Float32Range(lo, hi float32) *Generator[float32] {
-	assert.Truef(lo == lo, "lo should not be a NaN")
-	assert.Truef(hi == hi, "hi should not be a NaN")
-	assert.Truef(lo <= hi, "invalid range [%v, %v]", lo, hi)
-
-	return newGenerator[float32](&float32Gen{
-		floatGen{
-			min:    float64(lo),
-			max:    float64(hi),
-			minVal: -math.MaxFloat32,
-			maxVal: math.MaxFloat32,
-		},
-	})
+// FloatMax creates a generator of floating-point numbers of type F that are at most hi.
+// hi can be +Inf.
+func FloatMax[F Floating](hi F) *Generator[F] {
+	return newGenerator[F](newFloatGen(false, 0, true, hi))
 }
 
-// Float64 is a shorthand for [Float64Range](-[math.MaxFloat64], [math.MaxFloat64]).
-func Float64() *Generator[float64] {
-	return Float64Range(-math.MaxFloat64, math.MaxFloat64)
+// FloatRange creates a generator of floating-point numbers of type F in [lo, hi].
+// Both lo and hi can be infinite. FloatRange panics when lo exceeds hi.
+func FloatRange[F Floating](lo, hi F) *Generator[F] {
+	return newGenerator[F](newFloatGen(true, lo, true, hi))
 }
 
-// Float64Min is a shorthand for [Float64Range](lo, [math.MaxFloat64]).
-func Float64Min(lo float64) *Generator[float64] {
-	return Float64Range(lo, math.MaxFloat64)
-}
-
-// Float64Max is a shorthand for [Float64Range](-[math.MaxFloat64], hi).
-func Float64Max(hi float64) *Generator[float64] {
-	return Float64Range(-math.MaxFloat64, hi)
-}
-
-// Float64Range creates a generator of 64-bit floating-point numbers in range [lo, hi].
-// Both lo and hi can be infinite.
-func Float64Range(lo, hi float64) *Generator[float64] {
-	assert.Truef(lo == lo, "lo should not be a NaN")
-	assert.Truef(hi == hi, "hi should not be a NaN")
-	assert.Truef(lo <= hi, "invalid range [%v, %v]", lo, hi)
-
-	return newGenerator[float64](&float64Gen{
-		floatGen{
-			min:    lo,
-			max:    hi,
-			minVal: -math.MaxFloat64,
-			maxVal: math.MaxFloat64,
-		},
-	})
-}
-
-type floatGen struct {
-	min    float64
-	max    float64
-	minVal float64
-	maxVal float64
-}
-type (
-	float32Gen struct{ floatGen }
-	float64Gen struct{ floatGen }
-)
-
-func (g *floatGen) stringImpl(kind string) string {
-	switch {
-	case g.min != g.minVal && g.max != g.maxVal:
-		return fmt.Sprintf("%sRange(%g, %g)", kind, g.min, g.max)
-	case g.min != g.minVal:
-		return fmt.Sprintf("%sMin(%g)", kind, g.min)
-	case g.max != g.maxVal:
-		return fmt.Sprintf("%sMax(%g)", kind, g.max)
+// newFloatGen stops short of the Generator, so the constructors stay small enough to inline
+// and a generator built and drawn from in one expression stays off the heap.
+func newFloatGen[F Floating](hasMin bool, lo F, hasMax bool, hi F) *floatGen[F] {
+	typ := reflect.TypeFor[F]()
+	g := &floatGen[F]{typ: typ.String(), single: typ.Bits() == 32, hasMin: hasMin, hasMax: hasMax}
+	g.max = math.MaxFloat64
+	if g.single {
+		g.max = math.MaxFloat32
+	}
+	g.min = -g.max
+	if hasMin {
+		g.min = float64(lo)
+	}
+	if hasMax {
+		g.max = float64(hi)
 	}
 
-	return kind + "()"
+	assert.Truef(g.min == g.min, "lo should not be a NaN")
+	assert.Truef(g.max == g.max, "hi should not be a NaN")
+	assert.Truef(g.min <= g.max, "invalid range [%v, %v]", F(g.min), F(g.max))
+
+	return g
 }
 
-func (g *float32Gen) String() string {
-	return g.stringImpl("Float32")
+type floatGen[F Floating] struct {
+	typ    string
+	single bool
+	min    float64
+	max    float64
+	hasMin bool
+	hasMax bool
 }
 
-func (g *float64Gen) String() string {
-	return g.stringImpl("Float64")
+func (g *floatGen[F]) String() string {
+	switch {
+	case g.hasMin && g.hasMax:
+		return fmt.Sprintf("FloatRange[%s](%g, %g)", g.typ, g.min, g.max)
+	case g.hasMin:
+		return fmt.Sprintf("FloatMin[%s](%g)", g.typ, g.min)
+	case g.hasMax:
+		return fmt.Sprintf("FloatMax[%s](%g)", g.typ, g.max)
+	}
+
+	return "Float[" + g.typ + "]()"
 }
 
-func (g *float32Gen) value(t *T) float32 {
-	return bitstream.Float32Range(t.s, g.min, g.max)
-}
+func (g *floatGen[F]) value(t *T) F {
+	if g.single {
+		return F(bitstream.Float32Range(t.s, g.min, g.max))
+	}
 
-func (g *float64Gen) value(t *T) float64 {
-	return bitstream.Float64Range(t.s, g.min, g.max)
+	return F(bitstream.Float64Range(t.s, g.min, g.max))
 }

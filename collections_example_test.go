@@ -13,7 +13,7 @@ import (
 )
 
 func ExampleSliceOf() {
-	gen := rapid.SliceOf(rapid.Int())
+	gen := rapid.SliceOf(rapid.Int[int]())
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))
@@ -27,7 +27,7 @@ func ExampleSliceOf() {
 }
 
 func ExampleSliceOfN() {
-	gen := rapid.SliceOfN(rapid.Int(), 5, 5)
+	gen := rapid.SliceOfN(rapid.Int[int](), 5, 5)
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))
@@ -69,7 +69,7 @@ func ExampleSliceOfNDistinct() {
 }
 
 func ExampleMapOf() {
-	gen := rapid.MapOf(rapid.Int(), rapid.StringMatching(`[a-z]+`))
+	gen := rapid.MapOf(rapid.Int[int](), rapid.StringMatching(`[a-z]+`))
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))
@@ -83,7 +83,7 @@ func ExampleMapOf() {
 }
 
 func ExampleMapOfN() {
-	gen := rapid.MapOfN(rapid.Int(), rapid.StringMatching(`[a-z]+`), 5, 5)
+	gen := rapid.MapOfN(rapid.Int[int](), rapid.StringMatching(`[a-z]+`), 5, 5)
 
 	for seed := range 5 {
 		fmt.Println(gen.Example(seed))

@@ -26,7 +26,7 @@ func checkByteCoverage(t *testing.T, seed uint64) {
 	s := bitstream.NewRandom(seed, false)
 	seen := map[byte]bool{}
 	for range stattest.CoverageDraws {
-		seen[drawFrom(t, s, Byte())] = true
+		seen[drawFrom(t, s, Int[byte]())] = true
 		if len(seen) == 256 {
 			return
 		}
@@ -61,7 +61,7 @@ func checkIntCoverage(t *testing.T, seed uint64) {
 
 	s := bitstream.NewRandom(seed, false)
 	for _, target := range targets {
-		if !drawsHit(t, s, Int(), target.hit) {
+		if !drawsHit(t, s, Int[int](), target.hit) {
 			t.Errorf("no int %v in %v draws", target.name, stattest.CoverageDraws)
 		}
 	}
@@ -90,7 +90,7 @@ func checkUintCoverage(t *testing.T, seed uint64) {
 
 	s := bitstream.NewRandom(seed, false)
 	for _, target := range targets {
-		if !drawsHit(t, s, Uint(), target.hit) {
+		if !drawsHit(t, s, Int[uint](), target.hit) {
 			t.Errorf("no uint %v in %v draws", target.name, stattest.CoverageDraws)
 		}
 	}

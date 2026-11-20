@@ -81,7 +81,7 @@ func TestLoadCmdlineDefaultsInvalidEnvPanics(t *testing.T) {
 }
 
 func BenchmarkBaseSeed(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		BaseSeed()
 	}
 }

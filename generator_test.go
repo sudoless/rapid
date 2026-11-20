@@ -23,9 +23,8 @@ func (trivialGenImpl) value(t *T) uint64 { return t.s.DrawBits(64) }
 func BenchmarkTrivialGenImplValue(b *testing.B) {
 	t := newT(nil, bitstream.NewRandom(engine.BaseSeed(), false), false, nil)
 	g := trivialGenImpl{}
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		g.value(t)
 	}
 }
@@ -33,9 +32,8 @@ func BenchmarkTrivialGenImplValue(b *testing.B) {
 func BenchmarkGenerator_Value(b *testing.B) {
 	t := newT(nil, bitstream.NewRandom(engine.BaseSeed(), false), false, nil)
 	g := newGenerator[uint64](trivialGenImpl{})
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		g.value(t)
 	}
 }
@@ -45,7 +43,7 @@ func TestExampleHelper(t *testing.T) {
 
 	g := Custom(func(t *T) int {
 		t.Helper()
-		return Int().Draw(t, t.Name())
+		return Int[int]().Draw(t, t.Name())
 	})
 
 	g.Example(0)
@@ -57,7 +55,7 @@ func TestCustomExampleContext(t *testing.T) {
 	type key struct{}
 
 	g := Custom(func(t *T) context.Context {
-		ctx := context.WithValue(t.Context(), key{}, Int().Draw(t, "x"))
+		ctx := context.WithValue(t.Context(), key{}, Int[int]().Draw(t, "x"))
 		if err := ctx.Err(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -81,7 +79,7 @@ func TestCustomExampleCleanup(t *testing.T) {
 	var state bool
 	g := Custom(func(t *T) int {
 		t.Cleanup(func() { state = false })
-		return Int().Draw(t, "x")
+		return Int[int]().Draw(t, "x")
 	})
 
 	state = true

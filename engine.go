@@ -433,26 +433,30 @@ type TB interface {
 	FailNow()
 	Fail()
 	Failed() bool
+	Context() context.Context
+	Output() io.Writer
 }
 
 type tb TB // tb is a private copy of TB, made to avoid T having public fields
 
 type nilTB struct{}
 
-func (nilTB) Helper()               {}
-func (nilTB) Name() string          { return "" }
-func (nilTB) Logf(string, ...any)   {}
-func (nilTB) Log(...any)            {}
-func (nilTB) Skipf(string, ...any)  { panic("call to TB.Skipf() outside a test") }
-func (nilTB) Skip(...any)           { panic("call to TB.Skip() outside a test") }
-func (nilTB) SkipNow()              { panic("call to TB.SkipNow() outside a test") }
-func (nilTB) Errorf(string, ...any) { panic("call to TB.Errorf() outside a test") }
-func (nilTB) Error(...any)          { panic("call to TB.Error() outside a test") }
-func (nilTB) Fatalf(string, ...any) { panic("call to TB.Fatalf() outside a test") }
-func (nilTB) Fatal(...any)          { panic("call to TB.Fatal() outside a test") }
-func (nilTB) FailNow()              { panic("call to TB.FailNow() outside a test") }
-func (nilTB) Fail()                 { panic("call to TB.Fail() outside a test") }
-func (nilTB) Failed() bool          { panic("call to TB.Failed() outside a test") }
+func (nilTB) Helper()                  {}
+func (nilTB) Name() string             { return "" }
+func (nilTB) Logf(string, ...any)      {}
+func (nilTB) Log(...any)               {}
+func (nilTB) Skipf(string, ...any)     { panic("call to TB.Skipf() outside a test") }
+func (nilTB) Skip(...any)              { panic("call to TB.Skip() outside a test") }
+func (nilTB) SkipNow()                 { panic("call to TB.SkipNow() outside a test") }
+func (nilTB) Errorf(string, ...any)    { panic("call to TB.Errorf() outside a test") }
+func (nilTB) Error(...any)             { panic("call to TB.Error() outside a test") }
+func (nilTB) Fatalf(string, ...any)    { panic("call to TB.Fatalf() outside a test") }
+func (nilTB) Fatal(...any)             { panic("call to TB.Fatal() outside a test") }
+func (nilTB) FailNow()                 { panic("call to TB.FailNow() outside a test") }
+func (nilTB) Fail()                    { panic("call to TB.Fail() outside a test") }
+func (nilTB) Failed() bool             { panic("call to TB.Failed() outside a test") }
+func (nilTB) Context() context.Context { return context.Background() }
+func (nilTB) Output() io.Writer        { return io.Discard }
 
 // T is similar to [testing.T], but with extra bookkeeping for property-based tests.
 //
@@ -544,17 +548,7 @@ func (t *T) Context() context.Context {
 		return t.ctx
 	}
 
-	// Use the testing.TB's context as the starting point if available,
-	// and the Background context if not.
-	//
-	// T.Context was added in Go 1.24.
-	if tctx, ok := t.tb.(interface{ Context() context.Context }); ok {
-		ctx = tctx.Context()
-	} else {
-		ctx = context.Background()
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(t.tb.Context())
 	t.ctx = ctx
 	t.cancelCtx = cancel
 	return ctx
@@ -651,8 +645,6 @@ func (t *T) Log(args ...any) {
 // buffered, and a call to T.Log or the end of the test will implicitly
 // flush the buffer, followed by a newline. After a test function and all its
 // parents return, neither Output nor the Write method may be called.
-//
-// Output fails the test when the underlying [TB] has no Output method.
 func (t *T) Output() io.Writer {
 	t.Helper()
 
@@ -660,12 +652,7 @@ func (t *T) Output() io.Writer {
 	case t.rawLog != nil:
 		return t.rawLog.Writer()
 	case t.tbLog:
-		if tout, ok := t.tb.(interface{ Output() io.Writer }); ok {
-			return tout.Output()
-		} else {
-			t.Fatal("[rapid] Output requires a TB with an Output method")
-			return nil
-		}
+		return t.tb.Output()
 	default:
 		return io.Discard
 	}

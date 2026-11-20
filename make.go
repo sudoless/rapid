@@ -100,31 +100,31 @@ func (c *MakeConfig) newMakeKindGen(typ reflect.Type) (gen *Generator[any], mayN
 	case reflect.Bool:
 		return Bool().AsAny(), true
 	case reflect.Int:
-		return Int().AsAny(), true
+		return Int[int]().AsAny(), true
 	case reflect.Int8:
-		return Int8().AsAny(), true
+		return Int[int8]().AsAny(), true
 	case reflect.Int16:
-		return Int16().AsAny(), true
+		return Int[int16]().AsAny(), true
 	case reflect.Int32:
-		return Int32().AsAny(), true
+		return Int[int32]().AsAny(), true
 	case reflect.Int64:
-		return Int64().AsAny(), true
+		return Int[int64]().AsAny(), true
 	case reflect.Uint:
-		return Uint().AsAny(), true
+		return Int[uint]().AsAny(), true
 	case reflect.Uint8:
-		return Uint8().AsAny(), true
+		return Int[uint8]().AsAny(), true
 	case reflect.Uint16:
-		return Uint16().AsAny(), true
+		return Int[uint16]().AsAny(), true
 	case reflect.Uint32:
-		return Uint32().AsAny(), true
+		return Int[uint32]().AsAny(), true
 	case reflect.Uint64:
-		return Uint64().AsAny(), true
+		return Int[uint64]().AsAny(), true
 	case reflect.Uintptr:
-		return Uintptr().AsAny(), true
+		return Int[uintptr]().AsAny(), true
 	case reflect.Float32:
-		return Float32().AsAny(), true
+		return Float[float32]().AsAny(), true
 	case reflect.Float64:
-		return Float64().AsAny(), true
+		return Float[float64]().AsAny(), true
 	case reflect.Array:
 		return c.genAnyArray(typ), false
 	case reflect.Map:

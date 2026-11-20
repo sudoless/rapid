@@ -17,8 +17,8 @@ func TestCollectionsWithImpossibleMinSize(t *testing.T) {
 	t.Parallel()
 
 	gens := []*Generator[any]{
-		MapOfN(Bool(), Int(), 10, -1).AsAny(),
-		SliceOfNDistinct(Int(), 10, -1, func(i int) int { return i % 5 }).AsAny(),
+		MapOfN(Bool(), Int[int](), 10, -1).AsAny(),
+		SliceOfNDistinct(Int[int](), 10, -1, func(i int) int { return i % 5 }).AsAny(),
 	}
 
 	for _, gen := range gens {

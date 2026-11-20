@@ -9,7 +9,7 @@ package rapid
 import (
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -41,7 +41,7 @@ func TestShrink_IntCmp(t *testing.T) {
 			t.Parallel()
 
 			checkShrink(t, func(t *T) {
-				i := Int().Draw(t, "i")
+				i := Int[int]().Draw(t, "i")
 				if ((testCase.gt && i > testCase.a) || (!testCase.gt && i < testCase.a)) || (testCase.eq && i == testCase.a) {
 					t.Fail()
 				}
@@ -74,7 +74,7 @@ func TestShrink_FloatCmp(t *testing.T) {
 			t.Parallel()
 
 			checkShrink(t, func(t *T) {
-				f := Float64().Draw(t, "f")
+				f := Float[float64]().Draw(t, "f")
 				if ((testCase.gt && f > testCase.a) || (!testCase.gt && f < testCase.a)) || (testCase.eq && f == testCase.a) {
 					t.Fail()
 				}
@@ -87,7 +87,7 @@ func TestShrink_IntSliceNElemsGt(t *testing.T) {
 	t.Parallel()
 
 	checkShrink(t, func(t *T) {
-		s := SliceOf(Int()).Draw(t, "s")
+		s := SliceOf(Int[int]()).Draw(t, "s")
 		n := 0
 		for _, elem := range s {
 			if elem > 1000000 {
@@ -104,7 +104,7 @@ func TestShrink_IntSliceElemGe(t *testing.T) {
 	t.Parallel()
 
 	checkShrink(t, func(t *T) {
-		s := SliceOfN(Int(), 1, -1).Draw(t, "s")
+		s := SliceOfN(Int[int](), 1, -1).Draw(t, "s")
 		ix := IntRange(0, len(s)-1).Draw(t, "ix")
 
 		if s[ix] >= 100 {
@@ -117,7 +117,7 @@ func TestShrink_IntSliceElemSpanGe(t *testing.T) {
 	t.Parallel()
 
 	checkShrink(t, func(t *T) {
-		s := SliceOfN(Int(), 4, -1).Draw(t, "s")
+		s := SliceOfN(Int[int](), 4, -1).Draw(t, "s")
 		if len(s)%3 == 1 && s[len(s)-1] >= 100 {
 			t.Fail()
 		}
@@ -129,7 +129,7 @@ func TestShrink_IntSliceNoDuplicates(t *testing.T) {
 
 	checkShrink(t, func(t *T) {
 		s := SliceOfN(IntMin(1), 5, -1).Draw(t, "s")
-		sort.Ints(s)
+		slices.Sort(s)
 		last := 0
 		for _, elem := range s {
 			if elem == last {

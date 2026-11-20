@@ -85,19 +85,19 @@ func TestStateMachine_Halting(t *testing.T) {
 				if len(a) == 3 {
 					t.SkipNow()
 				}
-				a = append(a, Int().Draw(t, "a"))
+				a = append(a, Int[int]().Draw(t, "a"))
 			},
 			"B": func(t *T) {
 				if len(b) == 3 {
 					t.SkipNow()
 				}
-				b = append(b, Int().Draw(t, "b"))
+				b = append(b, Int[int]().Draw(t, "b"))
 			},
 			"C": func(t *T) {
 				if len(c) == 3 {
 					t.SkipNow()
 				}
-				c = append(c, Int().Draw(t, "c"))
+				c = append(c, Int[int]().Draw(t, "c"))
 			},
 			"": func(t *T) {
 				if len(a) > 3 || len(b) > 3 || len(c) > 3 {
@@ -157,7 +157,7 @@ func queueTest(t *T) {
 				t.Skip("queue full")
 			}
 
-			n := Int().Draw(t, "n")
+			n := Int[int]().Draw(t, "n")
 			q.Put(n)
 			state = append(state, n)
 		},
@@ -190,11 +190,11 @@ func TestStateMachine_DiscardGarbage(t *testing.T) {
 				if len(b) < 3 {
 					t.Skip("too early")
 				}
-				n := Int().Draw(t, "a")
+				n := Int[int]().Draw(t, "a")
 				a = append(a, n)
 			},
 			"AddB": func(t *T) {
-				n := Int().Draw(t, "b")
+				n := Int[int]().Draw(t, "b")
 				b = append(b, n)
 			},
 			"Whatever1": func(t *T) {
@@ -202,13 +202,13 @@ func TestStateMachine_DiscardGarbage(t *testing.T) {
 				if b {
 					t.Skip("arbitrary decision")
 				}
-				Float64().Draw(t, "whatever 1/2")
+				Float[float64]().Draw(t, "whatever 1/2")
 			},
 			"Whatever2": func(t *T) {
-				SliceOfDistinct(Int(), ID[int]).Draw(t, "whatever 2")
+				SliceOfDistinct(Int[int](), ID[int]).Draw(t, "whatever 2")
 			},
 			"Whatever3": func(t *T) {
-				OneOf(SliceOf(Byte()), SliceOf(ByteMax(239))).Draw(t, "whatever 3")
+				OneOf(SliceOf(Int[byte]()), SliceOf(IntMax[byte](239))).Draw(t, "whatever 3")
 			},
 			"": func(t *T) {
 				if len(a) > len(b) {
@@ -267,12 +267,12 @@ func TestStateMachineActions(t *testing.T) {
 			}
 
 			var want []string
-			for idx := 0; idx < Int().Draw(t, "ActionT count"); idx++ {
+			for idx := 0; idx < Int[int]().Draw(t, "ActionT count"); idx++ {
 				actionT(t)
 				want = append(want, "ActionT")
 			}
 
-			for idx := 0; idx < Int().Draw(t, "ActionTB count"); idx++ {
+			for idx := 0; idx < Int[int]().Draw(t, "ActionTB count"); idx++ {
 				actionTB(t)
 				want = append(want, "ActionTB")
 			}
@@ -295,7 +295,7 @@ func TestStateMachineActions(t *testing.T) {
 }
 
 func BenchmarkCheckQueue(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		_ = doCheck(b, checkDeadline(nil), 100, engine.BaseSeed(), "", false, queueTest)
 	}
 }

@@ -9,7 +9,7 @@ package bitstream
 import (
 	"fmt"
 	"math/bits"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"go.sdls.io/rapid/internal/stattest"
@@ -46,18 +46,16 @@ func TestJsfRand(t *testing.T) {
 func BenchmarkJsfRand(b *testing.B) {
 	ctx := &jsf64ctx{}
 	ctx.init(1)
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		ctx.rand()
 	}
 }
 
 func BenchmarkMathRand(b *testing.B) {
-	s := rand.NewSource(1).(rand.Source64)
-	b.ResetTimer()
+	s := rand.NewPCG(1, 2)
 
-	for range b.N {
+	for b.Loop() {
 		s.Uint64()
 	}
 }
@@ -84,18 +82,16 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 
 func BenchmarkRandomBitStream_DrawBits1(b *testing.B) {
 	s := NewRandom(1, false)
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		s.DrawBits(1)
 	}
 }
 
 func BenchmarkRandomBitStream_DrawBits64(b *testing.B) {
 	s := NewRandom(1, false)
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		s.DrawBits(64)
 	}
 }

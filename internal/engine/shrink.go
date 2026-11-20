@@ -156,7 +156,7 @@ func (s *shrinker) removeGroups(deadline time.Time) {
 func (s *shrinker) minimizeBlocks(deadline time.Time) {
 	for idx := 0; idx < len(s.rec.Data) && time.Now().Before(deadline); idx++ {
 		minimize(s.rec.Data[idx], func(u uint64, label string) bool {
-			buf := append([]uint64(nil), s.rec.Data...)
+			buf := slices.Clone(s.rec.Data)
 			buf[idx] = u
 			return s.accept(buf, label, "minimize block %v: %v to %v", idx, s.rec.Data[idx], u)
 		})
@@ -170,20 +170,20 @@ func (s *shrinker) lowerFloatHack(deadline time.Time) {
 			continue
 		}
 
-		buf := append([]uint64(nil), s.rec.Data...)
+		buf := slices.Clone(s.rec.Data)
 		buf[g.Begin+3] -= 1
 		buf[g.Begin+4] = math.MaxUint64
 		buf[g.Begin+5] = math.MaxUint64
 		buf[g.Begin+6] = math.MaxUint64
 
 		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.Label, idx, buf[g.Begin+3]) {
-			buf := append([]uint64(nil), s.rec.Data...)
+			buf := slices.Clone(s.rec.Data)
 			buf[g.Begin+4] -= 1
 			buf[g.Begin+5] = math.MaxUint64
 			buf[g.Begin+6] = math.MaxUint64
 
 			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.Label, idx, buf[g.Begin+4]) {
-				buf := append([]uint64(nil), s.rec.Data...)
+				buf := slices.Clone(s.rec.Data)
 				buf[g.Begin+5] -= 1
 				buf[g.Begin+6] = math.MaxUint64
 
@@ -199,7 +199,7 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 			continue
 		}
 
-		buf := append([]uint64(nil), s.rec.Data...)
+		buf := slices.Clone(s.rec.Data)
 		buf[idx] -= 1
 
 		for jdx := range len(s.rec.Groups) {
@@ -250,7 +250,8 @@ func (s *shrinker) swapWithEarlier(jdx int, g bitstream.Group) int {
 
 // swapSpans returns a copy of data with the spans of groups a and b exchanged; a ends before b begins.
 func swapSpans(data []uint64, a, b bitstream.Group) []uint64 {
-	buf := append([]uint64(nil), data[:a.Begin]...)
+	buf := make([]uint64, 0, len(data))
+	buf = append(buf, data[:a.Begin]...)
 	buf = append(buf, data[b.Begin:b.End]...)
 	buf = append(buf, data[a.End:b.Begin]...)
 	buf = append(buf, data[a.Begin:a.End]...)
@@ -408,7 +409,7 @@ func (m *minimizer) binSearch() {
 }
 
 func without(data []uint64, groups ...bitstream.Group) []uint64 {
-	buf := append([]uint64(nil), data...)
+	buf := slices.Clone(data)
 
 	for idx := range slices.Backward(groups) {
 		group := &groups[idx]

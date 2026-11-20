@@ -103,9 +103,9 @@ properties are checked on a new set of pseudo-random data:
 func TestArithmetic_Property(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		var (
-			a = rapid.Int().Draw(t, "a")
-			b = rapid.Int().Draw(t, "b")
-			c = rapid.Int().Draw(t, "c")
+			a = rapid.Int[int]().Draw(t, "a")
+			b = rapid.Int[int]().Draw(t, "b")
+			c = rapid.Int[int]().Draw(t, "c")
 		)
 		if add(a, 0) != a {
 			t.Fatalf("add() does not have 0 as identity")
