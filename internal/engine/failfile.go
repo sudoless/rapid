@@ -97,7 +97,10 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 		return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
 	}
 
-	_ = f.Close() // early close, otherwise os.Rename will fail on Windows
+	// Close before the rename, which fails on Windows for an open file; a failed Close may mean a truncated file.
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("closing fail file %q: %w", filename, err)
+	}
 	err = os.Rename(f.Name(), filename)
 	if err != nil {
 		return fmt.Errorf("failed to save fail file %q: %w", filename, err)

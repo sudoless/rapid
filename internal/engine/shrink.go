@@ -8,6 +8,7 @@ package engine
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hash/maphash"
 	"log"
 	"math"
@@ -71,20 +72,31 @@ func shrinkTestCase(tb Logger, deadline time.Time, rec bitstream.Recorded, err *
 	buf, err := s.shrink(deadline)
 
 	if Flags.DebugVis {
-		name := "vis-" + testFileName(tb.Name()) + ".html"
-		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
-		if err != nil {
-			tb.Logf("failed to create debugvis file %v: %v", name, err)
-		} else {
-			defer func() { _ = f.Close() }()
-
-			if err = writeVisHTML(f, tb.Name(), s.visBits); err != nil {
-				tb.Logf("failed to write debugvis file %v: %v", name, err)
-			}
+		if err := writeVisFile(tb.Name(), s.visBits); err != nil {
+			tb.Logf("[rapid] %v", err)
 		}
 	}
 
 	return buf, err
+}
+
+// writeVisFile writes the -rapid.debugvis page of the shrink steps of the test testName.
+func writeVisFile(testName string, steps []bitstream.Recorded) error {
+	name := "vis-" + testFileName(testName) + ".html"
+	f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
+	if err != nil {
+		return fmt.Errorf("creating debugvis file: %w", err)
+	}
+
+	if err := writeVisHTML(f, testName, steps); err != nil {
+		_ = f.Close() // the write error is the one to report
+		return fmt.Errorf("writing debugvis file %q: %w", name, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("closing debugvis file %q: %w", name, err)
+	}
+
+	return nil
 }
 
 type shrinker struct {
