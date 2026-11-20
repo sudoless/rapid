@@ -468,8 +468,10 @@ func captureTestOutput(tb tb, prop func(*T), buf []uint64) []byte {
 	return b.Bytes()
 }
 
-type invalidData string
-type stopTest string
+type (
+	invalidData string
+	stopTest    string
+)
 
 type testError struct {
 	data      any

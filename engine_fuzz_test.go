@@ -50,14 +50,17 @@ func TestRapidInt(t *testing.T) {
 	t.Skip()
 	Check(t, checkInt)
 }
+
 func TestRapidSlice(t *testing.T) {
 	t.Skip()
 	Check(t, checkSlice)
 }
+
 func TestRapidString(t *testing.T) {
 	t.Skip()
 	Check(t, checkString)
 }
+
 func TestRapidStuckStateMachine(t *testing.T) {
 	t.Skip()
 	Check(t, checkStuckStateMachine)

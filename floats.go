@@ -93,8 +93,10 @@ type floatGen struct {
 	minVal float64
 	maxVal float64
 }
-type float32Gen struct{ floatGen }
-type float64Gen struct{ floatGen }
+type (
+	float32Gen struct{ floatGen }
+	float64Gen struct{ floatGen }
+)
 
 func (g *floatGen) stringImpl(kind string) string {
 	if g.min != g.minVal && g.max != g.maxVal {
@@ -107,9 +109,11 @@ func (g *floatGen) stringImpl(kind string) string {
 
 	return fmt.Sprintf("%s()", kind)
 }
+
 func (g *float32Gen) String() string {
 	return g.stringImpl("Float32")
 }
+
 func (g *float64Gen) String() string {
 	return g.stringImpl("Float64")
 }
@@ -117,6 +121,7 @@ func (g *float64Gen) String() string {
 func (g *float32Gen) value(t *T) float32 {
 	return float32FromParts(genFloatRange(t.s, g.min, g.max, float32SignifBits))
 }
+
 func (g *float64Gen) value(t *T) float64 {
 	return float64FromParts(genFloatRange(t.s, g.min, g.max, float64SignifBits))
 }

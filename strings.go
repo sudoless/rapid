@@ -257,12 +257,15 @@ type regexpGen struct {
 	syn  *syntax.Regexp
 	re   *regexp.Regexp
 }
-type regexpStringGen struct{ regexpGen }
-type regexpSliceGen struct{ regexpGen }
+type (
+	regexpStringGen struct{ regexpGen }
+	regexpSliceGen  struct{ regexpGen }
+)
 
 func (g *regexpStringGen) String() string {
 	return fmt.Sprintf("StringMatching(%q)", g.expr)
 }
+
 func (g *regexpSliceGen) String() string {
 	return fmt.Sprintf("SliceOfBytesMatching(%q)", g.expr)
 }
@@ -294,6 +297,7 @@ func (g *regexpSliceGen) maybeSlice(t *T) ([]byte, bool) {
 func (g *regexpStringGen) value(t *T) string {
 	return find(g.maybeString, t, small)
 }
+
 func (g *regexpSliceGen) value(t *T) []byte {
 	return find(g.maybeSlice, t, small)
 }
