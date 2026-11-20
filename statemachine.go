@@ -34,6 +34,8 @@ const (
 // For complex state machines, it can be more convenient to specify actions as
 // methods of a special state machine type. In this case, [StateMachineActions]
 // can be used to create an actions map from state machine methods using reflection.
+//
+// Repeat runs an average of -rapid.steps actions, half as many under -short; [*T.RepeatSteps] sets the number.
 func (t *T) Repeat(actions map[string]func(*T)) {
 	t.Helper()
 
@@ -44,7 +46,15 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 	t.repeat(actions, steps)
 }
 
-// repeat is Repeat with an average of steps actions.
+// RepeatSteps is [*T.Repeat] with an average of steps actions, whatever -rapid.steps or -short say. A failure
+// replays from a fail file or a seed only with the step count it was found with, so a fixed count keeps it
+// replayable across runs with other flags. RepeatSteps panics if steps < 1.
+func (t *T) RepeatSteps(actions map[string]func(*T), steps int) {
+	t.Helper()
+	assert.Truef(steps >= 1, "RepeatSteps(%v): want at least 1 step", steps)
+	t.repeat(actions, steps)
+}
+
 func (t *T) repeat(actions map[string]func(*T), steps int) {
 	t.Helper()
 
