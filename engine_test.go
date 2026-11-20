@@ -170,36 +170,29 @@ func TestCheckCleanupMultipleOrder(t *testing.T) {
 	}
 }
 
+// A cleanup that panics fails the test case, and the cleanups registered before it still run, in reverse order.
 func TestCheckCleanupPanic(t *testing.T) {
 	t.Parallel()
 
-	// A Cleanup function halfway through will panic.
-	// Deferred assertions will check that all values are false.
-	var state []bool
-	defer func() {
-		for _, value := range state {
-			if value {
-				t.Errorf("expected all values to be false")
-			}
-		}
-	}()
-
+	var ran []int
 	prop := func(t *T) {
-		idx := len(state)
-		state = append(state, true)
-		t.Cleanup(func() {
-			state[idx] = false
-			if idx == len(state)/2 {
-				panic("cleanup panic")
-			}
-		})
+		for idx := range 5 {
+			t.Cleanup(func() {
+				ran = append(ran, idx)
+				if idx == 2 {
+					panic("cleanup panic")
+				}
+			})
+		}
 	}
 
-	res := search(t, engine.BaseSeed(), prop)
-	if res.Err1 == nil {
+	err := checkOnce(newT(t, bitstream.NewRandom(stattest.FixedSeed, false), false, nil), prop)
+	if err == nil {
 		t.Fatalf("cleanup panic not reported")
 	}
-	_ = checkOnce(newT(t, bitstream.NewBuffer(res.Buf, false), false, nil), prop)
+	if want := []int{4, 3, 2, 1, 0}; !reflect.DeepEqual(ran, want) {
+		t.Fatalf("cleanups ran %v, want %v", ran, want)
+	}
 }
 
 func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
@@ -221,6 +214,12 @@ func TestCheckCleanupNewCleanupsDuringCleanup(t *testing.T) {
 			}
 		})
 	})
+
+	for idx, open := range state {
+		if open {
+			t.Fatalf("cleanup %v registered during cleanup did not run", idx)
+		}
+	}
 }
 
 func TestCheckCleanupContextIsCanceled(t *testing.T) {
