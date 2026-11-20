@@ -220,9 +220,9 @@ func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64
 		siMin, siMax = maxSignifI, maxSignifI
 	case minExp == maxExp:
 		siMin, siMax = minSignifI, maxSignifI
-	case int32(e) == minExp:
+	case e == int64(minExp):
 		siMin, siMax = minSignifI, bitmask64(signifBits-fracBits)
-	case int32(e) == maxExp:
+	case e == int64(maxExp):
 		siMin, siMax = 0, maxSignifI
 	default:
 		siMin, siMax = 0, bitmask64(signifBits-fracBits)
@@ -236,9 +236,9 @@ func genUfloatRange(s bitStream, lo, hi float64, signifBits uint) (int32, uint64
 		sfMin, sfMax = maxSignifF, maxSignifF
 	case minExp == maxExp && minSignifI == maxSignifI:
 		sfMin, sfMax = minSignifF, maxSignifF
-	case int32(e) == minExp && si == minSignifI:
+	case e == int64(minExp) && si == minSignifI:
 		sfMin, sfMax = minSignifF, bitmask64(fracBits)
-	case int32(e) == maxExp && si == maxSignifI:
+	case e == int64(maxExp) && si == maxSignifI:
 		sfMin, sfMax = 0, maxSignifF
 	default:
 		sfMin, sfMax = 0, bitmask64(fracBits)
