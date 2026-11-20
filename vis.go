@@ -659,7 +659,7 @@ template {
 // Copyright 2013 Lucas Beyer
 // Licensed under MIT (https://github.com/lucasb-eyer/go-colorful/blob/master/LICENSE)
 //
-// Hsv creates a new Color given a Hue in [0..360], a Saturation and a Value in [0..1]
+// Hsv creates a new Color given a Hue in [0..360], a Saturation and a Value in [0..1].
 func visHsv(H, S, V float64) color.RGBA {
 	Hp := H / 60.0
 	C := V * S

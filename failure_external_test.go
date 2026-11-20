@@ -12,7 +12,7 @@ import (
 	. "go.sdls.io/rapid"
 )
 
-// wrapper to test (*T).Helper()
+// wrapper to test (*T).Helper().
 func fatalf(t *T, format string, args ...any) {
 	t.Helper()
 	t.Fatalf(format, args...)

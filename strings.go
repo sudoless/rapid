@@ -32,7 +32,7 @@ var (
 		'Ⱥ', // In UTF-8, Ⱥ increases in length from 2 to 3 bytes when lowercased
 	}
 
-	// unicode.Categories without surrogates (which are not allowed in UTF-8), ordered by taste
+	// unicode.Categories without surrogates (which are not allowed in UTF-8), ordered by taste.
 	defaultTables = []*unicode.RangeTable{
 		unicode.Lu, // Letter, uppercase        (1781)
 		unicode.Ll, // Letter, lowercase        (2145)
