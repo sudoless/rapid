@@ -8,6 +8,7 @@ package rapid
 
 import (
 	"fmt"
+	"reflect"
 
 	"go.sdls.io/rapid/internal/assert"
 	"go.sdls.io/rapid/internal/bitstream"
@@ -43,10 +44,11 @@ func SliceOfNDistinct[E comparable](elem *Generator[E], minLen, maxLen int) *Gen
 	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[[]E](&sliceGen[E, E]{
-		minLen: minLen,
-		maxLen: maxLen,
-		elem:   elem,
-		keyFn:  func(e E) E { return e },
+		minLen:    minLen,
+		maxLen:    maxLen,
+		elem:      elem,
+		keyFn:     func(e E) E { return e },
+		checkKeys: mayBeUncomparable(reflect.TypeFor[E]()),
 	})
 }
 
@@ -62,20 +64,22 @@ func SliceOfNDistinctFunc[E any, K comparable](elem *Generator[E], minLen, maxLe
 	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[[]E](&sliceGen[E, K]{
-		minLen: minLen,
-		maxLen: maxLen,
-		elem:   elem,
-		keyFn:  keyFn,
-		byFunc: true,
+		minLen:    minLen,
+		maxLen:    maxLen,
+		elem:      elem,
+		keyFn:     keyFn,
+		byFunc:    true,
+		checkKeys: mayBeUncomparable(reflect.TypeFor[K]()),
 	})
 }
 
 type sliceGen[E any, K comparable] struct {
-	minLen int
-	maxLen int
-	elem   *Generator[E]
-	keyFn  func(E) K
-	byFunc bool // keyFn came from the caller, rather than being the identity
+	minLen    int
+	maxLen    int
+	elem      *Generator[E]
+	keyFn     func(E) K
+	byFunc    bool // keyFn came from the caller, rather than being the identity
+	checkKeys bool // K can hold a value that cannot be compared
 }
 
 func (g *sliceGen[E, K]) String() string {
@@ -111,6 +115,9 @@ func (g *sliceGen[E, K]) value(t *T) []E {
 			sl = append(sl, e)
 		} else {
 			k := g.keyFn(e)
+			if g.checkKeys {
+				checkKey(g, k)
+			}
 			if _, ok := seen[k]; ok {
 				repeat.Reject()
 			} else {
@@ -135,10 +142,11 @@ func MapOfN[K comparable, V any](key *Generator[K], val *Generator[V], minLen, m
 	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[map[K]V](&mapGen[K, V]{
-		minLen: minLen,
-		maxLen: maxLen,
-		key:    key,
-		val:    val,
+		minLen:    minLen,
+		maxLen:    maxLen,
+		key:       key,
+		val:       val,
+		checkKeys: mayBeUncomparable(reflect.TypeFor[K]()),
 	})
 }
 
@@ -154,19 +162,21 @@ func MapOfNValues[K comparable, V any](val *Generator[V], minLen, maxLen int, ke
 	assert.ValidRange(minLen, maxLen)
 
 	return newGenerator[map[K]V](&mapGen[K, V]{
-		minLen: minLen,
-		maxLen: maxLen,
-		val:    val,
-		keyFn:  keyFn,
+		minLen:    minLen,
+		maxLen:    maxLen,
+		val:       val,
+		keyFn:     keyFn,
+		checkKeys: mayBeUncomparable(reflect.TypeFor[K]()),
 	})
 }
 
 type mapGen[K comparable, V any] struct {
-	minLen int
-	maxLen int
-	key    *Generator[K]
-	val    *Generator[V]
-	keyFn  func(V) K
+	minLen    int
+	maxLen    int
+	key       *Generator[K]
+	val       *Generator[V]
+	keyFn     func(V) K
+	checkKeys bool // K can hold a value that cannot be compared
 }
 
 func (g *mapGen[K, V]) String() string {
@@ -203,6 +213,9 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 			k = g.keyFn(v)
 		}
 
+		if g.checkKeys {
+			checkKey(g, k)
+		}
 		if _, ok := m[k]; ok {
 			repeat.Reject()
 		} else {

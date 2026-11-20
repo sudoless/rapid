@@ -194,13 +194,18 @@ func (c *MakeConfig) genAnySlice(typ reflect.Type) *Generator[any] {
 func (c *MakeConfig) genAnyMap(typ reflect.Type) *Generator[any] {
 	keyGen := c.newMakeGen(typ.Key())
 	valGen := c.newMakeGen(typ.Elem())
+	checkKeys := mayBeUncomparable(typ.Key())
 
 	return Custom(func(t *T) any {
 		label := keyGen.String() + "," + valGen.String()
 		repeat := bitstream.NewRepeat(-1, -1, -1, label)
 		m := reflect.MakeMapWithSize(typ, repeat.Avg())
 		for repeat.More(t.s) {
-			k := reflect.ValueOf(keyGen.value(t))
+			key := keyGen.value(t)
+			if checkKeys {
+				checkKey(keyGen, key)
+			}
+			k := reflect.ValueOf(key)
 			v := reflect.ValueOf(valGen.value(t))
 			if m.MapIndex(k).IsValid() {
 				repeat.Reject()
