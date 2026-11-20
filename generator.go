@@ -78,10 +78,15 @@ func (g *Generator[V]) value(t *T) V {
 
 // Example produces an example value from the generator. If seed is provided, value is produced deterministically
 // based on seed. Example should only be used for examples; always use *Generator.Draw in property-based tests.
+// Without a seed, Example panics when a RAPID_* variable does not parse, as [Check] fails.
 func (g *Generator[V]) Example(seed ...int) V {
-	s := engine.BaseSeed()
+	var s uint64
 	if len(seed) > 0 {
 		s = uint64(seed[0])
+	} else {
+		err := engine.EnvErr()
+		assert.Truef(err == nil, "%v", err)
+		s = engine.BaseSeed()
 	}
 
 	v, n, err := example(g, bitstream.NewRandom(s, false))

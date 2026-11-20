@@ -73,7 +73,7 @@ func shrinkDeadline(deadline time.Time) time.Time {
 // -rapid.* settings. It reports the failure shrunk, with how to reproduce it, and saves it to a fail file.
 func Check(tb TB, run Run) {
 	tb.Helper()
-	failOnErrEnv(tb)
+	failOnEnvErr(tb)
 
 	checks := Flags.Checks
 	if testing.Short() {
@@ -102,7 +102,7 @@ func Check(tb TB, run Run) {
 // parse fails f before any input runs, so no input is saved as failing for it.
 func Fuzz(f *testing.F, newRun func(t *testing.T) Run) {
 	f.Helper()
-	failOnErrEnv(f)
+	failOnEnvErr(f)
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		t.Helper()
@@ -138,12 +138,12 @@ func fuzzInput(tb TB, input []byte, run Run) {
 	}
 }
 
-// failOnErrEnv fails tb when a RAPID_* variable could not be parsed: the run would not have the settings
+// failOnEnvErr fails tb when a RAPID_* variable could not be parsed: the run would not have the settings
 // it asked for.
-func failOnErrEnv(tb TB) {
-	if errEnv != nil {
+func failOnEnvErr(tb TB) {
+	if err := EnvErr(); err != nil {
 		tb.Helper()
-		tb.Fatalf("[rapid] %v", errEnv)
+		tb.Fatalf("[rapid] %v", err)
 	}
 }
 

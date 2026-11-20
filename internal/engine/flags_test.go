@@ -15,11 +15,11 @@ import (
 func TestLoadCmdlineDefaultsUsesBaseValues(t *testing.T) {
 	t.Parallel()
 
-	got, err := loadDefaults(func(string) (string, bool) {
+	got, errs := loadDefaults(func(string) (string, bool) {
 		return "", false
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
 	want := defaultSettings()
 
@@ -44,12 +44,12 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 		"RAPID_SHRINKTIME": "45s",
 	}
 
-	got, err := loadDefaults(func(key string) (string, bool) {
+	got, errs := loadDefaults(func(key string) (string, bool) {
 		value, ok := env[key]
 		return value, ok
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
 
 	if got.Checks != 200 {
@@ -75,12 +75,12 @@ func TestLoadCmdlineDefaultsFromEnv(t *testing.T) {
 	}
 }
 
-// A variable that does not parse keeps its default, and the error names it; the others still apply.
+// A variable that does not parse keeps its default, and its error names it and its flag; the others still apply.
 func TestLoadCmdlineDefaultsInvalidEnv(t *testing.T) {
 	t.Parallel()
 
 	env := map[string]string{"RAPID_CHECKS": "abc", "RAPID_V": "maybe", "RAPID_STEPS": "40"}
-	got, err := loadDefaults(func(key string) (string, bool) {
+	got, errs := loadDefaults(func(key string) (string, bool) {
 		value, ok := env[key]
 		return value, ok
 	})
@@ -88,12 +88,14 @@ func TestLoadCmdlineDefaultsInvalidEnv(t *testing.T) {
 	if got.Checks != 100 || got.Verbose || got.Steps != 40 {
 		t.Fatalf("got checks %v, verbose %v, steps %v; want 100, false, 40", got.Checks, got.Verbose, got.Steps)
 	}
-	if !errors.Is(err, strconv.ErrSyntax) {
-		t.Fatalf("err = %v, want it to wrap %v", err, strconv.ErrSyntax)
+	want := map[string]string{"rapid.checks": "RAPID_CHECKS", "rapid.v": "RAPID_V"}
+	if len(errs) != len(want) {
+		t.Fatalf("errors %v, want one for each of %v", errs, want)
 	}
-	for _, key := range []string{"RAPID_CHECKS", "RAPID_V"} {
-		if !strings.Contains(err.Error(), key) {
-			t.Errorf("err = %v, want it to name %v", err, key)
+	for _, e := range errs {
+		key, ok := want[e.flag]
+		if !ok || !strings.Contains(e.err.Error(), key) || !errors.Is(e.err, strconv.ErrSyntax) {
+			t.Errorf("error %v of flag %v; want flags %v, each error naming its variable and wrapping %v", e.err, e.flag, want, strconv.ErrSyntax)
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"hash/maphash"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,13 +35,12 @@ type Settings struct {
 // the matching RAPID_* environment variables set their defaults.
 var Flags Settings
 
-// errEnv says which RAPID_* variables could not be parsed, and so kept their default.
-// Check and Fuzz fail with it, rather than the package failing to initialize.
-var errEnv error
+// envErrs are the RAPID_* variables that could not be parsed, and so kept their default; EnvErr reports them.
+var envErrs []envError
 
 func init() {
 	var defaults Settings
-	defaults, errEnv = loadDefaults(os.LookupEnv)
+	defaults, envErrs = loadDefaults(os.LookupEnv)
 	flag.IntVar(&Flags.Checks, "rapid.checks", defaults.Checks, "rapid: number of checks to perform")
 	flag.IntVar(&Flags.Steps, "rapid.steps", defaults.Steps, "rapid: average number of Repeat actions to execute")
 	flag.StringVar(&Flags.FailFile, "rapid.failfile", defaults.FailFile, "rapid: fail file to use to reproduce test failure")
@@ -51,6 +51,25 @@ func init() {
 	flag.BoolVar(&Flags.Debug, "rapid.debug", defaults.Debug, "rapid: debugging output")
 	flag.BoolVar(&Flags.DebugVis, "rapid.debugvis", defaults.DebugVis, "rapid: debugging visualization")
 	flag.DurationVar(&Flags.ShrinkTime, "rapid.shrinktime", defaults.ShrinkTime, "rapid: maximum time to spend on test case minimization")
+}
+
+// EnvErr says which RAPID_* variables could not be parsed, and so left the default of their flag. A variable
+// whose -rapid.* flag is set is left out: the flag overrides it.
+func EnvErr() error {
+	if len(envErrs) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+
+	var errs []error
+	for i := range envErrs {
+		if !set[envErrs[i].flag] {
+			errs = append(errs, envErrs[i].err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // BaseSeed returns -rapid.seed when set, and a random seed otherwise.
@@ -71,40 +90,48 @@ func defaultSettings() Settings {
 }
 
 // loadDefaults returns the settings the RAPID_* variables lookup finds give. A variable that does not parse
-// keeps its default, and the error says which and why.
-func loadDefaults(lookup func(string) (string, bool)) (Settings, error) {
+// keeps its default, and is returned with why.
+func loadDefaults(lookup func(string) (string, bool)) (Settings, []envError) {
 	defaults := defaultSettings()
 	env := envReader{lookup: lookup}
 
-	defaults.Checks = envValue(&env, "RAPID_CHECKS", defaults.Checks, parseInt)
-	defaults.Steps = envValue(&env, "RAPID_STEPS", defaults.Steps, parseInt)
-	defaults.FailFile = envValue(&env, "RAPID_FAILFILE", defaults.FailFile, func(s string) (string, error) { return s, nil })
-	defaults.NoFailFile = envValue(&env, "RAPID_NOFAILFILE", defaults.NoFailFile, strconv.ParseBool)
-	defaults.Seed = envValue(&env, "RAPID_SEED", defaults.Seed, func(s string) (uint64, error) { return strconv.ParseUint(s, 0, 64) })
-	defaults.Log = envValue(&env, "RAPID_LOG", defaults.Log, strconv.ParseBool)
-	defaults.Verbose = envValue(&env, "RAPID_V", defaults.Verbose, strconv.ParseBool)
-	defaults.Debug = envValue(&env, "RAPID_DEBUG", defaults.Debug, strconv.ParseBool)
-	defaults.DebugVis = envValue(&env, "RAPID_DEBUGVIS", defaults.DebugVis, strconv.ParseBool)
-	defaults.ShrinkTime = envValue(&env, "RAPID_SHRINKTIME", defaults.ShrinkTime, time.ParseDuration)
+	defaults.Checks = envValue(&env, "rapid.checks", defaults.Checks, parseInt)
+	defaults.Steps = envValue(&env, "rapid.steps", defaults.Steps, parseInt)
+	defaults.FailFile = envValue(&env, "rapid.failfile", defaults.FailFile, func(s string) (string, error) { return s, nil })
+	defaults.NoFailFile = envValue(&env, "rapid.nofailfile", defaults.NoFailFile, strconv.ParseBool)
+	defaults.Seed = envValue(&env, "rapid.seed", defaults.Seed, func(s string) (uint64, error) { return strconv.ParseUint(s, 0, 64) })
+	defaults.Log = envValue(&env, "rapid.log", defaults.Log, strconv.ParseBool)
+	defaults.Verbose = envValue(&env, "rapid.v", defaults.Verbose, strconv.ParseBool)
+	defaults.Debug = envValue(&env, "rapid.debug", defaults.Debug, strconv.ParseBool)
+	defaults.DebugVis = envValue(&env, "rapid.debugvis", defaults.DebugVis, strconv.ParseBool)
+	defaults.ShrinkTime = envValue(&env, "rapid.shrinktime", defaults.ShrinkTime, time.ParseDuration)
 
-	return defaults, errors.Join(env.errs...)
+	return defaults, env.errs
 }
 
-// envReader reads RAPID_* variables through lookup, and collects the errors of those that do not parse.
+// envError is a RAPID_* variable that does not parse.
+type envError struct {
+	flag string // the -rapid.* flag the variable sets the default of
+	err  error
+}
+
+// envReader reads RAPID_* variables through lookup, and collects those that do not parse.
 type envReader struct {
 	lookup func(string) (string, bool)
-	errs   []error
+	errs   []envError
 }
 
-// envValue returns the variable key parsed by parse, or defaultValue when key is unset or does not parse.
-func envValue[V any](env *envReader, key string, defaultValue V, parse func(string) (V, error)) V {
+// envValue returns the variable of the flag name, parsed by parse, or defaultValue when the variable is unset
+// or does not parse. The variable of rapid.checks is RAPID_CHECKS.
+func envValue[V any](env *envReader, name string, defaultValue V, parse func(string) (V, error)) V {
+	key := strings.ToUpper(strings.ReplaceAll(name, ".", "_"))
 	s, ok := env.lookup(key)
 	if !ok {
 		return defaultValue
 	}
 	v, err := parse(s)
 	if err != nil {
-		env.errs = append(env.errs, fmt.Errorf("parsing %s=%q: %w", key, s, err))
+		env.errs = append(env.errs, envError{flag: name, err: fmt.Errorf("parsing %s=%q: %w", key, s, err)})
 		return defaultValue
 	}
 	return v
