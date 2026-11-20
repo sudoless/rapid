@@ -61,15 +61,9 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 
 	for idx := range recData {
 		rd := &recData[idx]
-		var images []*visTmplImage
-
-		for _, word := range rd.data {
-			tmplImg, err := visNewUint64Image(word).toTmplImage()
-			if err != nil {
-				return err
-			}
-
-			images = append(images, tmplImg)
+		images, err := visWordImages(rd.data)
+		if err != nil {
+			return err
 		}
 
 		for jdx := range rd.groups {
@@ -92,6 +86,21 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	}
 
 	return visTmpl.Execute(w, d)
+}
+
+// visWordImages renders each word of data as an image.
+func visWordImages(data []uint64) ([]*visTmplImage, error) {
+	var images []*visTmplImage
+	for _, word := range data {
+		tmplImg, err := visNewUint64Image(word).toTmplImage()
+		if err != nil {
+			return nil, err
+		}
+
+		images = append(images, tmplImg)
+	}
+
+	return images, nil
 }
 
 func visGroupToInfo(labelClasses map[string]string, group groupInfo) visGroupInfo {
