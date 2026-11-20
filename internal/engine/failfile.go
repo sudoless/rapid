@@ -7,7 +7,6 @@
 package engine
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -105,23 +104,18 @@ func SaveFailFile(filename, version string, output []byte, seed uint64, buf []ui
 
 // LoadFailFile reads back what SaveFailFile wrote to filename: the version, seed and test case.
 func LoadFailFile(filename string) (string, uint64, []uint64, error) {
-	f, err := os.Open(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
+	content, err := os.ReadFile(filename) //nolint:gosec // G304: the fail file is named by -rapid.failfile or the test's own fail-file pattern
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("failed to open fail file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
 
 	var data []string
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		s := strings.TrimSpace(scanner.Text())
+	for line := range strings.Lines(string(content)) {
+		s := strings.TrimSpace(line)
 		if strings.HasPrefix(s, "#") || s == "" {
 			continue
 		}
 		data = append(data, s)
-	}
-	if err := scanner.Err(); err != nil {
-		return "", 0, nil, fmt.Errorf("failed to load fail file %q: %w", filename, err)
 	}
 
 	if len(data) == 0 {

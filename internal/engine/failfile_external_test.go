@@ -9,6 +9,7 @@ package engine_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "go.sdls.io/rapid"
@@ -71,6 +72,25 @@ func TestFailFileRoundtrip(t *testing.T) {
 			}
 		}
 	})
+}
+
+// A failing test case may log a line far longer than a bufio.Scanner token, such as a large drawn value.
+func TestFailFileRoundtripLongOutputLine(t *testing.T) {
+	t.Parallel()
+
+	fileName := filepath.Join(t.TempDir(), "long.fail")
+	output := []byte(strings.Repeat("x", 1<<20))
+	if err := engine.SaveFailFile(fileName, "v1", output, 42, []uint64{1}); err != nil {
+		t.Fatal(err)
+	}
+
+	version, seed, buf, err := engine.LoadFailFile(fileName)
+	if err != nil {
+		t.Fatalf("loading a fail file with a 1 MiB output line: %v", err)
+	}
+	if version != "v1" || seed != 42 || len(buf) != 1 || buf[0] != 1 {
+		t.Fatalf("got %q, %v, %v; want \"v1\", 42, [1]", version, seed, buf)
+	}
 }
 
 func TestLoadFailFileHeader(t *testing.T) {
