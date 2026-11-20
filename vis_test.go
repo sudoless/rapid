@@ -49,8 +49,9 @@ func TestDataVis(t *testing.T) {
 	}
 
 	g := SliceOf(SliceOf(Uint().Filter(func(i uint) bool { return i%2 == 1 }))).Filter(func(s [][]uint) bool { return len(s) > 0 })
-	for {
-		s := bitstream.NewRandom(baseSeed(), true)
+	// Advance the seed, so a fixed -rapid.seed cannot redraw the same invalid value forever.
+	for seed := baseSeed(); ; seed++ {
+		s := bitstream.NewRandom(seed, true)
 		_, err := recoverValue(g, newT(nil, s, false, nil))
 		if err != nil && !err.isInvalidData() {
 			t.Errorf("unexpected error %v", err)
