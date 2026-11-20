@@ -23,9 +23,8 @@ func (trivialGenImpl) value(t *T) uint64 { return t.s.DrawBits(64) }
 func BenchmarkTrivialGenImplValue(b *testing.B) {
 	t := newT(nil, bitstream.NewRandom(engine.BaseSeed(), false), false, nil)
 	g := trivialGenImpl{}
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		g.value(t)
 	}
 }
@@ -33,9 +32,8 @@ func BenchmarkTrivialGenImplValue(b *testing.B) {
 func BenchmarkGenerator_Value(b *testing.B) {
 	t := newT(nil, bitstream.NewRandom(engine.BaseSeed(), false), false, nil)
 	g := newGenerator[uint64](trivialGenImpl{})
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		g.value(t)
 	}
 }

@@ -97,9 +97,8 @@ func BenchmarkCheckOverhead(b *testing.B) {
 		g.Draw(t, "")
 	}
 	deadline := checkDeadline(nil)
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		checkTB(b, deadline, f)
 	}
 }
