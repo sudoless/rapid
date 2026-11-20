@@ -49,15 +49,24 @@ func newLog(w io.Writer, testName string) *log.Logger {
 // Deadline returns when the test tb has to end: the deadline of a *testing.T that has one,
 // else a day from now.
 func Deadline(tb TB) time.Time {
-	t, ok := tb.(*testing.T)
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
+	if t, ok := tb.(*testing.T); ok {
+		if d, ok := testDeadline(t); ok {
+			return d
+		}
 	}
-	d, ok := t.Deadline()
-	if !ok {
-		return time.Now().Add(maxTestTimeout)
-	}
-	return d
+	return time.Now().Add(maxTestTimeout)
+}
+
+// testDeadline returns the deadline of t, if it has one. Inside a testing/synctest bubble, where time is fake,
+// t.Deadline panics, and there is none. Go offers no way to ask whether t is in a bubble, so the panic is
+// recovered.
+func testDeadline(t *testing.T) (d time.Time, ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	return t.Deadline()
 }
 
 // Check fails tb when run fails on a test case: one from a fail file, or one generated within lim, whose
