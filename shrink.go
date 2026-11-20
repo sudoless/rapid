@@ -50,8 +50,8 @@ func shrink(tb tb, deadline time.Time, rec recordedBits, err *testError, prop fu
 	buf, err := s.shrink(deadline)
 
 	if flags.debugvis {
-		name := fmt.Sprintf("vis-%v.html", strings.Replace(tb.Name(), "/", "_", -1))
-		f, err := os.Create(name)
+		name := fmt.Sprintf("vis-%v.html", strings.ReplaceAll(tb.Name(), "/", "_"))
+		f, err := os.Create(name) //nolint:gosec // G304: the name derives from the test's own name, under -rapid.debugvis
 		if err != nil {
 			tb.Logf("failed to create debugvis file %v: %v", name, err)
 		} else {
@@ -204,9 +204,9 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				break
 			}
 
-			j_ := jdx
-			for jdx--; jdx >= 0; jdx-- {
-				h := s.rec.groups[jdx]
+			kdx := jdx - 1
+			for ; kdx >= 0; kdx-- {
+				h := s.rec.groups[kdx]
 				if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
 					continue
 				}
@@ -218,10 +218,11 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 				buf = append(buf, s.rec.data[g.end:]...)
 
 				if s.accept(buf, labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
-					g.label, j_, g.begin, g.end, h.label, jdx, h.begin, h.end) {
+					g.label, jdx, g.begin, g.end, h.label, kdx, h.begin, h.end) {
 					break
 				}
 			}
+			jdx = kdx
 		}
 	}
 }
@@ -378,7 +379,8 @@ func (m *minimizer) binSearch() {
 func without(data []uint64, groups ...groupInfo) []uint64 {
 	buf := append([]uint64(nil), data...)
 
-	for _, group := range slices.Backward(groups) {
+	for idx := range slices.Backward(groups) {
+		group := &groups[idx]
 		buf = append(buf[:group.begin], buf[group.end:]...)
 	}
 

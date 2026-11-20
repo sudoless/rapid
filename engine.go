@@ -458,7 +458,7 @@ func checkOnce(t *T, prop func(*T)) (err *testError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() { err = panicToError(recover(), 3) }()
+	defer func() { err = panicToError(recover()) }()
 
 	defer t.cleanup()
 	prop(t)
@@ -484,7 +484,7 @@ type testError struct {
 	traceback string
 }
 
-func panicToError(p any, skip int) *testError {
+func panicToError(p any) *testError {
 	if p == nil {
 		return nil
 	}
@@ -494,7 +494,7 @@ func panicToError(p any, skip int) *testError {
 	}
 
 	callers := make([]uintptr, tracebackLen)
-	callers = callers[:runtime.Callers(skip, callers)]
+	callers = callers[:runtime.Callers(3, callers)] // skip runtime.Callers, panicToError and the deferred recover
 	frames := runtime.CallersFrames(callers)
 
 	b := &strings.Builder{}
@@ -523,7 +523,7 @@ func (err *testError) Error() string {
 	}
 
 	if msg, ok := err.data.(invalidData); ok {
-		return fmt.Sprintf("invalid data: %s", string(msg))
+		return "invalid data: " + string(msg)
 	}
 
 	return fmt.Sprintf("%v", err.data)
@@ -604,7 +604,7 @@ func (nilTB) Failed() bool          { panic("call to TB.Failed() outside a test"
 type T struct {
 	tb // unnamed to force re-export of (*T).Helper()
 
-	ctx       context.Context
+	ctx       context.Context //nolint:containedctx // backs T.Context, like testing.T
 	cancelCtx context.CancelFunc
 	cleanups  []func()
 	cleaning  atomic.Bool

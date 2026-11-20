@@ -144,7 +144,8 @@ func (rec *recordedBits) prune() {
 		}
 	}
 
-	for _, group := range rec.groups {
+	for idx := range rec.groups {
+		group := &rec.groups[idx]
 		assert(group.begin != group.end)
 	}
 }

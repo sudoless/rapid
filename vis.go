@@ -52,14 +52,15 @@ type visTmplImage struct {
 func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
-		VisCSS:    template.CSS(visCSS),
-		RebootCSS: template.CSS(visRebootCSS),
+		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet
+		RebootCSS: template.CSS(visRebootCSS), //nolint:gosec // G203: constant stylesheet
 	}
 
 	labelClasses := map[string]string{}
 	lastLabelClass := 0
 
-	for _, rd := range recData {
+	for idx := range recData {
+		rd := &recData[idx]
 		var images []*visTmplImage
 
 		for _, word := range rd.data {
@@ -71,17 +72,19 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 			images = append(images, tmplImg)
 		}
 
-		for _, group := range rd.groups {
+		for jdx := range rd.groups {
+			group := &rd.groups[jdx]
 			if _, ok := labelClasses[group.label]; !ok {
 				labelClasses[group.label] = fmt.Sprintf("label-%v", lastLabelClass)
 				lastLabelClass++
 			}
 		}
 
-		for _, group := range rd.groups {
-			images[group.begin].GroupBegins = append(images[group.begin].GroupBegins, visGroupToInfo(labelClasses, group))
+		for jdx := range rd.groups {
+			group := &rd.groups[jdx]
+			images[group.begin].GroupBegins = append(images[group.begin].GroupBegins, visGroupToInfo(labelClasses, *group))
 			if group.end > 0 {
-				images[group.end-1].GroupEnds = append(images[group.end-1].GroupEnds, visGroupToInfo(labelClasses, group))
+				images[group.end-1].GroupEnds = append(images[group.end-1].GroupEnds, visGroupToInfo(labelClasses, *group))
 			}
 		}
 
@@ -661,12 +664,12 @@ template {
 // Licensed under MIT (https://github.com/lucasb-eyer/go-colorful/blob/master/LICENSE)
 //
 // Hsv creates a new Color given a Hue in [0..360], a Saturation and a Value in [0..1].
-func visHsv(H, S, V float64) color.RGBA {
-	Hp := H / 60.0
-	C := V * S
+func visHsv(hue, sat, val float64) color.RGBA {
+	Hp := hue / 60.0
+	C := val * sat
 	X := C * (1.0 - math.Abs(math.Mod(Hp, 2.0)-1.0))
 
-	m := V - C
+	m := val - C
 	r, g, b := 0.0, 0.0, 0.0
 
 	switch {

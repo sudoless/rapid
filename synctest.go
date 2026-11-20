@@ -40,9 +40,9 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 		returned := false
 		defer func() {
 			if r := recover(); r != nil {
-				captured = panicToError(r, 3)
+				captured = panicToError(r)
 			} else if !returned && captured == nil {
-				captured = panicToError(stopTest("[rapid] SyncTest aborted via testing.FailNow"), 3)
+				captured = panicToError(stopTest("[rapid] SyncTest aborted via testing.FailNow"))
 			}
 			resultCh <- captured
 		}()
@@ -89,7 +89,7 @@ func syncTestWithinRapid(t *T, parent *testing.T, prop func(*T)) {
 				t.cleaning.Store(prevCleaning)
 
 				if panicValue != nil {
-					captured = panicToError(panicValue, 3)
+					captured = panicToError(panicValue)
 				}
 			}()
 
