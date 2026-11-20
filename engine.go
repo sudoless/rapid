@@ -35,7 +35,7 @@ const (
 	shrinkStepBound = 10 * time.Second // can be improved by taking average checkOnce runtime into account
 
 	tracebackLen  = 32
-	tracebackStop = "pgregory.net/rapid.checkOnce"
+	tracebackStop = "go.sdls.io/rapid.checkOnce"
 	runtimePrefix = "runtime."
 )
 
@@ -43,8 +43,8 @@ var (
 	flags cmdline
 
 	tracebackBlacklist = map[string]bool{
-		"pgregory.net/rapid.(*customGen[...]).maybeValue.func1": true,
-		"pgregory.net/rapid.runAction.func1":                    true,
+		"go.sdls.io/rapid.(*customGen[...]).maybeValue.func1": true,
+		"go.sdls.io/rapid.runAction.func1":                    true,
 	}
 )
 

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 func ExampleCustom() {

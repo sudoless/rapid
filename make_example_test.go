@@ -9,7 +9,7 @@ package rapid_test
 import (
 	"fmt"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 func ExampleMake() {

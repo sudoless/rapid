@@ -10,7 +10,7 @@ import (
 	"math"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 // wrapper to test (*T).Helper()

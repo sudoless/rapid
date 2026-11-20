@@ -10,7 +10,7 @@ import (
 	"context"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 func checkInt(t *T) {

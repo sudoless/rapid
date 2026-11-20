@@ -9,7 +9,7 @@ package rapid_test
 import (
 	"testing"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 // Queue implements integer queue with a fixed maximum size.

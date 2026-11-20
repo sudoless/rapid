@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"testing"
 
-	. "pgregory.net/rapid"
+	. "go.sdls.io/rapid"
 )
 
 // Based on https://github.com/rust-lang/regex/blob/master/tests/crates_regex.rs

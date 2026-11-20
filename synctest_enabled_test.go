@@ -8,7 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"pgregory.net/rapid"
+	"go.sdls.io/rapid"
 )
 
 func TestSyncTest(t *testing.T) {
