@@ -8,7 +8,7 @@ package rapid
 
 import (
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 
 	"go.sdls.io/rapid/internal/assert"
@@ -45,7 +45,7 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 	if len(actionKeys) == 0 {
 		return
 	}
-	sort.Strings(actionKeys)
+	slices.Sort(actionKeys)
 
 	steps := engine.Flags.Steps
 	if testing.Short() {

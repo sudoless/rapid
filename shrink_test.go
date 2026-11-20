@@ -9,7 +9,7 @@ package rapid
 import (
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -129,7 +129,7 @@ func TestShrink_IntSliceNoDuplicates(t *testing.T) {
 
 	checkShrink(t, func(t *T) {
 		s := SliceOfN(IntMin(1), 5, -1).Draw(t, "s")
-		sort.Ints(s)
+		slices.Sort(s)
 		last := 0
 		for _, elem := range s {
 			if elem == last {
