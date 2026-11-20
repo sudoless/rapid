@@ -181,7 +181,7 @@ func NewLoadedDie(weights []int) *LoadedDie {
 
 	total := 0
 	for _, weight := range weights {
-		assert.True(weight > 0 && weight < 100)
+		assert.True(weight > 0)
 		total += weight
 	}
 
