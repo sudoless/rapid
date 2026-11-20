@@ -8,6 +8,7 @@ package engine
 
 import (
 	"hash/maphash"
+	"log"
 	"math"
 	"math/bits"
 	"strconv"
@@ -88,7 +89,7 @@ func TestShrinkerLabelsFollowAcceptedTestCase(t *testing.T) {
 			},
 		},
 		err: failure,
-		run: func(st bitstream.Stream, _ bool) *TestError {
+		run: func(st bitstream.Stream, _ bool, _ *log.Logger) *TestError {
 			i := st.BeginGroup(bitstream.Label("after"), true)
 			st.DrawBits(1)
 			st.EndGroup(i, false)

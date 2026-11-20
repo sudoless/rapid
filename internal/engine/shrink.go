@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/maphash"
+	"log"
 	"math"
 	"math/bits"
 	"os"
@@ -46,9 +47,9 @@ type Logger interface {
 	Name() string
 }
 
-// Run runs the property on the test case s draws and returns how it failed, or nil when it passed;
-// log says whether the property's own output goes to the test log.
-type Run func(s bitstream.Stream, log bool) *TestError
+// Run runs the property on the test case s draws and returns how it failed, or nil when it passed.
+// The property's own output goes to out when it is set, else to the test log when log is set.
+type Run func(s bitstream.Stream, log bool, out *log.Logger) *TestError
 
 // Shrink minimises rec, a test case that failed with err, until deadline: it keeps every smaller
 // test case that run fails on in the same way. It returns the smallest such test case and its failure,
@@ -311,7 +312,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
 	s1 := bitstream.NewBuffer(buf, false)
-	err1 := s.run(s1, Flags.Debug && Flags.Verbose)
+	err1 := s.run(s1, Flags.Debug && Flags.Verbose, nil)
 	if Traceback(err1) != Traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
 		return false
@@ -321,7 +322,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.tries[label]++
 	s.err = err1
 	s2 := bitstream.NewBuffer(buf, true)
-	err2 := s.run(s2, Flags.Debug && Flags.Verbose)
+	err2 := s.run(s2, Flags.Debug && Flags.Verbose, nil)
 	s.rec = s2.Recorded
 	s.rec.Prune()
 	s.labels = nil
