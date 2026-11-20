@@ -265,12 +265,12 @@ func TestStateMachineActions(t *testing.T) {
 			}
 
 			var want []string
-			for i := 0; i < Int().Draw(t, "ActionT count"); i++ {
+			for idx := 0; idx < Int().Draw(t, "ActionT count"); idx++ {
 				actionT(t)
 				want = append(want, "ActionT")
 			}
 
-			for i := 0; i < Int().Draw(t, "ActionTB count"); i++ {
+			for idx := 0; idx < Int().Draw(t, "ActionTB count"); idx++ {
 				actionTB(t)
 				want = append(want, "ActionTB")
 			}
@@ -293,7 +293,7 @@ func TestStateMachineActions(t *testing.T) {
 }
 
 func BenchmarkCheckQueue(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _, _, _, _, _, _, _ = doCheck(b, checkDeadline(nil), 100, baseSeed(), "", false, queueTest)
 	}
 }

@@ -87,19 +87,19 @@ func StateMachineActions(sm StateMachine) map[string]func(*T) {
 	)
 
 	actions := make(map[string]func(*T), n)
-	for i := range n {
-		name := t.Method(i).Name
+	for idx := range n {
+		name := t.Method(idx).Name
 
 		if name == checkMethodName {
 			continue
 		}
 
-		m, ok := reflect.TypeAssert[func(*T)](v.Method(i))
+		m, ok := reflect.TypeAssert[func(*T)](v.Method(idx))
 		if ok {
 			actions[name] = m
 		}
 
-		m2, ok := reflect.TypeAssert[func(TB)](v.Method(i))
+		m2, ok := reflect.TypeAssert[func(TB)](v.Method(idx))
 		if ok {
 			actions[name] = func(t *T) {
 				m2(t)
@@ -138,7 +138,7 @@ func (sm *stateMachine) executeAction(t *T) bool {
 	panic(stopTest(noValidActionsMsg))
 }
 
-func runAction(t *T, action func(*T)) (invalid bool, skipped bool) {
+func runAction(t *T, action func(*T)) (invalid, skipped bool) {
 	defer func(draws int) {
 		if r := recover(); r != nil {
 			if _, ok := r.(invalidData); ok {

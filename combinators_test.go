@@ -20,7 +20,7 @@ func BenchmarkHeavyChain3(b *testing.B) {
 	g3 := Map(g2, func(p intPair) int { return p.x + p.y })
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		g3.value(t)
 	}
 }

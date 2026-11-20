@@ -100,7 +100,7 @@ func loadCmdlineDefaults(lookup func(string) (string, bool)) cmdline {
 	return defaults
 }
 
-func envString(lookup func(string) (string, bool), key string, defaultValue string) string {
+func envString(lookup func(string) (string, bool), key, defaultValue string) string {
 	if v, ok := lookup(key); ok {
 		return v
 	}
@@ -171,7 +171,7 @@ func assertf(ok bool, format string, args ...any) {
 	}
 }
 
-func assertValidRange(lo int, hi int) {
+func assertValidRange(lo, hi int) {
 	if hi >= 0 && lo > hi {
 		panic(fmt.Sprintf("invalid range [%d, %d]", lo, hi))
 	}
@@ -312,10 +312,13 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 			if err2.isStopTest() {
 				tb.Errorf("[rapid] failed after %v tests: %v\nTo reproduce, specify -run=%q %v\nFailed test output:", valid, err2, name, repr)
 			} else {
-				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:", valid, err2, name, repr, traceback(err2))
+				tb.Errorf("[rapid] panic after %v tests: %v\nTo reproduce, specify -run=%q %v\nTraceback:\n%vFailed test output:",
+					valid, err2, name, repr, traceback(err2))
 			}
 		} else {
-			tb.Errorf("[rapid] flaky test, can not reproduce a failure\nTo try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:", name, repr, err2, traceback(err2), err1, traceback(err1))
+			tb.Errorf("[rapid] flaky test, can not reproduce a failure\n"+
+				"To try to reproduce, specify -run=%q %v\nTraceback (%v):\n%vOriginal traceback (%v):\n%vFailed test output:",
+				name, repr, err2, traceback(err2), err1, traceback(err1))
 		}
 
 		_ = checkOnce(newT(tb, newBufBitStream(buf, false), true, nil), prop) // output using (*testing.T).Log for proper line numbers
@@ -326,7 +329,9 @@ func checkTB(tb tb, deadline time.Time, prop func(*T)) {
 	}
 }
 
-func doCheck(tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T)) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
+func doCheck(
+	tb tb, deadline time.Time, checks int, seed uint64, failfile string, globFailFiles bool, prop func(*T),
+) (int, int, bool, uint64, string, []uint64, *testError, *testError) {
 	tb.Helper()
 
 	assertf(!tb.Failed(), "check function called with *testing.T which has already failed")
@@ -427,17 +432,18 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 		err := checkOnce(t, prop)
 		dt := time.Since(start)
 		total += dt
-		if err == nil {
+		switch {
+		case err == nil:
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v OK (%v)", iter+1, dt)
 			}
 			valid++
-		} else if err.isInvalidData() {
+		case err.isInvalidData():
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v invalid (%v)", iter+1, dt)
 			}
 			invalid++
-		} else {
+		default:
 			if t.shouldLog() {
 				t.Logf("[rapid] test #%v failed: %v", iter+1, err)
 			}
@@ -450,7 +456,7 @@ func findBug(tb tb, deadline time.Time, checks int, seed uint64, prop func(*T)) 
 
 func checkOnce(t *T, prop func(*T)) (err *testError) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	defer func() { err = panicToError(recover(), 3) }()
 
@@ -533,7 +539,7 @@ func (err *testError) isStopTest() bool {
 	return ok
 }
 
-func sameError(err1 *testError, err2 *testError) bool {
+func sameError(err1, err2 *testError) bool {
 	return errorString(err1) == errorString(err2) && traceback(err1) == traceback(err2)
 }
 
@@ -767,7 +773,7 @@ func (t *T) Logf(format string, args ...any) {
 	if t.rawLog != nil {
 		t.rawLog.Printf(format, args...)
 	} else if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 		t.tb.Logf(format, args...)
 	}
 }
@@ -776,7 +782,7 @@ func (t *T) Log(args ...any) {
 	if t.rawLog != nil {
 		t.rawLog.Print(args...)
 	} else if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 		t.tb.Log(args...)
 	}
 }
@@ -792,16 +798,17 @@ func (t *T) Log(args ...any) {
 func (t *T) Output() io.Writer {
 	t.Helper()
 
-	if t.rawLog != nil {
+	switch {
+	case t.rawLog != nil:
 		return t.rawLog.Writer()
-	} else if t.tbLog {
+	case t.tbLog:
 		if tout, ok := t.tb.(interface{ Output() io.Writer }); ok {
 			return tout.Output()
 		} else {
 			t.Fatal("[rapid] Output requires a TB with an Output method")
 			return nil
 		}
-	} else {
+	default:
 		return io.Discard
 	}
 }
@@ -809,7 +816,7 @@ func (t *T) Output() io.Writer {
 // Skipf is equivalent to [T.Logf] followed by [T.SkipNow].
 func (t *T) Skipf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.skip(fmt.Sprintf(format, args...))
@@ -818,7 +825,7 @@ func (t *T) Skipf(format string, args ...any) {
 // Skip is equivalent to [T.Log] followed by [T.SkipNow].
 func (t *T) Skip(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.skip(fmt.Sprint(args...))
@@ -843,7 +850,7 @@ func (t *T) SkipNow() {
 // Errorf is equivalent to [T.Logf] followed by [T.Fail].
 func (t *T) Errorf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.fail(false, fmt.Sprintf(format, args...))
@@ -852,7 +859,7 @@ func (t *T) Errorf(format string, args ...any) {
 // Error is equivalent to [T.Log] followed by [T.Fail].
 func (t *T) Error(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.fail(false, fmt.Sprint(args...))
@@ -861,7 +868,7 @@ func (t *T) Error(args ...any) {
 // Fatalf is equivalent to [T.Logf] followed by [T.FailNow].
 func (t *T) Fatalf(format string, args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Logf(format, args...)
 	t.fail(true, fmt.Sprintf(format, args...))
@@ -870,7 +877,7 @@ func (t *T) Fatalf(format string, args ...any) {
 // Fatal is equivalent to [T.Log] followed by [T.FailNow].
 func (t *T) Fatal(args ...any) {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 	t.Log(args...)
 	t.fail(true, fmt.Sprint(args...))

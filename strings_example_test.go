@@ -16,13 +16,13 @@ import (
 func ExampleRune() {
 	gen := rapid.Rune()
 
-	for i := range 25 {
-		if i%5 == 0 {
+	for seed := range 25 {
+		if seed%5 == 0 {
 			fmt.Println()
 		} else {
 			fmt.Print(" ")
 		}
-		fmt.Printf("%q", gen.Example(i))
+		fmt.Printf("%q", gen.Example(seed))
 	}
 	// Output:
 	// '\n' '\x1b' 'A' 'a' '*'
@@ -42,11 +42,11 @@ func ExampleRuneFrom() {
 	}
 
 	for _, gen := range gens {
-		for i := range 5 {
-			if i > 0 {
+		for seed := range 5 {
+			if seed > 0 {
 				fmt.Print(" ")
 			}
-			fmt.Printf("%q", gen.Example(i))
+			fmt.Printf("%q", gen.Example(seed))
 		}
 		fmt.Println()
 	}
@@ -59,8 +59,8 @@ func ExampleRuneFrom() {
 func ExampleString() {
 	gen := rapid.String()
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "\n߾⃝?\rA�֍"
@@ -73,8 +73,8 @@ func ExampleString() {
 func ExampleStringOf() {
 	gen := rapid.StringOf(rapid.RuneFrom(nil, unicode.Tibetan))
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "༁༭༇ཬ༆༐༖ༀྸ༁༆༎ༀ༁ཱི༂༨ༀ༂"
@@ -87,8 +87,8 @@ func ExampleStringOf() {
 func ExampleStringN() {
 	gen := rapid.StringN(5, 5, -1)
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "\n߾⃝?\r"
@@ -101,8 +101,8 @@ func ExampleStringN() {
 func ExampleStringOfN() {
 	gen := rapid.StringOfN(rapid.RuneFrom(nil, unicode.ASCII_Hex_Digit), 6, 6, -1)
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "1D7B6a"
@@ -115,8 +115,8 @@ func ExampleStringOfN() {
 func ExampleStringMatching() {
 	gen := rapid.StringMatching(`\(?([0-9]{3})\)?([ .-]?)([0-9]{3})([ .-]?)([0-9]{4})`)
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "(532) 649-9610"
@@ -129,8 +129,8 @@ func ExampleStringMatching() {
 func ExampleSliceOfBytesMatching() {
 	gen := rapid.SliceOfBytesMatching(`[CAGT]+`)
 
-	for i := range 5 {
-		fmt.Printf("%q\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%q\n", gen.Example(seed))
 	}
 	// Output:
 	// "CCTTGAGAGCGATACGGAAG"

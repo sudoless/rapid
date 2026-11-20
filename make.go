@@ -166,9 +166,9 @@ func (c *MakeConfig) genAnyArray(typ reflect.Type) *Generator[any] {
 		if count == 0 {
 			t.s.drawBits(0)
 		} else {
-			for i := range count {
+			for idx := range count {
 				e := reflect.ValueOf(elemGen.value(t))
-				a.Index(i).Set(e)
+				a.Index(idx).Set(e)
 			}
 		}
 		return a.Interface()
@@ -220,16 +220,16 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 
 	numFields := typ.NumField()
 	fieldGens := make([]*Generator[any], numFields)
-	for i := range numFields {
-		field := typ.Field(i)
+	for idx := range numFields {
+		field := typ.Field(idx)
 		if !field.IsExported() {
 			continue
 		}
 
 		if gen, ok := customFields[field.Name]; ok {
-			fieldGens[i] = gen
+			fieldGens[idx] = gen
 		} else {
-			fieldGens[i] = c.newMakeGen(field.Type)
+			fieldGens[idx] = c.newMakeGen(field.Type)
 		}
 	}
 
@@ -237,17 +237,17 @@ func (c *MakeConfig) genAnyStruct(typ reflect.Type) *Generator[any] {
 		s := reflect.Indirect(reflect.New(typ))
 
 		fieldsSet := 0
-		for i := range numFields {
-			if fieldGens[i] == nil {
+		for idx := range numFields {
+			if fieldGens[idx] == nil {
 				continue
 			}
 
-			value := fieldGens[i].value(t)
+			value := fieldGens[idx].value(t)
 			if value == nil {
 				continue
 			}
 
-			s.Field(i).Set(reflect.ValueOf(value))
+			s.Field(idx).Set(reflect.ValueOf(value))
 			fieldsSet++
 		}
 

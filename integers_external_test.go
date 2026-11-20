@@ -56,28 +56,28 @@ func TestIntMinMaxRange(t *testing.T) {
 		},
 	}
 
-	for _, d := range data {
-		t.Run(d.g.String(), func(t *testing.T) {
+	for _, testCase := range data {
+		t.Run(testCase.g.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				lo := d.g.Draw(t, "min")
-				hi := d.g.Draw(t, "max")
+				lo := testCase.g.Draw(t, "min")
+				hi := testCase.g.Draw(t, "max")
 				if rv(lo).Int() > rv(hi).Int() {
 					t.Skip("min > max")
 				}
 
-				i := d.min(lo).Draw(t, "i")
+				i := testCase.min(lo).Draw(t, "i")
 				if rv(i).Int() < rv(lo).Int() {
 					t.Fatalf("got %v which is less than min %v", i, lo)
 				}
 
-				j := d.max(hi).Draw(t, "j")
+				j := testCase.max(hi).Draw(t, "j")
 				if rv(j).Int() > rv(hi).Int() {
 					t.Fatalf("got %v which is more than max %v", j, hi)
 				}
 
-				k := d.range_(lo, hi).Draw(t, "k")
+				k := testCase.range_(lo, hi).Draw(t, "k")
 				if rv(k).Int() < rv(lo).Int() || rv(k).Int() > rv(hi).Int() {
 					t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
 				}
@@ -139,28 +139,28 @@ func TestUintMinMaxRange(t *testing.T) {
 		},
 	}
 
-	for _, d := range data {
-		t.Run(d.g.String(), func(t *testing.T) {
+	for _, testCase := range data {
+		t.Run(testCase.g.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				lo := d.g.Draw(t, "min")
-				hi := d.g.Draw(t, "max")
+				lo := testCase.g.Draw(t, "min")
+				hi := testCase.g.Draw(t, "max")
 				if rv(lo).Uint() > rv(hi).Uint() {
 					t.Skip("min > max")
 				}
 
-				i := d.min(lo).Draw(t, "i")
+				i := testCase.min(lo).Draw(t, "i")
 				if rv(i).Uint() < rv(lo).Uint() {
 					t.Fatalf("got %v which is less than min %v", i, lo)
 				}
 
-				j := d.max(hi).Draw(t, "j")
+				j := testCase.max(hi).Draw(t, "j")
 				if rv(j).Uint() > rv(hi).Uint() {
 					t.Fatalf("got %v which is more than max %v", j, hi)
 				}
 
-				k := d.range_(lo, hi).Draw(t, "k")
+				k := testCase.range_(lo, hi).Draw(t, "k")
 				if rv(k).Uint() < rv(lo).Uint() || rv(k).Uint() > rv(hi).Uint() {
 					t.Fatalf("got %v which is out of bounds [%v, %v]", k, lo, hi)
 				}
@@ -181,8 +181,8 @@ func TestIntBoundCoverage(t *testing.T) {
 
 		g := IntRange(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := range 250 {
-			n := g.Example(i)
+		for seed := range 250 {
+			n := g.Example(seed)
 
 			gotMin = gotMin || n == lo
 			gotMax = gotMax || n == hi

@@ -25,12 +25,12 @@ func TestFloatNoInf(t *testing.T) {
 		Float64Max(0).AsAny(),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				f := g.Draw(t, "f")
+				f := gen.Draw(t, "f")
 				if math.IsInf(rv(f).Float(), 0) {
 					t.Fatalf("got infinity: %v", f)
 				}
@@ -51,8 +51,8 @@ func TestFloat32BoundCoverage(t *testing.T) {
 
 		g := Float32Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := range 400 {
-			f := g.Example(i)
+		for seed := range 400 {
+			f := g.Example(seed)
 
 			gotMin = gotMin || f == lo
 			gotMax = gotMax || f == hi
@@ -79,8 +79,8 @@ func TestFloat64BoundCoverage(t *testing.T) {
 
 		g := Float64Range(lo, hi)
 		var gotMin, gotMax, gotZero bool
-		for i := range 400 {
-			f := g.Example(i)
+		for seed := range 400 {
+			f := g.Example(seed)
 
 			gotMin = gotMin || f == lo
 			gotMax = gotMax || f == hi

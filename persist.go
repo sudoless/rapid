@@ -34,9 +34,9 @@ var windowsReservedNames = []string{
 
 func kindaSafeFilename(f string) string {
 	var s strings.Builder
-	for _, r := range f {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
-			s.WriteRune(r)
+	for _, char := range f {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) || char == '-' || char == '_' {
+			s.WriteRune(char)
 		} else {
 			s.WriteRune('_')
 		}
@@ -61,7 +61,7 @@ func failFilePattern(testName string) string {
 	return filepath.Join(dirName, fileName)
 }
 
-func saveFailFile(filename string, version string, output []byte, seed uint64, buf []uint64) error {
+func saveFailFile(filename, version string, output []byte, seed uint64, buf []uint64) error {
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, persistDirMode)
 	if err != nil {
@@ -75,16 +75,16 @@ func saveFailFile(filename string, version string, output []byte, seed uint64, b
 	defer func() { _ = os.Remove(f.Name()) }()
 	defer func() { _ = f.Close() }()
 
-	for s := range strings.SplitSeq(string(output), "\n") {
-		_, err := f.WriteString("# " + s + "\n")
+	for line := range strings.SplitSeq(string(output), "\n") {
+		_, err := f.WriteString("# " + line + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write data to fail file %q: %w", filename, err)
 		}
 	}
 
 	bs := []string{fmt.Sprintf("%v#%v", version, seed)}
-	for _, u := range buf {
-		bs = append(bs, fmt.Sprintf("0x%x", u))
+	for _, word := range buf {
+		bs = append(bs, fmt.Sprintf("0x%x", word))
 	}
 
 	_, err = f.WriteString(strings.Join(bs, "\n"))
@@ -135,8 +135,8 @@ func loadFailFile(filename string) (string, uint64, []uint64, error) {
 	}
 
 	var buf []uint64
-	for _, b := range data[1:] {
-		u, err := strconv.ParseUint(b, 0, 64)
+	for _, field := range data[1:] {
+		u, err := strconv.ParseUint(field, 0, 64)
 		if err != nil {
 			return "", 0, nil, fmt.Errorf("failed to load fail file %q: %w", filename, err)
 		}

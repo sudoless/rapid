@@ -26,17 +26,17 @@ func ParseDate(s string) (int, int, int, error) {
 
 	y, err := strconv.Atoi(s[0:4])
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to parse year: %v", err)
+		return 0, 0, 0, fmt.Errorf("failed to parse year: %w", err)
 	}
 
 	m, err := strconv.Atoi(s[6:7])
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to parse month: %v", err)
+		return 0, 0, 0, fmt.Errorf("failed to parse month: %w", err)
 	}
 
 	d, err := strconv.Atoi(s[8:10])
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to parse day: %v", err)
+		return 0, 0, 0, fmt.Errorf("failed to parse day: %w", err)
 	}
 
 	return y, m, d, nil

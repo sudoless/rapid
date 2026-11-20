@@ -41,7 +41,7 @@ func (g *Generator[V]) String() string {
 // Draw produces a value from the generator.
 func (g *Generator[V]) Draw(t *T, label string) V {
 	if t.tbLog {
-		t.tb.Helper()
+		t.Helper()
 	}
 
 	v := g.value(t)
@@ -59,7 +59,7 @@ func (g *Generator[V]) Draw(t *T, label string) V {
 		}
 
 		if t.tbLog {
-			t.tb.Helper()
+			t.Helper()
 		}
 		t.Logf("[rapid] draw %v: %#v", label, v)
 	}
@@ -103,13 +103,13 @@ func (g *Generator[V]) AsAny() *Generator[any] {
 func example[V any](g *Generator[V], t *T) (V, int, error) {
 	defer t.cleanup()
 
-	for i := 1; ; i++ {
+	for attempt := 1; ; attempt++ {
 		r, err := recoverValue(g, t)
 		if err == nil {
-			return r, i, nil
-		} else if i == exampleMaxTries {
+			return r, attempt, nil
+		} else if attempt == exampleMaxTries {
 			var zero V
-			return zero, i, err
+			return zero, attempt, err
 		}
 	}
 }

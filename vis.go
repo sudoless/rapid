@@ -62,8 +62,8 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 	for _, rd := range recData {
 		var images []*visTmplImage
 
-		for _, u := range rd.data {
-			tmplImg, err := visNewUint64Image(u).toTmplImage()
+		for _, word := range rd.data {
+			tmplImg, err := visNewUint64Image(word).toTmplImage()
 			if err != nil {
 				return err
 			}
@@ -357,7 +357,8 @@ article, aside, figcaption, figure, footer, header, hgroup, main, nav, section {
 
 body {
 	margin: 0;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif,
+		"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 	font-size: 1rem;
 	font-weight: 400;
 	line-height: 1.5;
@@ -659,7 +660,7 @@ template {
 // Copyright 2013 Lucas Beyer
 // Licensed under MIT (https://github.com/lucasb-eyer/go-colorful/blob/master/LICENSE)
 //
-// Hsv creates a new Color given a Hue in [0..360], a Saturation and a Value in [0..1]
+// Hsv creates a new Color given a Hue in [0..360], a Saturation and a Value in [0..1].
 func visHsv(H, S, V float64) color.RGBA {
 	Hp := H / 60.0
 	C := V * S

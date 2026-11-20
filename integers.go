@@ -113,51 +113,51 @@ func UintptrMax(hi uintptr) *Generator[uintptr] {
 	return newUintMaxGen[uintptr](uintptrKind, uint64(hi))
 }
 
-func ByteRange(lo byte, hi byte) *Generator[byte] {
+func ByteRange(lo, hi byte) *Generator[byte] {
 	return newUintRangeGen[byte](byteKind, uint64(lo), uint64(hi))
 }
 
-func IntRange(lo int, hi int) *Generator[int] {
+func IntRange(lo, hi int) *Generator[int] {
 	return newIntRangeGen[int](intKind, int64(lo), int64(hi))
 }
 
-func Int8Range(lo int8, hi int8) *Generator[int8] {
+func Int8Range(lo, hi int8) *Generator[int8] {
 	return newIntRangeGen[int8](int8Kind, int64(lo), int64(hi))
 }
 
-func Int16Range(lo int16, hi int16) *Generator[int16] {
+func Int16Range(lo, hi int16) *Generator[int16] {
 	return newIntRangeGen[int16](int16Kind, int64(lo), int64(hi))
 }
 
-func Int32Range(lo int32, hi int32) *Generator[int32] {
+func Int32Range(lo, hi int32) *Generator[int32] {
 	return newIntRangeGen[int32](int32Kind, int64(lo), int64(hi))
 }
 
-func Int64Range(lo int64, hi int64) *Generator[int64] {
+func Int64Range(lo, hi int64) *Generator[int64] {
 	return newIntRangeGen[int64](int64Kind, lo, hi)
 }
 
-func UintRange(lo uint, hi uint) *Generator[uint] {
+func UintRange(lo, hi uint) *Generator[uint] {
 	return newUintRangeGen[uint](uintKind, uint64(lo), uint64(hi))
 }
 
-func Uint8Range(lo uint8, hi uint8) *Generator[uint8] {
+func Uint8Range(lo, hi uint8) *Generator[uint8] {
 	return newUintRangeGen[uint8](uint8Kind, uint64(lo), uint64(hi))
 }
 
-func Uint16Range(lo uint16, hi uint16) *Generator[uint16] {
+func Uint16Range(lo, hi uint16) *Generator[uint16] {
 	return newUintRangeGen[uint16](uint16Kind, uint64(lo), uint64(hi))
 }
 
-func Uint32Range(lo uint32, hi uint32) *Generator[uint32] {
+func Uint32Range(lo, hi uint32) *Generator[uint32] {
 	return newUintRangeGen[uint32](uint32Kind, uint64(lo), uint64(hi))
 }
 
-func Uint64Range(lo uint64, hi uint64) *Generator[uint64] {
+func Uint64Range(lo, hi uint64) *Generator[uint64] {
 	return newUintRangeGen[uint64](uint64Kind, lo, hi)
 }
 
-func UintptrRange(lo uintptr, hi uintptr) *Generator[uintptr] {
+func UintptrRange(lo, hi uintptr) *Generator[uintptr] {
 	return newUintRangeGen[uintptr](uintptrKind, uint64(lo), uint64(hi))
 }
 
@@ -168,7 +168,7 @@ func newIntegerGen[I integer](kind string) *Generator[I] {
 	})
 }
 
-func newIntRangeGen[I integer](kind string, lo int64, hi int64) *Generator[I] {
+func newIntRangeGen[I integer](kind string, lo, hi int64) *Generator[I] {
 	assertf(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
 
 	g := &integerGen[I]{
@@ -205,7 +205,7 @@ func newIntMaxGen[I integer](kind string, hi int64) *Generator[I] {
 	return newGenerator[I](g)
 }
 
-func newUintRangeGen[I integer](kind string, lo uint64, hi uint64) *Generator[I] {
+func newUintRangeGen[I integer](kind string, lo, hi uint64) *Generator[I] {
 	assertf(lo <= hi, "invalid integer range [%v, %v]", lo, hi)
 
 	g := &integerGen[I]{
@@ -251,19 +251,20 @@ type integerGen[I integer] struct {
 }
 
 func (g *integerGen[I]) String() string {
-	if g.hasMin && g.hasMax {
+	switch {
+	case g.hasMin && g.hasMax:
 		if g.signed {
 			return fmt.Sprintf("%sRange(%d, %d)", g.kind, g.smin, g.smax)
 		} else {
 			return fmt.Sprintf("%sRange(%d, %d)", g.kind, g.umin, g.umax)
 		}
-	} else if g.hasMin {
+	case g.hasMin:
 		if g.signed {
 			return fmt.Sprintf("%sMin(%d)", g.kind, g.smin)
 		} else {
 			return fmt.Sprintf("%sMin(%d)", g.kind, g.umin)
 		}
-	} else if g.hasMax {
+	case g.hasMax:
 		if g.signed {
 			return fmt.Sprintf("%sMax(%d)", g.kind, g.smax)
 		} else {

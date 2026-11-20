@@ -15,8 +15,8 @@ import (
 func ExampleSliceOf() {
 	gen := rapid.SliceOf(rapid.Int())
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [1 -1902 7 -236 14 -433 -1572631 -1 4219826 -50 1414 -3890044391133 -9223372036854775808 5755498240 -10 680558 10 -80458281 0 -27]
@@ -29,8 +29,8 @@ func ExampleSliceOf() {
 func ExampleSliceOfN() {
 	gen := rapid.SliceOfN(rapid.Int(), 5, 5)
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [1 -1902 7 -236 14]
@@ -43,8 +43,8 @@ func ExampleSliceOfN() {
 func ExampleSliceOfDistinct() {
 	gen := rapid.SliceOfDistinct(rapid.IntMin(0), func(i int) int { return i % 2 })
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [1]
@@ -57,8 +57,8 @@ func ExampleSliceOfDistinct() {
 func ExampleSliceOfNDistinct() {
 	gen := rapid.SliceOfNDistinct(rapid.IntMin(0), 2, 2, func(i int) int { return i % 2 })
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [4219826 49]
@@ -71,8 +71,8 @@ func ExampleSliceOfNDistinct() {
 func ExampleMapOf() {
 	gen := rapid.MapOf(rapid.Int(), rapid.StringMatching(`[a-z]+`))
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// map[1:nhlgqwasbggbaociac 561860:r]
@@ -85,8 +85,8 @@ func ExampleMapOf() {
 func ExampleMapOfN() {
 	gen := rapid.MapOfN(rapid.Int(), rapid.StringMatching(`[a-z]+`), 5, 5)
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// map[-130450326583:bd -2983:bbdbcs 1:nhlgqwasbggbaociac 31:kmdnpmcbuagzr 561860:r]
@@ -99,8 +99,8 @@ func ExampleMapOfN() {
 func ExampleMapOfValues() {
 	gen := rapid.MapOfValues(rapid.StringMatching(`[a-z]+`), func(s string) int { return len(s) })
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// map[2:dr 7:xguehfc 11:sbggbaociac]
@@ -113,8 +113,8 @@ func ExampleMapOfValues() {
 func ExampleMapOfNValues() {
 	gen := rapid.MapOfNValues(rapid.StringMatching(`[a-z]+`), 5, 5, func(s string) int { return len(s) })
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// map[1:s 2:dr 3:anc 7:xguehfc 11:sbggbaociac]

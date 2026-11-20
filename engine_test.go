@@ -95,7 +95,7 @@ func BenchmarkCheckOverhead(b *testing.B) {
 	deadline := checkDeadline(nil)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		checkTB(b, deadline, f)
 	}
 }
@@ -139,8 +139,8 @@ func TestCheckCleanup(t *testing.T) {
 		})
 	})
 
-	for _, v := range state {
-		if v {
+	for _, value := range state {
+		if value {
 			t.Fatalf("expected all values to be false")
 		}
 	}
@@ -179,8 +179,8 @@ func TestCheckCleanupPanic(t *testing.T) {
 	// Deferred assertions will check that all values are false.
 	var state []bool
 	defer func() {
-		for _, v := range state {
-			if v {
+		for _, value := range state {
+			if value {
 				t.Errorf("expected all values to be false")
 			}
 		}

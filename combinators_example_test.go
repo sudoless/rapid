@@ -26,8 +26,8 @@ func ExampleCustom() {
 		}
 	})
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// {-1 23}
@@ -46,8 +46,8 @@ func recursive() *rapid.Generator[any] {
 
 func ExampleDeferred() {
 	gen := recursive()
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [[[[false] false]]]
@@ -59,8 +59,8 @@ func ExampleDeferred() {
 
 func ExampleMap() {
 	gen := rapid.Map(rapid.Int(), strconv.Itoa)
-	for i := range 5 {
-		fmt.Printf("%#v\n", gen.Example(i))
+	for seed := range 5 {
+		fmt.Printf("%#v\n", gen.Example(seed))
 	}
 	// Output:
 	// "-3"
@@ -73,8 +73,8 @@ func ExampleMap() {
 func ExampleJust() {
 	gen := rapid.Just(42)
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// 42
@@ -87,8 +87,8 @@ func ExampleJust() {
 func ExampleSampledFrom() {
 	gen := rapid.SampledFrom([]int{1, 2, 3})
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// 2
@@ -101,8 +101,8 @@ func ExampleSampledFrom() {
 func ExamplePermutation() {
 	gen := rapid.Permutation([]int{1, 2, 3})
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// [2 3 1]
@@ -115,8 +115,8 @@ func ExamplePermutation() {
 func ExampleOneOf() {
 	gen := rapid.OneOf(rapid.Int32Range(1, 10).AsAny(), rapid.Float32Range(100, 1000).AsAny())
 
-	for i := range 5 {
-		fmt.Println(gen.Example(i))
+	for seed := range 5 {
+		fmt.Println(gen.Example(seed))
 	}
 	// Output:
 	// 997.0737
@@ -129,8 +129,8 @@ func ExampleOneOf() {
 func ExamplePtr() {
 	gen := rapid.Ptr(rapid.Int(), true)
 
-	for i := range 5 {
-		v := gen.Example(i)
+	for seed := range 5 {
+		v := gen.Example(seed)
 		if v == nil {
 			fmt.Println("<nil>")
 		} else {

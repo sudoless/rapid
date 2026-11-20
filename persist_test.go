@@ -61,9 +61,9 @@ func TestFailFileRoundtrip(t *testing.T) {
 		if len(buf2) != len(buf) {
 			t.Fatalf("got buf of length %v instead of %v", len(buf2), len(buf))
 		}
-		for i, u := range buf {
-			if buf2[i] != u {
-				t.Fatalf("got %v instead of %v at %v", buf2[i], u, i)
+		for idx, word := range buf {
+			if buf2[idx] != word {
+				t.Fatalf("got %v instead of %v at %v", buf2[idx], word, idx)
 			}
 		}
 	})

@@ -12,7 +12,7 @@ import (
 	. "go.sdls.io/rapid"
 )
 
-// wrapper to test (*T).Helper()
+// wrapper to test (*T).Helper().
 func fatalf(t *T, format string, args ...any) {
 	t.Helper()
 	t.Fatalf(format, args...)
@@ -47,8 +47,8 @@ func TestFailure_CollectionElements(t *testing.T) {
 		s := SliceOfN(Int(), 2, -1).Draw(t, "s")
 
 		n := 0
-		for _, i := range s {
-			if i > 1000000 {
+		for _, elem := range s {
+			if elem > 1000000 {
 				n++
 			}
 		}

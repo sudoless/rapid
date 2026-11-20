@@ -57,11 +57,11 @@ func TestCustom(t *testing.T) {
 		Custom(genStruct).AsAny(),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
-			Check(t, func(t *T) { g.Draw(t, "") })
+			Check(t, func(t *T) { gen.Draw(t, "") })
 		})
 	}
 }
@@ -156,12 +156,12 @@ func TestSampledFrom(t *testing.T) {
 		SampledFrom([]int{3, 5, 7}),
 	}
 
-	for _, g := range gens {
-		t.Run(g.String(), func(t *testing.T) {
+	for _, gen := range gens {
+		t.Run(gen.String(), func(t *testing.T) {
 			t.Parallel()
 
 			Check(t, func(t *T) {
-				n := g.Draw(t, "n")
+				n := gen.Draw(t, "n")
 				if n != 3 && n != 5 && n != 7 {
 					t.Fatalf("got impossible %v", n)
 				}
