@@ -410,12 +410,12 @@ func compileRegexp(expr string) (compiledRegexp, error) {
 
 	syn, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
-		return compiledRegexp{}, fmt.Errorf("failed to parse regexp %q: %v", expr, err)
+		return compiledRegexp{}, fmt.Errorf("failed to parse regexp %q: %w", expr, err)
 	}
 
 	re, err := regexp.Compile(expr)
 	if err != nil {
-		return compiledRegexp{}, fmt.Errorf("failed to compile regexp %q: %v", expr, err)
+		return compiledRegexp{}, fmt.Errorf("failed to compile regexp %q: %w", expr, err)
 	}
 
 	ret := compiledRegexp{syn, re}
