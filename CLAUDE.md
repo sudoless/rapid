@@ -13,7 +13,7 @@ make fmt       # gofumpt and goimports, through golangci-lint
 make help      # every target
 ```
 
-Statistical and coverage checks run once on a fixed seed in the default suite. `make test-stress` runs them on random seeds (build tag `stress`); a failing run logs the seed, which `-rapid.seed` replays.
+Statistical and coverage checks run once on a fixed seed in the default suite. `make test-stress` runs them on random seeds (build tag `stress`); a failing run logs the seed, which `RAPID_SEED=<seed> make test-stress` replays.
 
 ## Invariants
 

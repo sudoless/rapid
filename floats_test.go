@@ -15,7 +15,7 @@ func TestFloatConversionRoundtrip(t *testing.T) {
 	t.Parallel()
 
 	Check(t, func(t *T) {
-		u := uint32(t.s.drawBits(32))
+		u := uint32(t.s.DrawBits(32))
 		f := math.Float32frombits(u)
 		if math.IsNaN(float64(f)) {
 			t.Skip("NaN") // we can get NaNs with different bit patterns back

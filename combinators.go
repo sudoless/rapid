@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 const tryLabel = "try"
@@ -44,7 +45,7 @@ func (g *customGen[V]) maybeValue(t *T) (V, bool) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(invalidData); !ok {
+			if _, ok := r.(bitstream.InvalidData); !ok {
 				panic(r)
 			}
 		}
@@ -110,15 +111,15 @@ func (g *filteredGen[V]) maybeValue(t *T) (V, bool) {
 
 func find[V any](gen func(*T) (V, bool), t *T, tries int) V {
 	for range tries {
-		i := t.s.beginGroup(tryLabel, false)
+		i := t.s.BeginGroup(tryLabel, false)
 		v, ok := gen(t)
-		t.s.endGroup(i, !ok)
+		t.s.EndGroup(i, !ok)
 		if ok {
 			return v
 		}
 	}
 
-	panic(invalidData(fmt.Sprintf("failed to find suitable value in %d tries", tries)))
+	panic(bitstream.InvalidData(fmt.Sprintf("failed to find suitable value in %d tries", tries)))
 }
 
 // Map creates a generator producing fn(u) for each u produced by g.
@@ -171,7 +172,7 @@ func (g *sampledGen[E]) String() string {
 }
 
 func (g *sampledGen[E]) value(t *T) E {
-	i := genIndex(t.s, len(g.slice), true)
+	i := bitstream.Index(t.s, len(g.slice), true)
 
 	return g.slice[i]
 }
@@ -198,9 +199,9 @@ func (g *permGen[S, E]) value(t *T) S {
 	m := max(n-1, 0)
 
 	// shrink-friendly variant of Fisher–Yates shuffle: shrinks to lower number of smaller distance swaps
-	repeat := newRepeat(0, m, math.MaxInt, "permute")
-	for idx := 0; repeat.more(t.s); idx++ {
-		j, _, _ := genUintRange(t.s, uint64(idx), uint64(n-1), false)
+	repeat := bitstream.NewRepeat(0, m, math.MaxInt, "permute")
+	for idx := 0; repeat.More(t.s); idx++ {
+		j, _, _ := bitstream.UintRange(t.s, uint64(idx), uint64(n-1), false)
 		s[idx], s[j] = s[j], s[idx]
 	}
 
@@ -231,7 +232,7 @@ func (g *oneOfGen[V]) String() string {
 }
 
 func (g *oneOfGen[V]) value(t *T) V {
-	i := genIndex(t.s, len(g.gens), true)
+	i := bitstream.Index(t.s, len(g.gens), true)
 
 	return g.gens[i].value(t)
 }
@@ -259,7 +260,7 @@ func (g *ptrGen[E]) value(t *T) *E {
 		pNonNil = 0.5
 	}
 
-	if flipBiasedCoin(t.s, pNonNil) {
+	if bitstream.FlipBiasedCoin(t.s, pNonNil) {
 		e := g.elem.value(t)
 		return &e
 	} else {

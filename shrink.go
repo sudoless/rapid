@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 const (
@@ -35,15 +36,15 @@ const (
 	labelSortGroups          = "sort_groups"
 )
 
-func shrink(tb tb, deadline time.Time, rec recordedBits, err *testError, prop func(*T)) ([]uint64, *testError) {
-	rec.prune()
+func shrink(tb tb, deadline time.Time, rec bitstream.Recorded, err *testError, prop func(*T)) ([]uint64, *testError) {
+	rec.Prune()
 
 	s := &shrinker{
 		tb:        tb,
 		rec:       rec,
 		err:       err,
 		prop:      prop,
-		visBits:   []recordedBits{rec},
+		visBits:   []bitstream.Recorded{rec},
 		tries:     map[string]int{},
 		cacheSeed: maphash.MakeSeed(),
 		cache:     map[uint64]struct{}{},
@@ -70,10 +71,10 @@ func shrink(tb tb, deadline time.Time, rec recordedBits, err *testError, prop fu
 
 type shrinker struct {
 	tb        tb
-	rec       recordedBits
+	rec       bitstream.Recorded
 	err       *testError
 	prop      func(*T)
-	visBits   []recordedBits
+	visBits   []bitstream.Recorded
 	tries     map[string]int
 	shrinks   int
 	cacheSeed maphash.Seed
@@ -91,7 +92,7 @@ func (s *shrinker) debugf(verbose_ bool, format string, args ...any) {
 func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
 	defer func() {
 		if r := recover(); r != nil {
-			buf, err = s.rec.data, r.(*testError)
+			buf, err = s.rec.Data, r.(*testError)
 		}
 	}()
 
@@ -118,79 +119,79 @@ func (s *shrinker) shrink(deadline time.Time) (buf []uint64, err *testError) {
 	}
 	s.debugf(false, "done, %v rounds total (%v tries, %v shrinks, %v cache hits):\n%v", i, tries, s.shrinks, s.hits, s.tries)
 
-	return s.rec.data, s.err
+	return s.rec.Data, s.err
 }
 
 func (s *shrinker) removeGroups(deadline time.Time) {
-	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
-		g := s.rec.groups[idx]
-		if !g.standalone || g.end < 0 {
+	for idx := 0; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.Groups[idx]
+		if !g.Standalone || g.End < 0 {
 			continue
 		}
 
-		if s.accept(without(s.rec.data, g), labelRemoveGroup, "remove group %q at %v: [%v, %v)", g.label, idx, g.begin, g.end) {
+		if s.accept(without(s.rec.Data, g), labelRemoveGroup, "remove group %q at %v: [%v, %v)", g.Label, idx, g.Begin, g.End) {
 			idx--
 		}
 	}
 }
 
 func (s *shrinker) minimizeBlocks(deadline time.Time) {
-	for idx := 0; idx < len(s.rec.data) && time.Now().Before(deadline); idx++ {
-		minimize(s.rec.data[idx], func(u uint64, label string) bool {
-			buf := append([]uint64(nil), s.rec.data...)
+	for idx := 0; idx < len(s.rec.Data) && time.Now().Before(deadline); idx++ {
+		minimize(s.rec.Data[idx], func(u uint64, label string) bool {
+			buf := append([]uint64(nil), s.rec.Data...)
 			buf[idx] = u
-			return s.accept(buf, label, "minimize block %v: %v to %v", idx, s.rec.data[idx], u)
+			return s.accept(buf, label, "minimize block %v: %v to %v", idx, s.rec.Data[idx], u)
 		})
 	}
 }
 
 func (s *shrinker) lowerFloatHack(deadline time.Time) {
-	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
-		g := s.rec.groups[idx]
-		if !g.standalone || g.end != g.begin+7 {
+	for idx := 0; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.Groups[idx]
+		if !g.Standalone || g.End != g.Begin+7 {
 			continue
 		}
 
-		buf := append([]uint64(nil), s.rec.data...)
-		buf[g.begin+3] -= 1
-		buf[g.begin+4] = math.MaxUint64
-		buf[g.begin+5] = math.MaxUint64
-		buf[g.begin+6] = math.MaxUint64
+		buf := append([]uint64(nil), s.rec.Data...)
+		buf[g.Begin+3] -= 1
+		buf[g.Begin+4] = math.MaxUint64
+		buf[g.Begin+5] = math.MaxUint64
+		buf[g.Begin+6] = math.MaxUint64
 
-		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.label, idx, buf[g.begin+3]) {
-			buf := append([]uint64(nil), s.rec.data...)
-			buf[g.begin+4] -= 1
-			buf[g.begin+5] = math.MaxUint64
-			buf[g.begin+6] = math.MaxUint64
+		if !s.accept(buf, labelLowerFloatExp, "lower float exponent of group %q at %v to %v", g.Label, idx, buf[g.Begin+3]) {
+			buf := append([]uint64(nil), s.rec.Data...)
+			buf[g.Begin+4] -= 1
+			buf[g.Begin+5] = math.MaxUint64
+			buf[g.Begin+6] = math.MaxUint64
 
-			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.label, idx, buf[g.begin+4]) {
-				buf := append([]uint64(nil), s.rec.data...)
-				buf[g.begin+5] -= 1
-				buf[g.begin+6] = math.MaxUint64
+			if !s.accept(buf, labelLowerFloatSignif, "lower float significant of group %q at %v to %v", g.Label, idx, buf[g.Begin+4]) {
+				buf := append([]uint64(nil), s.rec.Data...)
+				buf[g.Begin+5] -= 1
+				buf[g.Begin+6] = math.MaxUint64
 
-				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.label, idx, buf[g.begin+5])
+				s.accept(buf, labelLowerFloatFrac, "lower float frac of group %q at %v to %v", g.Label, idx, buf[g.Begin+5])
 			}
 		}
 	}
 }
 
 func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
-	for idx := 0; idx < len(s.rec.data) && time.Now().Before(deadline); idx++ {
-		if s.rec.data[idx] == 0 {
+	for idx := 0; idx < len(s.rec.Data) && time.Now().Before(deadline); idx++ {
+		if s.rec.Data[idx] == 0 {
 			continue
 		}
 
-		buf := append([]uint64(nil), s.rec.data...)
+		buf := append([]uint64(nil), s.rec.Data...)
 		buf[idx] -= 1
 
-		for jdx := range len(s.rec.groups) {
-			g := s.rec.groups[jdx]
-			if !g.standalone || g.end < 0 || (idx >= g.begin && idx < g.end) {
+		for jdx := range len(s.rec.Groups) {
+			g := s.rec.Groups[jdx]
+			if !g.Standalone || g.End < 0 || (idx >= g.Begin && idx < g.End) {
 				continue
 			}
 
 			if s.accept(without(buf, g), labelRemoveGroupAndLower, "lower block %v to %v and remove group %q at %v: [%v, %v)",
-				idx, buf[idx], g.label, jdx, g.begin, g.end) {
+				idx, buf[idx], g.Label, jdx, g.Begin, g.End) {
 				idx--
 				break
 			}
@@ -199,10 +200,10 @@ func (s *shrinker) removeGroupsAndLower(deadline time.Time) {
 }
 
 func (s *shrinker) sortGroups(deadline time.Time) {
-	for idx := 1; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
+	for idx := 1; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
 		for jdx := idx; jdx > 0; {
-			g := s.rec.groups[jdx]
-			if !g.standalone || g.end < 0 {
+			g := s.rec.Groups[jdx]
+			if !g.Standalone || g.End < 0 {
 				break
 			}
 
@@ -213,15 +214,15 @@ func (s *shrinker) sortGroups(deadline time.Time) {
 
 // swapWithEarlier tries to swap group g, at index jdx, with an earlier standalone group of the same label
 // that ends before g begins, nearest first. It returns the index g moved to, or -1 when no swap was accepted.
-func (s *shrinker) swapWithEarlier(jdx int, g groupInfo) int {
+func (s *shrinker) swapWithEarlier(jdx int, g bitstream.Group) int {
 	for kdx := jdx - 1; kdx >= 0; kdx-- {
-		h := s.rec.groups[kdx]
-		if !h.standalone || h.end < 0 || h.end > g.begin || h.label != g.label {
+		h := s.rec.Groups[kdx]
+		if !h.Standalone || h.End < 0 || h.End > g.Begin || h.Label != g.Label {
 			continue
 		}
 
-		if s.accept(swapSpans(s.rec.data, h, g), labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
-			g.label, jdx, g.begin, g.end, h.label, kdx, h.begin, h.end) {
+		if s.accept(swapSpans(s.rec.Data, h, g), labelSortGroups, "swap groups %q at %v: [%v, %v) and %q at %v: [%v, %v)",
+			g.Label, jdx, g.Begin, g.End, h.Label, kdx, h.Begin, h.End) {
 			return kdx
 		}
 	}
@@ -230,31 +231,31 @@ func (s *shrinker) swapWithEarlier(jdx int, g groupInfo) int {
 }
 
 // swapSpans returns a copy of data with the spans of groups a and b exchanged; a ends before b begins.
-func swapSpans(data []uint64, a, b groupInfo) []uint64 {
-	buf := append([]uint64(nil), data[:a.begin]...)
-	buf = append(buf, data[b.begin:b.end]...)
-	buf = append(buf, data[a.end:b.begin]...)
-	buf = append(buf, data[a.begin:a.end]...)
+func swapSpans(data []uint64, a, b bitstream.Group) []uint64 {
+	buf := append([]uint64(nil), data[:a.Begin]...)
+	buf = append(buf, data[b.Begin:b.End]...)
+	buf = append(buf, data[a.End:b.Begin]...)
+	buf = append(buf, data[a.Begin:a.End]...)
 
-	return append(buf, data[b.end:]...)
+	return append(buf, data[b.End:]...)
 }
 
 func (s *shrinker) removeGroupSpans(deadline time.Time) {
-	for idx := 0; idx < len(s.rec.groups) && time.Now().Before(deadline); idx++ {
-		g := s.rec.groups[idx]
-		if !g.standalone || g.end < 0 {
+	for idx := 0; idx < len(s.rec.Groups) && time.Now().Before(deadline); idx++ {
+		g := s.rec.Groups[idx]
+		if !g.Standalone || g.End < 0 {
 			continue
 		}
 
-		groups := []groupInfo{g}
-		for jdx := idx + 1; jdx < len(s.rec.groups); jdx++ {
-			h := s.rec.groups[jdx]
-			if !h.standalone || h.end < 0 || h.begin < groups[len(groups)-1].end {
+		groups := []bitstream.Group{g}
+		for jdx := idx + 1; jdx < len(s.rec.Groups); jdx++ {
+			h := s.rec.Groups[jdx]
+			if !h.Standalone || h.End < 0 || h.Begin < groups[len(groups)-1].End {
 				continue
 			}
 
 			groups = append(groups, h)
-			buf := without(s.rec.data, groups...)
+			buf := without(s.rec.Data, groups...)
 
 			if s.accept(buf, labelRemoveGroupSpan, "remove %v groups %v", len(groups), groups) {
 				idx--
@@ -265,7 +266,7 @@ func (s *shrinker) removeGroupSpans(deadline time.Time) {
 }
 
 func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool {
-	if compareData(buf, s.rec.data) >= 0 {
+	if compareData(buf, s.rec.Data) >= 0 {
 		return false
 	}
 	bufHash := maphash.String(s.cacheSeed, dataStr(buf))
@@ -276,7 +277,7 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 
 	s.debugf(true, label+": trying to reproduce the failure with a smaller test case: "+format, args...)
 	s.tries[label]++
-	s1 := newBufBitStream(buf, false)
+	s1 := bitstream.NewBuffer(buf, false)
 	err1 := checkOnce(newT(s.tb, s1, flags.debug && flags.verbose, nil), s.prop)
 	if traceback(err1) != traceback(s.err) {
 		s.cache[bufHash] = struct{}{}
@@ -286,11 +287,11 @@ func (s *shrinker) accept(buf []uint64, label, format string, args ...any) bool 
 	s.debugf(true, label+": trying to reproduce the failure")
 	s.tries[label]++
 	s.err = err1
-	s2 := newBufBitStream(buf, true)
+	s2 := bitstream.NewBuffer(buf, true)
 	err2 := checkOnce(newT(s.tb, s2, flags.debug && flags.verbose, nil), s.prop)
-	s.rec = s2.recordedBits
-	s.rec.prune()
-	assert.True(compareData(s.rec.data, buf) <= 0)
+	s.rec = s2.Recorded
+	s.rec.Prune()
+	assert.True(compareData(s.rec.Data, buf) <= 0)
 	if flags.debugvis {
 		s.visBits = append(s.visBits, s.rec)
 	}
@@ -388,12 +389,12 @@ func (m *minimizer) binSearch() {
 	}
 }
 
-func without(data []uint64, groups ...groupInfo) []uint64 {
+func without(data []uint64, groups ...bitstream.Group) []uint64 {
 	buf := append([]uint64(nil), data...)
 
 	for idx := range slices.Backward(groups) {
 		group := &groups[idx]
-		buf = append(buf[:group.begin], buf[group.end:]...)
+		buf = append(buf[:group.Begin], buf[group.End:]...)
 	}
 
 	return buf

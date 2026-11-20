@@ -17,6 +17,8 @@ import (
 	"io"
 	"math"
 	"time"
+
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 var (
@@ -49,7 +51,7 @@ type visTmplImage struct {
 	GroupEnds   []visGroupInfo
 }
 
-func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
+func visWriteHTML(w io.Writer, title string, recData []bitstream.Recorded) error {
 	d := &visTmplData{
 		Title:     fmt.Sprintf("%v (%v)", title, time.Now().Format(time.RFC1123)),
 		VisCSS:    template.CSS(visCSS),       //nolint:gosec // G203: constant stylesheet
@@ -61,24 +63,24 @@ func visWriteHTML(w io.Writer, title string, recData []recordedBits) error {
 
 	for idx := range recData {
 		rd := &recData[idx]
-		images, err := visWordImages(rd.data)
+		images, err := visWordImages(rd.Data)
 		if err != nil {
 			return err
 		}
 
-		for jdx := range rd.groups {
-			group := &rd.groups[jdx]
-			if _, ok := labelClasses[group.label]; !ok {
-				labelClasses[group.label] = fmt.Sprintf("label-%v", lastLabelClass)
+		for jdx := range rd.Groups {
+			group := &rd.Groups[jdx]
+			if _, ok := labelClasses[group.Label]; !ok {
+				labelClasses[group.Label] = fmt.Sprintf("label-%v", lastLabelClass)
 				lastLabelClass++
 			}
 		}
 
-		for jdx := range rd.groups {
-			group := &rd.groups[jdx]
-			images[group.begin].GroupBegins = append(images[group.begin].GroupBegins, visGroupToInfo(labelClasses, *group))
-			if group.end > 0 {
-				images[group.end-1].GroupEnds = append(images[group.end-1].GroupEnds, visGroupToInfo(labelClasses, *group))
+		for jdx := range rd.Groups {
+			group := &rd.Groups[jdx]
+			images[group.Begin].GroupBegins = append(images[group.Begin].GroupBegins, visGroupToInfo(labelClasses, *group))
+			if group.End > 0 {
+				images[group.End-1].GroupEnds = append(images[group.End-1].GroupEnds, visGroupToInfo(labelClasses, *group))
 			}
 		}
 
@@ -103,20 +105,20 @@ func visWordImages(data []uint64) ([]*visTmplImage, error) {
 	return images, nil
 }
 
-func visGroupToInfo(labelClasses map[string]string, group groupInfo) visGroupInfo {
+func visGroupToInfo(labelClasses map[string]string, group bitstream.Group) visGroupInfo {
 	discardClass := ""
-	if group.discard {
+	if group.Discard {
 		discardClass = "discard "
 	}
 
 	endlessClass := ""
-	if group.end <= 0 {
+	if group.End <= 0 {
 		endlessClass = "endless "
 	}
 
 	return visGroupInfo{
-		Classes: discardClass + endlessClass + labelClasses[group.label],
-		Label:   group.label,
+		Classes: discardClass + endlessClass + labelClasses[group.Label],
+		Label:   group.Label,
 	}
 }
 
@@ -126,9 +128,9 @@ type visUint64Image struct {
 }
 
 func visNewUint64Image(u uint64) *visUint64Image {
-	s := newRandomBitStream(u, false)
-	h1 := genFloat01(s)
-	h2 := genFloat01(s)
+	s := bitstream.NewRandom(u, false)
+	h1 := bitstream.Float01(s)
+	h2 := bitstream.Float01(s)
 
 	return &visUint64Image{
 		u: u,

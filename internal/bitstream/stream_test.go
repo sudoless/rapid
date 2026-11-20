@@ -4,13 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package bitstream
 
 import (
 	"fmt"
 	"math/bits"
 	"math/rand"
 	"testing"
+
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 func TestJsfRand(t *testing.T) {
@@ -63,12 +65,12 @@ func BenchmarkMathRand(b *testing.B) {
 func TestRandomBitSteam_DrawBits(t *testing.T) {
 	t.Parallel()
 
-	s := createRandomBitStream(t)
+	s := NewRandom(stattest.Seed(t), false)
 
 	for width := 1; width <= 64; width++ {
 		for idx := range 100 {
 			t.Run(fmt.Sprintf("%v bits #%v", width, idx), func(t *testing.T) {
-				b := s.drawBits(width)
+				b := s.DrawBits(width)
 				if bits.Len64(b) > width {
 					t.Errorf("%v: bitlen too big for %v bits", b, width)
 				}
@@ -81,19 +83,19 @@ func TestRandomBitSteam_DrawBits(t *testing.T) {
 }
 
 func BenchmarkRandomBitStream_DrawBits1(b *testing.B) {
-	s := newRandomBitStream(baseSeed(), false)
+	s := NewRandom(1, false)
 	b.ResetTimer()
 
 	for range b.N {
-		s.drawBits(1)
+		s.DrawBits(1)
 	}
 }
 
 func BenchmarkRandomBitStream_DrawBits64(b *testing.B) {
-	s := newRandomBitStream(baseSeed(), false)
+	s := NewRandom(1, false)
 	b.ResetTimer()
 
 	for range b.N {
-		s.drawBits(64)
+		s.DrawBits(64)
 	}
 }

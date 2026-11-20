@@ -10,6 +10,7 @@ import (
 	"math/bits"
 	"testing"
 
+	"go.sdls.io/rapid/internal/bitstream"
 	"go.sdls.io/rapid/internal/stattest"
 )
 
@@ -22,7 +23,7 @@ func TestByteCoverage(t *testing.T) {
 func checkByteCoverage(t *testing.T, seed uint64) {
 	t.Helper()
 
-	s := newRandomBitStream(seed, false)
+	s := bitstream.NewRandom(seed, false)
 	seen := map[byte]bool{}
 	for range stattest.CoverageDraws {
 		seen[drawFrom(t, s, Byte())] = true
@@ -58,7 +59,7 @@ func checkIntCoverage(t *testing.T, seed uint64) {
 		targets = append(targets, coverageTarget[int]{"< -(1<<62)", func(i int) bool { return i < -(1 << 62) }})
 	}
 
-	s := newRandomBitStream(seed, false)
+	s := bitstream.NewRandom(seed, false)
 	for _, target := range targets {
 		if !drawsHit(t, s, Int(), target.hit) {
 			t.Errorf("no int %v in %v draws", target.name, stattest.CoverageDraws)
@@ -87,7 +88,7 @@ func checkUintCoverage(t *testing.T, seed uint64) {
 		targets = append(targets, coverageTarget[uint]{"> 1<<63", func(i uint) bool { return i > 1<<63 }})
 	}
 
-	s := newRandomBitStream(seed, false)
+	s := bitstream.NewRandom(seed, false)
 	for _, target := range targets {
 		if !drawsHit(t, s, Uint(), target.hit) {
 			t.Errorf("no uint %v in %v draws", target.name, stattest.CoverageDraws)
@@ -101,7 +102,7 @@ type coverageTarget[V any] struct {
 }
 
 // drawsHit reports whether one of up to stattest.CoverageDraws values drawn from g satisfies hit.
-func drawsHit[V any](t *testing.T, s bitStream, g *Generator[V], hit func(V) bool) bool {
+func drawsHit[V any](t *testing.T, s bitstream.Stream, g *Generator[V], hit func(V) bool) bool {
 	t.Helper()
 
 	for range stattest.CoverageDraws {
@@ -112,7 +113,7 @@ func drawsHit[V any](t *testing.T, s bitStream, g *Generator[V], hit func(V) boo
 	return false
 }
 
-func drawFrom[V any](t *testing.T, s bitStream, g *Generator[V]) V {
+func drawFrom[V any](t *testing.T, s bitstream.Stream, g *Generator[V]) V {
 	t.Helper()
 
 	v, err := recoverValue(g, newT(nil, s, false, nil))

@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package rapid
+package bitstream
 
 import (
 	"math"
@@ -12,6 +12,9 @@ import (
 
 	"go.sdls.io/rapid/internal/assert"
 )
+
+// small is the average repetition count NewRepeat aims for when it is not given one.
+const small = 5
 
 const (
 	biasLabel     = "bias"
@@ -21,54 +24,54 @@ const (
 	repeatLabel   = "@repeat"
 )
 
-func bitmask64(n uint) uint64 {
+func Bitmask64(n uint) uint64 {
 	return uint64(1)<<n - 1
 }
 
-func genFloat01(s bitStream) float64 {
-	return float64(s.drawBits(53)) * 0x1.0p-53
+func Float01(s Stream) float64 {
+	return float64(s.DrawBits(53)) * 0x1.0p-53
 }
 
-func genGeom(s bitStream, p float64) uint64 {
+func geom(s Stream, p float64) uint64 {
 	assert.True(p > 0 && p <= 1)
 
-	f := genFloat01(s)
+	f := Float01(s)
 	n := math.Log1p(-f) / math.Log1p(-p)
 
 	return uint64(n)
 }
 
-func genUintNNoReject(s bitStream, hi uint64) uint64 {
+func UintNNoReject(s Stream, hi uint64) uint64 {
 	bitlen := bits.Len64(hi)
-	i := s.beginGroup(intBitsLabel, false)
-	u := s.drawBits(bitlen)
-	s.endGroup(i, false)
+	i := s.BeginGroup(intBitsLabel, false)
+	u := s.DrawBits(bitlen)
+	s.EndGroup(i, false)
 	if u > hi {
 		u = hi
 	}
 	return u
 }
 
-func genUintNUnbiased(s bitStream, hi uint64) uint64 {
+func genUintNUnbiased(s Stream, hi uint64) uint64 {
 	bitlen := bits.Len64(hi)
 
 	for {
-		i := s.beginGroup(intBitsLabel, false)
-		u := s.drawBits(bitlen)
+		i := s.BeginGroup(intBitsLabel, false)
+		u := s.DrawBits(bitlen)
 		ok := u <= hi
-		s.endGroup(i, !ok)
+		s.EndGroup(i, !ok)
 		if ok {
 			return u
 		}
 	}
 }
 
-func genUintNBiased(s bitStream, hi uint64) (uint64, bool, bool) {
+func genUintNBiased(s Stream, hi uint64) (uint64, bool, bool) {
 	bitlen := bits.Len64(hi)
-	i := s.beginGroup(biasLabel, false)
+	i := s.BeginGroup(biasLabel, false)
 	m := math.Max(8, (float64(bitlen)+48)/7)
-	n := genGeom(s, 1/(m+1)) + 1
-	s.endGroup(i, false)
+	n := geom(s, 1/(m+1)) + 1
+	s.EndGroup(i, false)
 
 	if int(n) < bitlen {
 		bitlen = int(n)
@@ -77,10 +80,10 @@ func genUintNBiased(s bitStream, hi uint64) (uint64, bool, bool) {
 	}
 
 	for {
-		i := s.beginGroup(intBitsLabel, false)
-		u := s.drawBits(bitlen)
+		i := s.BeginGroup(intBitsLabel, false)
+		u := s.DrawBits(bitlen)
 		ok := bitlen > 64 || u <= hi
-		s.endGroup(i, !ok)
+		s.EndGroup(i, !ok)
 		if bitlen > 64 {
 			u = hi
 		}
@@ -90,7 +93,7 @@ func genUintNBiased(s bitStream, hi uint64) (uint64, bool, bool) {
 	}
 }
 
-func genUintN(s bitStream, hi uint64, bias bool) (uint64, bool, bool) {
+func UintN(s Stream, hi uint64, bias bool) (uint64, bool, bool) {
 	if bias {
 		return genUintNBiased(s, hi)
 	} else {
@@ -98,17 +101,17 @@ func genUintN(s bitStream, hi uint64, bias bool) (uint64, bool, bool) {
 	}
 }
 
-func genUintRange(s bitStream, lo, hi uint64, bias bool) (uint64, bool, bool) {
+func UintRange(s Stream, lo, hi uint64, bias bool) (uint64, bool, bool) {
 	if lo > hi {
 		assert.Truef(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
 
-	u, lOverflow, rOverflow := genUintN(s, hi-lo, bias)
+	u, lOverflow, rOverflow := UintN(s, hi-lo, bias)
 
 	return lo + u, lOverflow, rOverflow
 }
 
-func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
+func IntRange(s Stream, lo, hi int64, bias bool) (int64, bool, bool) {
 	if lo > hi {
 		assert.Truef(false, "invalid range [%v,  %v]", lo, hi) // avoid allocations in the fast path
 	}
@@ -133,42 +136,42 @@ func genIntRange(s bitStream, lo, hi int64, bias bool) (int64, bool, bool) {
 		}
 	}
 
-	if flipBiasedCoin(s, pNeg) {
-		u, lOverflow, rOverflow := genUintRange(s, negMin, uint64(-lo), bias)
+	if FlipBiasedCoin(s, pNeg) {
+		u, lOverflow, rOverflow := UintRange(s, negMin, uint64(-lo), bias)
 		return -int64(u), rOverflow, lOverflow && hi <= 0
 	} else {
-		u, lOverflow, rOverflow := genUintRange(s, posMin, uint64(hi), bias)
+		u, lOverflow, rOverflow := UintRange(s, posMin, uint64(hi), bias)
 		return int64(u), lOverflow && lo >= 0, rOverflow
 	}
 }
 
-func genIndex(s bitStream, n int, bias bool) int {
+func Index(s Stream, n int, bias bool) int {
 	assert.True(n > 0)
 
-	u, _, _ := genUintN(s, uint64(n-1), bias)
+	u, _, _ := UintN(s, uint64(n-1), bias)
 
 	return int(u)
 }
 
-func flipBiasedCoin(s bitStream, p float64) bool {
+func FlipBiasedCoin(s Stream, p float64) bool {
 	assert.True(p >= 0 && p <= 1)
 
-	i := s.beginGroup(coinFlipLabel, false)
-	f := genFloat01(s)
-	s.endGroup(i, false)
+	i := s.BeginGroup(coinFlipLabel, false)
+	f := Float01(s)
+	s.EndGroup(i, false)
 
 	return f >= 1-p
 }
 
-type loadedDie struct {
+type LoadedDie struct {
 	table []int
 }
 
-func newLoadedDie(weights []int) *loadedDie {
+func NewLoadedDie(weights []int) *LoadedDie {
 	assert.True(len(weights) > 0)
 
 	if len(weights) == 1 {
-		return &loadedDie{
+		return &LoadedDie{
 			table: []int{0},
 		}
 	}
@@ -187,20 +190,20 @@ func newLoadedDie(weights []int) *loadedDie {
 		}
 	}
 
-	return &loadedDie{
+	return &LoadedDie{
 		table: table,
 	}
 }
 
-func (d *loadedDie) roll(s bitStream) int {
-	i := s.beginGroup(dieRollLabel, false)
-	ix := genIndex(s, len(d.table), false)
-	s.endGroup(i, false)
+func (d *LoadedDie) Roll(s Stream) int {
+	i := s.BeginGroup(dieRollLabel, false)
+	ix := Index(s, len(d.table), false)
+	s.EndGroup(i, false)
 
 	return d.table[ix]
 }
 
-type repeat struct {
+type Repeat struct {
 	minCount   int
 	maxCount   int
 	avgCount   float64
@@ -213,7 +216,7 @@ type repeat struct {
 	label      string
 }
 
-func newRepeat(minCount, maxCount int, avgCount float64, label string) *repeat {
+func NewRepeat(minCount, maxCount int, avgCount float64, label string) *Repeat {
 	if minCount < 0 {
 		minCount = 0
 	}
@@ -224,7 +227,7 @@ func newRepeat(minCount, maxCount int, avgCount float64, label string) *repeat {
 		avgCount = float64(minCount) + math.Min(math.Max(float64(minCount), small), (float64(maxCount)-float64(minCount))/2)
 	}
 
-	return &repeat{
+	return &Repeat{
 		minCount:  minCount,
 		maxCount:  maxCount,
 		avgCount:  avgCount,
@@ -234,16 +237,16 @@ func newRepeat(minCount, maxCount int, avgCount float64, label string) *repeat {
 	}
 }
 
-func (r *repeat) avg() int {
+func (r *Repeat) Avg() int {
 	return int(math.Ceil(r.avgCount))
 }
 
-func (r *repeat) more(s bitStream) bool {
+func (r *Repeat) More(s Stream) bool {
 	if r.group >= 0 {
-		s.endGroup(r.group, r.rejected)
+		s.EndGroup(r.group, r.rejected)
 	}
 
-	r.group = s.beginGroup(r.label, true)
+	r.group = s.BeginGroup(r.label, true)
 	r.rejected = false
 
 	pCont := r.pContinue
@@ -253,17 +256,17 @@ func (r *repeat) more(s bitStream) bool {
 		pCont = 0
 	}
 
-	cont := flipBiasedCoin(s, pCont)
+	cont := FlipBiasedCoin(s, pCont)
 	if cont {
 		r.count++
 	} else {
-		s.endGroup(r.group, false)
+		s.EndGroup(r.group, false)
 	}
 
 	return cont
 }
 
-func (r *repeat) reject() {
+func (r *Repeat) Reject() {
 	assert.True(r.count > 0)
 	r.count--
 	r.rejected = true
@@ -273,7 +276,7 @@ func (r *repeat) reject() {
 		if r.count >= r.minCount {
 			r.forceStop = true
 		} else {
-			panic(invalidData("too many rejections in repeat"))
+			panic(InvalidData("too many rejections in repeat"))
 		}
 	}
 }

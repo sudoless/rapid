@@ -7,12 +7,14 @@ package rapid
 import (
 	"strings"
 	"testing"
+
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 func TestSyncTest_FailureIsCapturedForShrinking(t *testing.T) {
 	t.Parallel()
 
-	rt := newT(tb(t), newRandomBitStream(1, true), false, nil)
+	rt := newT(tb(t), bitstream.NewRandom(1, true), false, nil)
 
 	err := checkOnce(rt, func(t *T) {
 		SyncTest(t, func(inner *T) {

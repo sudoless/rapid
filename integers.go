@@ -11,6 +11,7 @@ import (
 	"math"
 
 	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 const (
@@ -66,7 +67,7 @@ type boolGen struct{}
 
 func Bool() *Generator[bool]       { return newGenerator[bool](&boolGen{}) }
 func (g *boolGen) String() string  { return "Bool()" }
-func (g *boolGen) value(t *T) bool { return t.s.drawBits(1) == 1 }
+func (g *boolGen) value(t *T) bool { return t.s.DrawBits(1) == 1 }
 
 func Byte() *Generator[byte]       { return newIntegerGen[byte](byteKind) }
 func Int() *Generator[int]         { return newIntegerGen[int](intKind) }
@@ -279,10 +280,10 @@ func (g *integerGen[I]) String() string {
 
 func (g *integerGen[I]) value(t *T) I {
 	if g.signed {
-		i, _, _ := genIntRange(t.s, g.smin, g.smax, true)
+		i, _, _ := bitstream.IntRange(t.s, g.smin, g.smax, true)
 		return I(i)
 	} else {
-		u, _, _ := genUintRange(t.s, g.umin, g.umax, true)
+		u, _, _ := bitstream.UintRange(t.s, g.umin, g.umax, true)
 		return I(u)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"go.sdls.io/rapid/internal/assert"
+	"go.sdls.io/rapid/internal/bitstream"
 )
 
 const (
@@ -50,7 +51,7 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 		steps /= 2
 	}
 
-	repeat := newRepeat(-1, -1, float64(steps), "Repeat")
+	repeat := bitstream.NewRepeat(-1, -1, float64(steps), "Repeat")
 	sm := stateMachine{
 		check:      check,
 		actionKeys: SampledFrom(actionKeys),
@@ -59,13 +60,13 @@ func (t *T) Repeat(actions map[string]func(*T)) {
 
 	sm.check(t)
 	t.failOnError()
-	for repeat.more(t.s) {
+	for repeat.More(t.s) {
 		ok := sm.executeAction(t)
 		if ok {
 			sm.check(t)
 			t.failOnError()
 		} else {
-			repeat.reject()
+			repeat.Reject()
 		}
 	}
 }
@@ -125,10 +126,10 @@ func (sm *stateMachine) executeAction(t *T) bool {
 	t.Helper()
 
 	for range validActionTries {
-		i := t.s.beginGroup(actionLabel, false)
+		i := t.s.BeginGroup(actionLabel, false)
 		action := sm.actions[sm.actionKeys.Draw(t, "action")]
 		invalid, skipped := runAction(t, action)
-		t.s.endGroup(i, false)
+		t.s.EndGroup(i, false)
 
 		if skipped {
 			continue
@@ -143,7 +144,7 @@ func (sm *stateMachine) executeAction(t *T) bool {
 func runAction(t *T, action func(*T)) (invalid, skipped bool) {
 	defer func(draws int) {
 		if r := recover(); r != nil {
-			if _, ok := r.(invalidData); ok {
+			if _, ok := r.(bitstream.InvalidData); ok {
 				invalid = true
 				skipped = t.draws == draws
 			} else {
