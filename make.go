@@ -181,7 +181,7 @@ func (c *MakeConfig) genAnySlice(typ reflect.Type) *Generator[any] {
 	elemGen := c.newMakeGen(typ.Elem())
 
 	return Custom(func(t *T) any {
-		repeat := bitstream.NewRepeat(-1, -1, -1, elemGen.String())
+		repeat := bitstream.NewRepeat(-1, -1, -1, elemGen)
 		sl := reflect.MakeSlice(typ, 0, repeat.Avg())
 		for repeat.More(t.s) {
 			e := reflect.ValueOf(elemGen.value(t))
@@ -196,8 +196,8 @@ func (c *MakeConfig) genAnyMap(typ reflect.Type) *Generator[any] {
 	valGen := c.newMakeGen(typ.Elem())
 	checkKeys := mayBeUncomparable(typ.Key())
 
+	label := &mapEntryLabel{key: keyGen, val: valGen}
 	return Custom(func(t *T) any {
-		label := keyGen.String() + "," + valGen.String()
 		repeat := bitstream.NewRepeat(-1, -1, -1, label)
 		m := reflect.MakeMapWithSize(typ, repeat.Avg())
 		for repeat.More(t.s) {

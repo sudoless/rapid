@@ -18,7 +18,10 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
-const tryLabel bitstream.Label = "try"
+const (
+	tryLabel     bitstream.Label = "try"
+	permuteLabel bitstream.Label = "permute"
+)
 
 // Custom creates a generator which produces results of calling fn. In fn, values should be generated
 // by calling other generators; it is invalid to return a value from fn without using any other generator.
@@ -220,7 +223,7 @@ func (g *permGen[S, E]) value(t *T) S {
 	m := max(n-1, 0)
 
 	// shrink-friendly variant of Fisher–Yates shuffle: shrinks to lower number of smaller distance swaps
-	repeat := bitstream.NewRepeat(0, m, math.MaxInt, "permute")
+	repeat := bitstream.NewRepeat(0, m, math.MaxInt, permuteLabel)
 	for idx := 0; repeat.More(t.s); idx++ {
 		j, _, _ := bitstream.UintRange(t.s, uint64(idx), uint64(n-1), false)
 		s[idx], s[j] = s[j], s[idx]

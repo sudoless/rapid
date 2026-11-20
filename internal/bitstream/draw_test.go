@@ -299,7 +299,7 @@ func checkRepeat(t *testing.T, seed uint64) {
 			n := 5000
 			c := make([]int, n)
 			for idx := range n {
-				r := NewRepeat(lo, hi, float64(avg), "")
+				r := NewRepeat(lo, hi, float64(avg), Label(""))
 				for r.More(s) {
 					c[idx]++
 				}

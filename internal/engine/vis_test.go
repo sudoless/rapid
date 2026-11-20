@@ -47,7 +47,7 @@ func TestWriteVisHTML(t *testing.T) {
 
 	// A drawn recording: a repetition whose odd elements are rejected, and a group left open.
 	s := bitstream.NewRandom(stattest.Seed(t), true)
-	elems := bitstream.NewRepeat(0, 8, -1, "elems")
+	elems := bitstream.NewRepeat(0, 8, -1, bitstream.Label("elems"))
 	for elems.More(s) {
 		if u, _, _ := bitstream.UintN(s, 100, true); u%2 == 1 {
 			elems.Reject()

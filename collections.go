@@ -101,7 +101,7 @@ func (g *sliceGen[E, K]) String() string {
 }
 
 func (g *sliceGen[E, K]) value(t *T) []E {
-	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, g.elem.String())
+	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, g.elem)
 
 	var seen map[K]struct{}
 	if g.keyFn != nil {
@@ -146,6 +146,7 @@ func MapOfN[K comparable, V any](key *Generator[K], val *Generator[V], minLen, m
 		maxLen:    maxLen,
 		key:       key,
 		val:       val,
+		entry:     &mapEntryLabel{key: key, val: val},
 		checkKeys: mayBeUncomparable(reflect.TypeFor[K]()),
 	})
 }
@@ -166,6 +167,7 @@ func MapOfNValues[K comparable, V any](val *Generator[V], minLen, maxLen int, ke
 		maxLen:    maxLen,
 		val:       val,
 		keyFn:     keyFn,
+		entry:     &mapEntryLabel{val: val},
 		checkKeys: mayBeUncomparable(reflect.TypeFor[K]()),
 	})
 }
@@ -176,6 +178,7 @@ type mapGen[K comparable, V any] struct {
 	key       *Generator[K]
 	val       *Generator[V]
 	keyFn     func(V) K
+	entry     *mapEntryLabel
 	checkKeys bool // K can hold a value that cannot be compared
 }
 
@@ -194,12 +197,7 @@ func (g *mapGen[K, V]) String() string {
 }
 
 func (g *mapGen[K, V]) value(t *T) map[K]V {
-	label := g.val.String()
-	if g.key != nil {
-		label = g.key.String() + "," + label
-	}
-
-	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, label)
+	repeat := bitstream.NewRepeat(g.minLen, g.maxLen, -1, g.entry)
 
 	m := make(map[K]V, repeat.Avg())
 	for repeat.More(t.s) {
@@ -224,4 +222,17 @@ func (g *mapGen[K, V]) value(t *T) map[K]V {
 	}
 
 	return m
+}
+
+// mapEntryLabel labels the repetition of a map's entries by its key and value generators: "key,value", or
+// the value generator alone when key is nil, as when the keys are made from the values.
+type mapEntryLabel struct {
+	key, val fmt.Stringer
+}
+
+func (l *mapEntryLabel) String() string {
+	if l.key == nil {
+		return l.val.String()
+	}
+	return l.key.String() + "," + l.val.String()
 }

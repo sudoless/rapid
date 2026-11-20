@@ -154,7 +154,7 @@ func (g *stringGen) String() string {
 }
 
 func (g *stringGen) value(t *T) string {
-	repeat := bitstream.NewRepeat(g.minRunes, g.maxRunes, -1, g.elem.String())
+	repeat := bitstream.NewRepeat(g.minRunes, g.maxRunes, -1, g.elem)
 
 	var b strings.Builder
 	b.Grow(repeat.Avg())
@@ -299,7 +299,7 @@ func (g *regexpGen) build(w runeWriter, re *syntax.Regexp, t *T) {
 		case syntax.OpQuest:
 			lo, hi = 0, 1
 		}
-		repeat := bitstream.NewRepeat(lo, hi, -1, textgen.RegexpName(re.Sub[0]))
+		repeat := bitstream.NewRepeat(lo, hi, -1, (*regexpLabel)(re.Sub[0]))
 		for repeat.More(t.s) {
 			g.build(w, re.Sub[0], t)
 		}
@@ -330,4 +330,11 @@ func charClassGen(re *syntax.Regexp) *Generator[rune] {
 	charClassGens.Store(textgen.RegexpName(re), g)
 
 	return g
+}
+
+// regexpLabel labels the repetition of a regexp node by the node's name.
+type regexpLabel syntax.Regexp
+
+func (l *regexpLabel) String() string {
+	return textgen.RegexpName((*syntax.Regexp)(l))
 }

@@ -16,7 +16,10 @@ import (
 	"go.sdls.io/rapid/internal/engine"
 )
 
-const actionLabel bitstream.Label = "action"
+const (
+	actionLabel        bitstream.Label = "action"
+	repeatActionsLabel bitstream.Label = "Repeat"
+)
 
 const (
 	validActionTries  = 100 // hack, but probably good enough for now
@@ -59,7 +62,7 @@ func (t *T) repeat(actions map[string]func(*T), steps int) {
 	}
 	slices.Sort(actionKeys)
 
-	repeat := bitstream.NewRepeat(-1, -1, float64(steps), "Repeat")
+	repeat := bitstream.NewRepeat(-1, -1, float64(steps), repeatActionsLabel)
 	sm := stateMachine{
 		check:      check,
 		actionKeys: SampledFrom(actionKeys),

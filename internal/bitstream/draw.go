@@ -7,6 +7,7 @@
 package bitstream
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 
@@ -213,10 +214,10 @@ type Repeat struct {
 	rejected   bool
 	rejections int
 	forceStop  bool
-	label      string
+	label      fmt.Stringer
 }
 
-func NewRepeat(minCount, maxCount int, avgCount float64, label string) *Repeat {
+func NewRepeat(minCount, maxCount int, avgCount float64, label fmt.Stringer) *Repeat {
 	if minCount < 0 {
 		minCount = 0
 	}
@@ -233,13 +234,13 @@ func NewRepeat(minCount, maxCount int, avgCount float64, label string) *Repeat {
 		avgCount:  avgCount,
 		pContinue: 1 - 1/(1+avgCount-float64(minCount)), // TODO was no -minCount intentional?
 		group:     -1,
-		label:     label + repeatLabel,
+		label:     label,
 	}
 }
 
 // String is the label of each repetition's group.
 func (r *Repeat) String() string {
-	return r.label
+	return r.label.String() + repeatLabel
 }
 
 func (r *Repeat) Avg() int {
