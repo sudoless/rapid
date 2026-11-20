@@ -364,20 +364,12 @@ func checkLogged(t *T, prop func(*T), num int, seed uint64) (time.Duration, *eng
 	return dt, err
 }
 
-// checkOnce runs prop as one test case. A failure prop or its cleanups recorded with Error, Errorf or Fail
-// fails the test case even when it then panicked as invalid, as a failed testing.T stays failed after Skip.
+// checkOnce runs prop as one test case, and returns how it failed, after its cleanups.
 func checkOnce(t *T, prop func(*T)) (err *engine.TestError) {
 	if t.tbLog {
 		t.Helper()
 	}
-	defer func() {
-		err = panicToError(recover())
-		if err == nil || err.IsInvalidData() {
-			if recorded := t.tc.recorded(); recorded != nil {
-				err = recorded
-			}
-		}
-	}()
+	defer func() { err = t.settle(panicToError(recover())) }()
 
 	defer t.cleanup()
 	prop(t)
@@ -539,6 +531,30 @@ func newT(tb tb, s bitstream.Stream, tbLog bool, rawLog *log.Logger, refDraws ..
 	}
 
 	return t
+}
+
+// child returns a T for a nested scope of t's test case, such as one Custom value: it draws from t's stream
+// and records failures to t's test case, with its own Context, Cleanups and draw count.
+func (t *T) child(tb tb, tbLog bool, rawLog *log.Logger) *T {
+	return &T{
+		tb:     tb,
+		tbLog:  tbLog,
+		rawLog: rawLog,
+		s:      t.s,
+		tc:     t.tc,
+	}
+}
+
+// settle returns the outcome of t's test case, given err, what its run panicked with.
+// A recorded failure outranks an invalid test case, as a testing.T that fails and then skips stays failed.
+func (t *T) settle(err *engine.TestError) *engine.TestError {
+	if err == nil || err.IsInvalidData() {
+		if recorded := t.tc.recorded(); recorded != nil {
+			return recorded
+		}
+	}
+
+	return err
 }
 
 func (t *T) shouldLog() bool {

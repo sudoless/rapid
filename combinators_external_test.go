@@ -212,3 +212,46 @@ func TestPtr(t *testing.T) {
 		})
 	}
 }
+
+// Error, Errorf and Fail inside a Custom function fail the test case, as they do in the property,
+// even when the Custom function then skips the value.
+func TestCustomRecordedFailureFailsTestCase(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]func(*T){
+		"Error":            func(t *T) { t.Error("bad value") },
+		"Errorf":           func(t *T) { t.Errorf("bad value") },
+		"Fail":             func(t *T) { t.Fail() },
+		"Errorf then skip": func(t *T) { t.Errorf("bad value"); t.SkipNow() },
+	}
+	for name, fail := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			gen := Custom(func(t *T) int {
+				v := Int[int]().Draw(t, "v")
+				fail(t)
+				return v
+			})
+			if _, _, failed := CheckOutcome(t, func(t *T) { _ = gen.Draw(t, "v") }); !failed {
+				t.Fatalf("(*T).%v inside a Custom function did not fail the test case", name)
+			}
+		})
+	}
+}
+
+// A Custom function that records a failure on every value cannot produce an example.
+func TestCustomRecordedFailureFailsExample(t *testing.T) {
+	t.Parallel()
+
+	gen := Custom(func(t *T) int {
+		t.Errorf("bad value")
+		return Int[int]().Draw(t, "v")
+	})
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Example returned a value from a Custom function that failed every time")
+		}
+	}()
+	gen.Example(0)
+}
