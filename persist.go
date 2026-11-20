@@ -56,7 +56,7 @@ func failFileName(testName string) string {
 }
 
 func failFilePattern(testName string) string {
-	fileName := fmt.Sprintf("%s-*.fail", kindaSafeFilename(testName))
+	fileName := kindaSafeFilename(testName) + "-*.fail"
 	dirName := filepath.Join("testdata", "rapid", kindaSafeFilename(testName))
 	return filepath.Join(dirName, fileName)
 }

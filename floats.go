@@ -108,7 +108,7 @@ func (g *floatGen) stringImpl(kind string) string {
 		return fmt.Sprintf("%sMax(%g)", kind, g.max)
 	}
 
-	return fmt.Sprintf("%s()", kind)
+	return kind + "()"
 }
 
 func (g *float32Gen) String() string {

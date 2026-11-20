@@ -523,7 +523,7 @@ func (err *testError) Error() string {
 	}
 
 	if msg, ok := err.data.(invalidData); ok {
-		return fmt.Sprintf("invalid data: %s", string(msg))
+		return "invalid data: " + string(msg)
 	}
 
 	return fmt.Sprintf("%v", err.data)

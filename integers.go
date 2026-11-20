@@ -272,7 +272,7 @@ func (g *integerGen[I]) String() string {
 		}
 	}
 
-	return fmt.Sprintf("%s()", g.kind)
+	return g.kind + "()"
 }
 
 func (g *integerGen[I]) value(t *T) I {
