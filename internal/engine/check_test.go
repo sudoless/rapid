@@ -26,7 +26,7 @@ func TestSearchLogGivesRunsALogger(t *testing.T) { //nolint:paralleltest // sets
 	})
 
 	runs, logged := 0, 0
-	Search(t, Deadline(nil), 3, 1, "", false, func(_ bitstream.Stream, _ bool, out *log.Logger) *TestError {
+	Search(t, Limits{Checks: 3, Deadline: Deadline(nil), ShrinkTime: Flags.ShrinkTime}, 1, "", false, func(_ bitstream.Stream, _ bool, out *log.Logger) *TestError {
 		runs++
 		if out != nil {
 			logged++

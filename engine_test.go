@@ -21,7 +21,8 @@ import (
 // search runs prop for 100 test cases generated from seed, without fail files.
 func search(tb tb, seed uint64, prop func(*T)) engine.Result {
 	tb.Helper()
-	return engine.Search(tb, engine.Deadline(nil), 100, seed, "", false, runner(tb, prop))
+	lim := engine.Limits{Checks: 100, Deadline: engine.Deadline(nil), ShrinkTime: engine.Flags.ShrinkTime}
+	return engine.Search(tb, lim, seed, "", false, runner(tb, prop))
 }
 
 func brokenGen(*T) int { panic("this generator is not working") }
@@ -86,7 +87,7 @@ func BenchmarkCheckOverhead(b *testing.B) {
 		g.Draw(t, "")
 	}
 	for b.Loop() {
-		engine.Check(b, runner(b, f))
+		engine.Check(b, engine.Limits{}, runner(b, f))
 	}
 }
 

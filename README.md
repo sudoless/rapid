@@ -190,6 +190,14 @@ instance, `RAPID_CHECKS=10 go test` sets the default for `-rapid.checks=10`,
 and an explicit flag still overrides the environment default when both are
 present.
 
+A property can set its own budget, which wins over both the flags and the
+environment. This keeps an expensive integration test at a few test cases
+while a deep run raises `-rapid.checks` for the rest:
+
+```go
+rapid.Check(t, prop, rapid.Checks(20), rapid.SearchTime(30*time.Second), rapid.ShrinkTime(10*time.Second))
+```
+
 ## License
 
 Rapid is a fork of [flyingmutant/rapid](https://github.com/flyingmutant/rapid)

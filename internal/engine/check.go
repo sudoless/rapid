@@ -60,34 +60,23 @@ func Deadline(tb TB) time.Time {
 	return d
 }
 
-func shrinkDeadline(deadline time.Time) time.Time {
-	d := time.Now().Add(Flags.ShrinkTime)
-	latest := deadline.Add(-shrinkStepBound) // account for the fact that shrink deadline is checked before the step
-	if d.After(latest) {
-		d = latest
-	}
-	return d
-}
-
-// Check fails tb when run fails on a test case: one from a fail file, or one generated from the
-// -rapid.* settings. It reports the failure shrunk, with how to reproduce it, and saves it to a fail file.
-func Check(tb TB, run Run) {
+// Check fails tb when run fails on a test case: one from a fail file, or one generated within lim, whose
+// zero fields take the -rapid.* settings. It reports the failure shrunk, with how to reproduce it, and saves
+// it to a fail file.
+func Check(tb TB, lim Limits, run Run) {
 	tb.Helper()
 	failOnEnvErr(tb)
 
-	checks := Flags.Checks
-	if testing.Short() {
-		checks /= 5
-	}
+	lim = limits(tb, lim, testing.Short())
 
 	start := time.Now()
-	res := Search(tb, Deadline(tb), checks, BaseSeed(), Flags.FailFile, true, run)
+	res := Search(tb, lim, BaseSeed(), Flags.FailFile, true, run)
 	dt := time.Since(start)
 
 	switch {
 	case res.Err1 != nil || res.Err2 != nil:
 		report(tb, logRun(tb, run), &res)
-	case res.Valid == checks || (res.EarlyExit && res.Valid > 0):
+	case res.Valid == lim.Checks || (res.EarlyExit && res.Valid > 0):
 		tb.Logf("[rapid] OK, passed %v tests (%v)", res.Valid, dt)
 	default:
 		tb.Errorf("[rapid] only generated %v valid tests from %v total (%v)", res.Valid, res.Valid+res.Invalid, dt)
@@ -216,7 +205,7 @@ func reproFlags(failPath string, seed uint64) string {
 type Result struct {
 	Valid     int
 	Invalid   int
-	EarlyExit bool     // the deadline stopped the search before checks valid test cases ran
+	EarlyExit bool     // a deadline stopped the search before Checks valid test cases ran
 	Seed      uint64   // the seed of the failing test case; 0 when it came from a fail file or nothing failed
 	FailFile  string   // the fail file the failure was replayed from
 	Buf       []uint64 // the failing test case, shrunk when the failure reproduced
@@ -225,9 +214,10 @@ type Result struct {
 }
 
 // Search looks for a test case run fails on: first in the fail file failPath and, with globFailFiles,
-// in every fail file saved for tb, then among checks test cases generated from seed, until deadline.
-// It replays a failure it finds, and shrinks it when the replay fails the same way.
-func Search(tb TB, deadline time.Time, checks int, seed uint64, failPath string, globFailFiles bool, run Run) Result {
+// in every fail file saved for tb, then among lim.Checks test cases generated from seed, until lim's search
+// deadline. It replays a failure it finds, and shrinks it until lim's shrink deadline when the replay fails
+// the same way. Every field of lim but SearchTime has to be set.
+func Search(tb TB, lim Limits, seed uint64, failPath string, globFailFiles bool, run Run) Result {
 	tb.Helper()
 
 	assert.Truef(!tb.Failed(), "check function called with *testing.T which has already failed")
@@ -250,7 +240,7 @@ func Search(tb TB, deadline time.Time, checks int, seed uint64, failPath string,
 		}
 	}
 
-	valid, invalid, earlyExit, seed, err1 := findBug(tb, v, deadline, checks, seed, run)
+	valid, invalid, earlyExit, seed, err1 := findBug(tb, v, lim.searchDeadline(time.Now()), lim.Checks, seed, run)
 	if err1 == nil {
 		return Result{Valid: valid, Invalid: invalid, EarlyExit: earlyExit}
 	}
@@ -263,7 +253,7 @@ func Search(tb TB, deadline time.Time, checks int, seed uint64, failPath string,
 	}
 
 	v.logf("[rapid] trying to minimize the failing test case")
-	buf, err3 := shrinkTestCase(tb, shrinkDeadline(deadline), s.Recorded, err2, run)
+	buf, err3 := shrinkTestCase(tb, lim.shrinkDeadline(), s.Recorded, err2, run)
 
 	return Result{Valid: valid, Invalid: invalid, Seed: seed, Buf: buf, Err1: err2, Err2: err3}
 }
