@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	. "go.sdls.io/rapid"
+	"go.sdls.io/rapid/internal/stattest"
 )
 
 func TestStringOfRunesIsUTF8(t *testing.T) {
@@ -90,5 +91,21 @@ func TestStringNMaxLen(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+// RuneFrom panics only on empty input or an empty table (strings.go:35), so any number of tables
+// alongside runes is valid, and every rune it draws comes from the runes or the tables.
+func TestRuneFromAcceptsAnyNumberOfTables(t *testing.T) {
+	t.Parallel()
+
+	tables := make([]*unicode.RangeTable, 100)
+	for idx := range tables {
+		tables[idx] = unicode.Cyrillic
+	}
+
+	r := RuneFrom([]rune{'a'}, tables...).Example(stattest.FixedSeed)
+	if r != 'a' && !unicode.Is(unicode.Cyrillic, r) {
+		t.Fatalf("got %q, neither 'a' nor Cyrillic", r)
 	}
 }
