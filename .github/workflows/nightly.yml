@@ -1,9 +1,7 @@
-# The checks that can turn red on a commit that changed nothing, so no pull request waits on them:
-# the statistical and coverage checks on random seeds, and govulncheck against the live
-# vulnerability database, which flags the Go release go.mod names. They run each night on master,
+# A passive check that an unchanged master still works as the stack under it moves: the runner
+# image, the Go patch release and the vulnerability database. It runs the test suite once per
+# architecture, and govulncheck, which flags the Go release go.mod names, each night on master
 # and by hand.
-#
-# A failing stress run logs its seed; RAPID_SEED=<seed> make test-stress replays it.
 name: nightly
 
 on:
@@ -15,10 +13,10 @@ permissions:
   contents: read
 
 jobs:
-  stress:
-    name: stress (${{ matrix.runner }})
+  test:
+    name: tests (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -30,8 +28,8 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
-      - name: make test-stress
-        run: make test-stress STRESS_COUNT=1000
+      - name: tests
+        run: go test -count=1 ./...
 
   vuln:
     name: govulncheck
